@@ -17,17 +17,24 @@ import {
   Sun,
   Moon,
   Monitor,
+  LogOut,
+  ChevronLeft,
+  Download,
+  Info,
+  Palette,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import clsx from "clsx";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const buckets = useAppSelector(selectWalletBuckets);
   const metrics = useAppSelector(selectInventoryMetrics);
   const phones = useAppSelector((state) => state.inventory.phones);
   const { mode, setMode, resolved } = useTheme();
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsView, setSettingsView] = useState<"main" | "theme">("main");
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // Close settings when clicking outside
@@ -38,6 +45,7 @@ export default function Dashboard() {
         !settingsRef.current.contains(e.target as Node)
       ) {
         setShowSettings(false);
+        setTimeout(() => setSettingsView("main"), 200); // Reset view after closing
       }
     };
     if (showSettings) document.addEventListener("mousedown", handler);
@@ -60,6 +68,11 @@ export default function Dashboard() {
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("stockflow_auth");
+    navigate("/login");
   };
 
   const recentPhones = [...phones]
@@ -102,30 +115,90 @@ export default function Dashboard() {
           </button>
 
           {showSettings && (
-            <div className="absolute top-full mt-2 right-0 bg-white dark:bg-slate-900 rounded-xl shadow-xl dark:shadow-black/40 border border-slate-100 dark:border-slate-800 overflow-hidden min-w-[160px] z-[60]">
-              <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  Appearance
-                </p>
-              </div>
-              {themeOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => {
-                    setMode(opt.value);
-                    setShowSettings(false);
-                  }}
-                  className={clsx(
-                    "w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-semibold transition-colors",
-                    mode === opt.value
-                      ? "bg-[#064a98]/10 text-[#064a98] dark:bg-blue-500/20 dark:text-blue-400"
-                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800",
-                  )}
-                >
-                  {opt.icon}
-                  {opt.label}
-                </button>
-              ))}
+            <div className="absolute top-full mt-2 right-0 bg-white dark:bg-slate-900 rounded-xl shadow-xl dark:shadow-black/40 border border-slate-100 dark:border-slate-800 overflow-hidden min-w-[180px] z-[60] transition-all">
+              {settingsView === "main" ? (
+                <>
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      Settings
+                    </p>
+                  </div>
+                  <div className="py-1">
+                    <button
+                      onClick={() => setSettingsView("theme")}
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Palette size={14} />
+                        Theme
+                      </div>
+                      <ChevronRight size={14} className="text-slate-400" />
+                    </button>
+                    <button
+                      onClick={() => alert("Export feature coming soon!")}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <Download size={14} />
+                      Export Data
+                    </button>
+                    <button
+                      onClick={() => alert("StockFlow v1.0.0")}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <Info size={14} />
+                      About App
+                    </button>
+                  </div>
+                  <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors pb-3"
+                    >
+                      <LogOut size={14} />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="px-2 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1">
+                    <button
+                      onClick={() => setSettingsView("main")}
+                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-500 transition-colors"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">
+                      Theme Selection
+                    </p>
+                  </div>
+                  <div className="py-1">
+                    {themeOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => {
+                          setMode(opt.value);
+                          setTimeout(() => setSettingsView("main"), 200); // Go back to main menu
+                        }}
+                        className={clsx(
+                          "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold transition-colors",
+                          mode === opt.value
+                            ? "bg-[#064a98]/10 text-[#064a98] dark:bg-blue-500/20 dark:text-blue-400"
+                            : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800",
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {opt.icon}
+                          {opt.label}
+                        </div>
+                        {mode === opt.value && (
+                          <div className="size-1.5 rounded-full bg-[#064a98] dark:bg-blue-400"></div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
