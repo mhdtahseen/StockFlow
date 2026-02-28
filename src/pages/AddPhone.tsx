@@ -15,6 +15,7 @@ import {
   addStorageOption,
 } from "../features/masterData/slice";
 import clsx from "clsx";
+import { toast } from "sonner";
 import { Phone } from "../features/inventory/types";
 import {
   Smartphone,
@@ -95,6 +96,9 @@ export default function AddPhone() {
     );
 
     navigate("/inventory");
+    toast.success("Device Added", {
+      description: `${data.brand} ${data.model} has been added to your pending inventory.`,
+    });
   };
 
   const toggleTag = (tag: string) => {

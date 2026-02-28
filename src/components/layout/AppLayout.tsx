@@ -1,6 +1,7 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { Home, List, Plus, Wallet, BarChart2 } from "lucide-react";
 import clsx from "clsx";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function AppLayout() {
   return (
@@ -8,6 +9,7 @@ export default function AppLayout() {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+      <Toaster />
 
       <nav className="fixed bottom-0 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 flex justify-around items-center h-16 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] dark:shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] z-50 transition-colors duration-300">
         <NavItem to="/" icon={<Home size={22} />} label="Home" />

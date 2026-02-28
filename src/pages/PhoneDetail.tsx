@@ -8,6 +8,7 @@ import {
 } from "../features/inventory/slice";
 import { addEntry } from "../features/ledger/slice";
 import { format, parseISO } from "date-fns";
+import { toast } from "sonner";
 import {
   ChevronLeft,
   CheckCircle2,
@@ -114,6 +115,9 @@ export default function PhoneDetail() {
     // 3. Update inventory status + price
     dispatch(markAsInStock({ id: phone.id, finalPrice }));
     setShowPurchaseModal(false);
+    toast.success("Purchase Confirmed", {
+      description: `${phone.brand} ${phone.model} moved to In Stock.`,
+    });
   };
 
   const handleConfirmSale = (e: React.FormEvent) => {
@@ -133,6 +137,9 @@ export default function PhoneDetail() {
     );
 
     setShowSaleModal(false);
+    toast.success("Sale Recorded", {
+      description: `${phone.brand} ${phone.model} sold for ₹${price}. Vault updated.`,
+    });
   };
 
   const statusConfig = {
@@ -340,6 +347,9 @@ export default function PhoneDetail() {
                       }),
                     );
                     navigate("/inventory");
+                    toast.error("Unit Rejected", {
+                      description: `${phone.brand} ${phone.model} removed from inventory. Escrowed funds released.`,
+                    });
                   }}
                   className="flex-[0.4] bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 font-bold py-3.5 rounded-xl border border-rose-200 dark:border-rose-800 active:bg-rose-50 transition-colors text-sm"
                 >

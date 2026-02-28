@@ -5,6 +5,7 @@ import {
   selectWalletBuckets,
 } from "../features/wallet/selectors";
 import { addEntry } from "../features/ledger/slice";
+import { toast } from "sonner";
 import {
   format,
   parseISO,
@@ -200,6 +201,17 @@ export default function Wallet() {
         createdAt: new Date().toISOString(),
       }),
     );
+
+    if (actionType === "ADD") {
+      toast.success("Funds Added", {
+        description: `₹${Number(addAmount)} added to your Available Cash.`,
+      });
+    } else {
+      toast.success("Funds Withdrawn", {
+        description: `₹${Number(addAmount)} removed from your Available Cash.`,
+      });
+    }
+
     setAddAmount("");
     setShowAddModal(false);
   };

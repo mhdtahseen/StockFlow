@@ -13,6 +13,7 @@ import {
   addIssueTag,
 } from "../features/masterData/slice";
 import clsx from "clsx";
+import { toast } from "sonner";
 import { Phone } from "../features/inventory/types";
 import {
   ChevronLeft,
@@ -74,7 +75,9 @@ export default function EditPhone() {
   if (!phone) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">
-        <p className="font-bold text-slate-700 dark:text-slate-300">Device not found</p>
+        <p className="font-bold text-slate-700 dark:text-slate-300">
+          Device not found
+        </p>
         <button
           onClick={() => navigate(-1)}
           className="mt-4 text-[#064a98] font-bold text-sm"
@@ -88,7 +91,9 @@ export default function EditPhone() {
   if (phone.status === "SOLD") {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">
-        <p className="font-bold text-slate-700 dark:text-slate-300">Cannot edit a sold device.</p>
+        <p className="font-bold text-slate-700 dark:text-slate-300">
+          Cannot edit a sold device.
+        </p>
         <button
           onClick={() => navigate(-1)}
           className="mt-4 text-[#064a98] font-bold text-sm"
@@ -150,6 +155,9 @@ export default function EditPhone() {
       }
     }
 
+    toast.success("Device Updated", {
+      description: `Changes to ${data.brand} ${data.model} saved successfully.`,
+    });
     navigate(`/inventory/${phone.id}`);
   };
 
