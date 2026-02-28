@@ -1,0 +1,490 @@
+import React, { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAppSelector, useAppDispatch } from "../app/hooks";
+import {
+  markAsInStock,
+  markAsSold,
+  removePhone,
+} from "../features/inventory/slice";
+import { addEntry } from "../features/ledger/slice";
+import { format, parseISO } from "date-fns";
+import {
+  ChevronLeft,
+  CheckCircle2,
+  DollarSign,
+  PenSquare,
+  Smartphone,
+  ShieldAlert,
+  TrendingUp,
+  Package,
+} from "lucide-react";
+import clsx from "clsx";
+
+export default function PhoneDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const phone = useAppSelector((state) =>
+    state.inventory.phones.find((p) => p.id === id),
+  );
+  const saleEntry = useAppSelector((state) =>
+    state.ledger.entries.find(
+      (e) => e.type === "PHONE_SALE" && e.referenceId === id,
+    ),
+  );
+
+  const [showSaleModal, setShowSaleModal] = useState(false);
+  const [salePriceInput, setSalePriceInput] = useState("");
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchasePriceInput, setPurchasePriceInput] = useState("");
+
+  if (!phone) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">
+        <Package size={48} strokeWidth={1} className="text-slate-300 mb-4" />
+        <p className="font-bold text-slate-700 dark:text-slate-300">
+          Device not found
+        </p>
+        <button
+          onClick={() => navigate(-1)}
+          className="mt-4 text-[#064a98] font-bold text-sm"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const expectedSalePrice = phone.purchasePrice * 1.25;
+  const marginPercentage = phone.salePrice
+    ? ((phone.salePrice - phone.purchasePrice) / phone.purchasePrice) * 100
+    : 25.0;
+
+  const handleConfirmPurchase = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!purchasePriceInput || Number(purchasePriceInput) <= 0) return;
+    const finalPrice = Number(purchasePriceInput);
+    const pledgedAmount = phone.purchasePrice; // original escrow amount
+    const now = new Date().toISOString();
+
+    // 1. Adjust escrow if final price differs from pledged amount
+    if (finalPrice > pledgedAmount) {
+      // Need more money — pledge the difference from wallet → lien
+      dispatch(
+        addEntry({
+          id: crypto.randomUUID(),
+          type: "FUNDS_PLEDGED",
+          referenceId: phone.id,
+          amount: finalPrice - pledgedAmount,
+          createdAt: now,
+        }),
+      );
+    } else if (finalPrice < pledgedAmount) {
+      // Overpledged — release the surplus from lien → wallet
+      dispatch(
+        addEntry({
+          id: crypto.randomUUID(),
+          type: "FUNDS_RELEASED",
+          referenceId: phone.id,
+          amount: pledgedAmount - finalPrice,
+          createdAt: now,
+        }),
+      );
+    }
+
+    // 2. Consume the final amount from lien → purchases
+    dispatch(
+      addEntry({
+        id: crypto.randomUUID(),
+        type: "FUNDS_CONSUMED",
+        referenceId: phone.id,
+        amount: finalPrice,
+        createdAt: now,
+      }),
+    );
+
+    // 3. Update inventory status + price
+    dispatch(markAsInStock({ id: phone.id, finalPrice }));
+    setShowPurchaseModal(false);
+  };
+
+  const handleConfirmSale = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!salePriceInput || Number(salePriceInput) <= 0) return;
+
+    const price = Number(salePriceInput);
+    dispatch(markAsSold({ id: phone.id, salePrice: price }));
+    dispatch(
+      addEntry({
+        id: crypto.randomUUID(),
+        type: "PHONE_SALE",
+        referenceId: phone.id,
+        amount: price,
+        createdAt: new Date().toISOString(),
+      }),
+    );
+
+    setShowSaleModal(false);
+  };
+
+  const statusConfig = {
+    PENDING: {
+      color:
+        "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+      label: "Pending Verification",
+    },
+    IN_STOCK: {
+      color:
+        "bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400 border-blue-200 dark:border-blue-800",
+      label: "In Stock",
+    },
+    SOLD: {
+      color:
+        "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+      label: "Sold",
+    },
+  };
+  const status = statusConfig[phone.status];
+
+  return (
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300">
+      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="size-10 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+          >
+            <ChevronLeft size={24} strokeWidth={2.5} />
+          </button>
+          <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Device Details
+          </h1>
+        </div>
+
+        {phone.status !== "SOLD" && (
+          <button
+            onClick={() => navigate(`/edit/${phone.id}`)}
+            className="text-[#064a98] dark:text-blue-400 font-bold text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors flex items-center gap-1.5"
+          >
+            <PenSquare size={16} /> Edit
+          </button>
+        )}
+      </header>
+
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-12 max-w-lg mx-auto w-full flex flex-col gap-5">
+        {/* Device Identity Card */}
+        <section className="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+          {phone.status === "SOLD" && (
+            <div className="absolute -right-4 -top-4 w-20 h-20 bg-emerald-50 rounded-full flex items-end justify-start p-5">
+              <CheckCircle2 size={22} className="text-emerald-500" />
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 mb-4">
+            <div
+              className={clsx(
+                "size-12 rounded-full flex items-center justify-center shrink-0",
+                phone.status === "SOLD"
+                  ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400"
+                  : phone.status === "IN_STOCK"
+                    ? "bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400"
+                    : "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400",
+              )}
+            >
+              <Smartphone size={22} />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                {phone.brand} {phone.model}
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                {phone.storage} • {phone.color} • {phone.ram}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span
+              className={clsx(
+                "text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border",
+                status.color,
+              )}
+            >
+              {status.label}
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
+              Added {format(parseISO(phone.createdAt), "MMM d, yyyy")}
+            </span>
+            {phone.status === "SOLD" && saleEntry && (
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                • Sold {format(parseISO(saleEntry.createdAt), "MMM d, yyyy")}
+              </span>
+            )}
+          </div>
+
+          {phone.issueTags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+              {phone.issueTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-2.5 py-1 bg-rose-50 dark:bg-rose-950 border border-rose-100 dark:border-rose-900 text-rose-700 dark:text-rose-400 text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1"
+                >
+                  <ShieldAlert size={12} /> {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Financial Breakdown */}
+        <section className="bg-white dark:bg-slate-900 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden">
+          <div className="p-5 border-b border-slate-50 dark:border-slate-800">
+            <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
+              <DollarSign size={16} className="text-[#064a98]" />
+              Financial Breakdown
+            </h3>
+          </div>
+
+          <div className="divide-y divide-slate-50 dark:divide-slate-800">
+            <div className="p-4 flex justify-between items-center">
+              <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                Purchase Cost
+              </span>
+              <span className="font-bold text-slate-900 dark:text-slate-100">
+                {formatCurrency(phone.purchasePrice)}
+              </span>
+            </div>
+
+            {phone.status === "SOLD" ? (
+              <div className="p-4 flex justify-between items-center">
+                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                  Sale Price
+                </span>
+                <span className="font-black text-xl text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(phone.salePrice!)}
+                </span>
+              </div>
+            ) : (
+              <div className="p-4 flex justify-between items-center">
+                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                  Projected Sale
+                </span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  {formatCurrency(expectedSalePrice)}
+                </span>
+              </div>
+            )}
+
+            <div className="p-4 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-full bg-blue-50 text-[#064a98] flex items-center justify-center">
+                  <TrendingUp size={16} />
+                </div>
+                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                  {phone.status === "SOLD" ? "Actual Margin" : "Est. Margin"}
+                </span>
+              </div>
+              <span
+                className={clsx(
+                  "font-black text-lg",
+                  phone.status === "SOLD"
+                    ? "text-emerald-600"
+                    : "text-[#064a98]",
+                )}
+              >
+                {marginPercentage.toFixed(1)}%
+              </span>
+            </div>
+
+            {phone.status === "SOLD" && phone.salePrice && (
+              <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/50 flex justify-between items-center">
+                <span className="text-emerald-700 dark:text-emerald-400 font-bold text-sm">
+                  Profit Realized
+                </span>
+                <span className="font-black text-lg text-emerald-600 dark:text-emerald-400">
+                  +{formatCurrency(phone.salePrice - phone.purchasePrice)}
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Status & Actions */}
+        <section className="flex flex-col gap-3">
+          {phone.status === "PENDING" && (
+            <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col gap-4">
+              <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-xl border border-amber-100 dark:border-amber-800">
+                <p className="text-amber-800 dark:text-amber-300 text-sm font-semibold">
+                  Verify device condition before finalizing purchase.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    dispatch(removePhone(phone.id));
+                    dispatch(
+                      addEntry({
+                        id: crypto.randomUUID(),
+                        type: "FUNDS_RELEASED",
+                        referenceId: phone.id,
+                        amount: Math.abs(phone.purchasePrice),
+                        createdAt: new Date().toISOString(),
+                      }),
+                    );
+                    navigate("/inventory");
+                  }}
+                  className="flex-[0.4] bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 font-bold py-3.5 rounded-xl border border-rose-200 dark:border-rose-800 active:bg-rose-50 transition-colors text-sm"
+                >
+                  Reject Unit
+                </button>
+                <button
+                  onClick={() => {
+                    setPurchasePriceInput(String(phone.purchasePrice));
+                    setShowPurchaseModal(true);
+                  }}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl shadow-sm active:scale-[0.98] transition-all text-sm"
+                >
+                  Confirm Purchase
+                </button>
+              </div>
+            </div>
+          )}
+
+          {phone.status === "IN_STOCK" && (
+            <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col gap-4">
+              <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                <p className="text-[#064a98] dark:text-blue-400 text-sm font-semibold">
+                  Device is currently in your active inventory.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSaleModal(true)}
+                className="w-full bg-[#064a98] hover:bg-blue-800 dark:hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all text-sm"
+              >
+                Mark as Sold
+              </button>
+            </div>
+          )}
+
+          {phone.status === "SOLD" && (
+            <div className="bg-emerald-50 dark:bg-emerald-950 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800 flex items-center justify-center">
+              <p className="text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider text-sm flex items-center gap-2">
+                <CheckCircle2 size={18} /> Transaction Complete
+              </p>
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* Sale Modal */}
+      {showSaleModal && (
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1 tracking-tight">
+              Record Sale
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">
+              Enter the final sale price for this device.
+            </p>
+
+            <form onSubmit={handleConfirmSale}>
+              <div className="relative mb-6">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">
+                  ₹
+                </span>
+                <input
+                  type="number"
+                  autoFocus
+                  required
+                  min="1"
+                  step="0.01"
+                  value={salePriceInput}
+                  onChange={(e) => setSalePriceInput(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-4 pl-10 outline-none focus:border-[#064a98] dark:focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all text-2xl font-bold text-slate-900 dark:text-slate-100"
+                  placeholder={expectedSalePrice.toFixed(0)}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSaleModal(false)}
+                  className="flex-[0.5] py-3.5 font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3.5 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-all"
+                >
+                  Confirm Sale
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Purchase Confirmation Modal */}
+      {showPurchaseModal && (
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl dark:shadow-black/40 border border-transparent dark:border-slate-800">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1 tracking-tight">
+              Confirm Purchase
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1 font-medium">
+              Enter the final price paid for this device.
+            </p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mb-6 font-medium">
+              Negotiated:{" "}
+              <span className="font-bold text-slate-600 dark:text-slate-300">
+                {formatCurrency(phone.purchasePrice)}
+              </span>
+            </p>
+
+            <form onSubmit={handleConfirmPurchase}>
+              <div className="relative mb-6">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-bold text-xl">
+                  ₹
+                </span>
+                <input
+                  type="number"
+                  autoFocus
+                  required
+                  min="1"
+                  step="0.01"
+                  value={purchasePriceInput}
+                  onChange={(e) => setPurchasePriceInput(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-4 pl-10 outline-none focus:border-amber-500 dark:focus:border-amber-400 focus:bg-white dark:focus:bg-slate-800 transition-all text-2xl font-bold text-slate-900 dark:text-slate-100"
+                  placeholder={String(phone.purchasePrice)}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPurchaseModal(false)}
+                  className="flex-[0.5] py-3.5 font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3.5 font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all"
+                >
+                  Confirm & Add to Stock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
