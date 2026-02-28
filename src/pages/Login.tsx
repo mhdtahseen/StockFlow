@@ -93,7 +93,7 @@ export default function Login() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -102,6 +102,10 @@ export default function Login() {
                     id="email"
                     type="email"
                     placeholder="admin@test.com"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
                     className={`pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 ${errors.email ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
                     {...register("email")}
                   />
@@ -120,6 +124,10 @@ export default function Login() {
                     id="password"
                     type="password"
                     placeholder="••••••••"
+                    autoComplete="new-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
                     className={`pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 ${errors.password ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
                     {...register("password")}
                   />
@@ -131,7 +139,8 @@ export default function Login() {
                 )}
               </div>
               <Button
-                type="submit"
+                type="button"
+                onClick={handleSubmit(onSubmit)}
                 disabled={isLoading}
                 className="w-full bg-[#064a98] hover:bg-blue-800 text-white font-semibold py-2.5 mt-2 transition-all active:scale-[0.98]"
               >
@@ -144,7 +153,7 @@ export default function Login() {
                   "Sign In"
                 )}
               </Button>
-            </form>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col justify-center">
             <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-4">
