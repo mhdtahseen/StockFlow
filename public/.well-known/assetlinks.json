@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.stock_flow_pwa.twa",
+      "sha256_cert_fingerprints": [
+        "DD:5B:1F:58:AF:CB:EF:77:2D:42:19:EC:77:BD:32:2E:FD:4F:F8:8D:1F:97:94:12:CD:57:4E:DA:AC:27:16:F8"
+      ]
+    }
+  }
+]
