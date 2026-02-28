@@ -26,6 +26,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import clsx from "clsx";
+import ExportModal from "../components/shared/ExportModal";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const phones = useAppSelector((state) => state.inventory.phones);
   const { mode, setMode, resolved } = useTheme();
   const [showSettings, setShowSettings] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [settingsView, setSettingsView] = useState<"main" | "theme">("main");
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -135,7 +137,10 @@ export default function Dashboard() {
                       <ChevronRight size={14} className="text-slate-400" />
                     </button>
                     <button
-                      onClick={() => alert("Export feature coming soon!")}
+                      onClick={() => {
+                        setShowSettings(false);
+                        setShowExportModal(true);
+                      }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     >
                       <Download size={14} />
@@ -451,6 +456,11 @@ export default function Dashboard() {
           </section>
         )}
       </main>
+
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
     </div>
   );
 }
