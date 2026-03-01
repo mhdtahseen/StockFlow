@@ -9,6 +9,9 @@ const inventorySlice = createSlice({
   name: "inventory",
   initialState,
   reducers: {
+    setPhones: (state, action: PayloadAction<Phone[]>) => {
+      state.phones = action.payload;
+    },
     addPhone: (state, action: PayloadAction<Phone>) => {
       state.phones.push(action.payload);
     },
@@ -44,6 +47,12 @@ const inventorySlice = createSlice({
   },
 });
 
-export const { addPhone, updatePhone, removePhone, markAsInStock, markAsSold } =
-  inventorySlice.actions;
+export const {
+  setPhones,
+  addPhone,
+  updatePhone,
+  removePhone,
+  markAsInStock,
+  markAsSold,
+} = inventorySlice.actions;
 export default inventorySlice.reducer;

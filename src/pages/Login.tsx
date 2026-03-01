@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 import {
   Card,
   CardContent,
@@ -49,18 +50,31 @@ export default function Login() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    if (data.email === "admin@test.com" && data.password === "password#123") {
-      localStorage.setItem("stockflow_auth", "true");
-      toast.success("Login Successful", {
-        description: "Welcome back to StockFlow.",
+    try {
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
       });
-      navigate("/");
-    } else {
-      toast.error("Authentication Failed", {
-        description: "Invalid email or password. Please try again.",
+
+      if (error) {
+        toast.error("Authentication Failed", {
+          description:
+            error.message || "Invalid email or password. Please try again.",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (authData.session) {
+        localStorage.setItem("stockflow_auth", "true");
+        toast.success("Login Successful", {
+          description: "Welcome back to StockFlow.",
+        });
+        navigate("/");
+      }
+    } catch (err: any) {
+      toast.error("Error", {
+        description: err.message || "An unexpected error occurred.",
       });
       setIsLoading(false);
     }

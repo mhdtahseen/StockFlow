@@ -9,6 +9,9 @@ const ledgerSlice = createSlice({
   name: "ledger",
   initialState,
   reducers: {
+    setEntries: (state, action: PayloadAction<LedgerEntry[]>) => {
+      state.entries = action.payload;
+    },
     addEntry: (state, action: PayloadAction<LedgerEntry>) => {
       state.entries.push(action.payload);
     },
@@ -20,5 +23,5 @@ const ledgerSlice = createSlice({
   },
 });
 
-export const { addEntry, removeEntry } = ledgerSlice.actions;
+export const { setEntries, addEntry, removeEntry } = ledgerSlice.actions;
 export default ledgerSlice.reducer;

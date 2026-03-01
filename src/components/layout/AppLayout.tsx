@@ -2,11 +2,29 @@ import { Outlet, NavLink } from "react-router-dom";
 import { Home, List, Plus, Wallet, BarChart2 } from "lucide-react";
 import clsx from "clsx";
 import { Toaster } from "@/components/ui/sonner";
+import { useOfflineSyncManager } from "@/app/useOfflineSyncManager";
+import { Loader2 } from "lucide-react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/app/store";
 
 export default function AppLayout() {
+  const { isSyncing } = useOfflineSyncManager();
+  const isOnline = useSelector((state: RootState) => state.sync.isOnline);
+  const outboxCount = useSelector(
+    (state: RootState) => state.sync.outbox.length,
+  );
+
+  if (isSyncing) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="h-8 w-8 animate-spin text-[#064a98] dark:text-blue-500" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-16 font-sans antialiased transition-colors duration-300">
-      <main className="flex-1 overflow-y-auto">
+    <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
+      <main className="flex-1 overflow-y-auto pb-16">
         <Outlet />
       </main>
       <Toaster />

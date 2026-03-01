@@ -41,6 +41,29 @@ const masterDataSlice = createSlice({
   name: "masterData",
   initialState,
   reducers: {
+    setAll: (state, action: PayloadAction<MasterDataState>) => {
+      state.brands = Array.from(
+        new Set([...initialState.brands, ...action.payload.brands]),
+      );
+      state.models = Array.from(
+        new Set([...initialState.models, ...action.payload.models]),
+      );
+      state.ramOptions = Array.from(
+        new Set([...initialState.ramOptions, ...action.payload.ramOptions]),
+      );
+      state.storageOptions = Array.from(
+        new Set([
+          ...initialState.storageOptions,
+          ...action.payload.storageOptions,
+        ]),
+      );
+      state.colorOptions = Array.from(
+        new Set([...initialState.colorOptions, ...action.payload.colorOptions]),
+      );
+      state.issueTags = Array.from(
+        new Set([...initialState.issueTags, ...action.payload.issueTags]),
+      );
+    },
     addBrand: (state, action: PayloadAction<string>) => {
       if (!state.brands.includes(action.payload))
         state.brands.push(action.payload);
@@ -69,6 +92,7 @@ const masterDataSlice = createSlice({
 });
 
 export const {
+  setAll,
   addBrand,
   addModel,
   addRamOption,

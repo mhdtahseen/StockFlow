@@ -14,16 +14,10 @@ import {
 import { toast } from "sonner";
 import { Phone } from "../features/inventory/types";
 import {
-  getBrandOptions,
-  getModelOptions,
-  getRamOptions,
-  getStorageOptions,
-  getColorOptions,
-  isCatalogBrand,
-  isCatalogModel,
+  useDeviceCatalog,
   sortBySize,
   type ColorOption,
-} from "../lib/catalogHelpers";
+} from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
 import clsx from "clsx";
 import {
@@ -65,15 +59,22 @@ function validate(
 
 // ─── Static options (computed once at module level, never on render) ──────────
 
-/** All brand names from the catalog — computed once. */
-const CATALOG_BRANDS = getBrandOptions();
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AddPhone() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const masterData = useAppSelector((state) => state.masterData);
+
+  const {
+    getBrandOptions,
+    getModelOptions,
+    getRamOptions,
+    getStorageOptions,
+    getColorOptions,
+    isCatalogBrand,
+    isCatalogModel,
+  } = useDeviceCatalog();
 
   // ── Form state (controlled, not RHF — gives us full sync control) ──
   const [brand, setBrand] = useState("");
@@ -91,33 +92,39 @@ export default function AddPhone() {
   // ─── Derived options (memoized, catalog-only) ───────────────────────────────
 
   /** Brand list — catalog only, computed once */
-  const brandOptions = useMemo<string[]>(() => CATALOG_BRANDS, []);
+  const brandOptions = useMemo<string[]>(
+    () => getBrandOptions(),
+    [getBrandOptions],
+  );
 
   /** Model list — only recomputed when brand changes */
-  const modelOptions = useMemo<string[]>(() => getModelOptions(brand), [brand]);
+  const modelOptions = useMemo<string[]>(
+    () => getModelOptions(brand),
+    [brand, getModelOptions],
+  );
 
   /** RAM options — recomputed only when brand+model change */
   const ramOptions = useMemo<string[]>(
     () => sortBySize(getRamOptions(brand, model)),
-    [brand, model],
+    [brand, model, getRamOptions],
   );
 
   /** Storage options — recomputed only when brand+model change */
   const storageOptions = useMemo<string[]>(
     () => sortBySize(getStorageOptions(brand, model)),
-    [brand, model],
+    [brand, model, getStorageOptions],
   );
 
   /** Color options — recomputed only when brand+model change */
   const colorOptions = useMemo<ColorOption[]>(
     () => getColorOptions(brand, model),
-    [brand, model],
+    [brand, model, getColorOptions],
   );
 
   // true only if the selected model is fully in the catalog (enables model-locked dropdowns)
   const modelInCatalog = useMemo(
     () => isCatalogModel(brand, model),
-    [brand, model],
+    [brand, model, isCatalogModel],
   );
 
   // ─── Brand change → reset all downstream fields ───────────────────────────

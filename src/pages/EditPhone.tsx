@@ -14,16 +14,10 @@ import {
 import { toast } from "sonner";
 import { Phone } from "../features/inventory/types";
 import {
-  getBrandOptions,
-  getModelOptions,
-  getRamOptions,
-  getStorageOptions,
-  getColorOptions,
-  isCatalogBrand,
-  isCatalogModel,
+  useDeviceCatalog,
   sortBySize,
   type ColorOption,
-} from "../lib/catalogHelpers";
+} from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
 import clsx from "clsx";
 import {
@@ -64,8 +58,6 @@ function validate(
 }
 
 // ─── Static (computed once) ──────────────────────────────────────────────────
-
-const CATALOG_BRANDS = getBrandOptions();
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -123,6 +115,16 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
   const masterData = useAppSelector((state) => state.masterData);
 
   // ── Form state (pre-populated from existing phone) ─────────────────────────
+  const {
+    getBrandOptions,
+    getModelOptions,
+    getRamOptions,
+    getStorageOptions,
+    getColorOptions,
+    isCatalogBrand,
+    isCatalogModel,
+  } = useDeviceCatalog();
+
   const [brand, setBrand] = useState(phone.brand);
   const [model, setModel] = useState(phone.model);
   const [ram, setRam] = useState(phone.ram === "N/A" ? "" : phone.ram);
@@ -137,28 +139,34 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
 
   // ─── Derived options (memoized, catalog-only) ──────────────────────────────
 
-  const brandOptions = useMemo<string[]>(() => CATALOG_BRANDS, []);
+  const brandOptions = useMemo<string[]>(
+    () => getBrandOptions(),
+    [getBrandOptions],
+  );
 
-  const modelOptions = useMemo<string[]>(() => getModelOptions(brand), [brand]);
+  const modelOptions = useMemo<string[]>(
+    () => getModelOptions(brand),
+    [brand, getModelOptions],
+  );
 
   const ramOptions = useMemo<string[]>(
     () => sortBySize(getRamOptions(brand, model)),
-    [brand, model],
+    [brand, model, getRamOptions],
   );
 
   const storageOptions = useMemo<string[]>(
     () => sortBySize(getStorageOptions(brand, model)),
-    [brand, model],
+    [brand, model, getStorageOptions],
   );
 
   const colorOptions = useMemo<ColorOption[]>(
     () => getColorOptions(brand, model),
-    [brand, model],
+    [brand, model, getColorOptions],
   );
 
   const modelInCatalog = useMemo(
     () => isCatalogModel(brand, model),
-    [brand, model],
+    [brand, model, isCatalogModel],
   );
 
   // ─── Cascading resets ─────────────────────────────────────────────────────

@@ -8,11 +8,22 @@ import EditPhone from "./pages/EditPhone";
 import Wallet from "./pages/Wallet";
 import Analytics from "./pages/Analytics";
 import Login from "./pages/Login";
+import { useAuth } from "./context/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = localStorage.getItem("stockflow_auth") === "true";
+  const { session, isLoading } = useAuth();
+  const hasLocalFlag = localStorage.getItem("stockflow_auth") === "true";
 
-  if (!isAuthenticated) {
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="h-8 w-8 animate-spin text-[#064a98] dark:text-blue-500" />
+      </div>
+    );
+  }
+
+  if (!session && !hasLocalFlag) {
     return <Navigate to="/login" replace />;
   }
 

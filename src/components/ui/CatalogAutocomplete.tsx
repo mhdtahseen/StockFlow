@@ -20,7 +20,7 @@ import React, {
 } from "react";
 import { Check } from "lucide-react";
 import clsx from "clsx";
-import { ColorOption } from "../../lib/catalogHelpers";
+import { ColorOption } from "@/hooks/useDeviceCatalog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

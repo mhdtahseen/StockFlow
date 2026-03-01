@@ -10,15 +10,18 @@ import {
   REGISTER,
 } from "redux-persist";
 import localforage from "localforage";
+import { supabaseMiddleware } from "./supabaseMiddleware";
 
 import inventoryReducer from "../features/inventory/slice";
 import ledgerReducer from "../features/ledger/slice";
 import masterDataReducer from "../features/masterData/slice";
+import syncReducer from "../features/sync/slice";
 
 const rootReducer = combineReducers({
   inventory: inventoryReducer,
   ledger: ledgerReducer,
   masterData: masterDataReducer,
+  sync: syncReducer,
 });
 
 const persistConfig = {
@@ -36,7 +39,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }),
+    }).concat(supabaseMiddleware as any),
 });
 
 export const persistor = persistStore(store);

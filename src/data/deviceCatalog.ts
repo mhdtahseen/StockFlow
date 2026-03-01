@@ -9,7 +9,7 @@ type ModelSpec = {
   colors: ColorOption[];
 };
 
-type BrandCatalog = Record<
+export type BrandCatalog = Record<
   string, // brand name e.g. "Oppo"
   {
     models: Record<string, ModelSpec>; // model name e.g. "Oppo F1"
