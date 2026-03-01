@@ -29,17 +29,17 @@ export function useOfflineSyncManager() {
   useEffect(() => {
     const handleOnline = () => {
       dispatch(setOnlineStatus(true));
-      toast.success("Back Online", {
+      toast.success("System Online", {
         description:
-          "Your connection has been restored. Syncing pending data...",
+          "Connection restored. Synchronizing pending transactions with the server.",
       });
     };
 
     const handleOffline = () => {
       dispatch(setOnlineStatus(false));
-      toast.error("Offline", {
+      toast.error("System Offline", {
         description:
-          "You are currently offline. Changes will be saved locally.",
+          "Connection lost. Operating in offline mode. Data is securely saved on this device.",
       });
     };
 
