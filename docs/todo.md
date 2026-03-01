@@ -21,9 +21,14 @@ _Note: RLS (Row Level Security) is mapped out in the database to prevent unautho
 ### 3. Data Export / Offline Sync (PWA Enhancements)
 
 - [ ] **Financial Ledgers CSV:** Hook up the "Export Financial ledgers" button in `Settings.tsx` to actually download a CSV parsed from the Redux `ledger` state.
-- [ ] **Background Syncing:** Implement the Service Worker logic to handle offline mutations so that actions taken while offline perfectly sync when re-connecting.
 
 ### 4. Final Code Quality & Audit
 
 - [ ] Check for any unresolved TypeScript `any` types that can be strictly defined.
 - [ ] End-to-End test of the "Invite Associate" flow via the sent email link to ensure the `tenant_id` perfectly bridges to the new user.
+
+## 🚀 Release v2 Roadmap
+
+### 1. Advanced Offline & PWA Features
+
+- [ ] **Service Worker Background Sync API:** Implement true background syncing so offline actions auto-upload to Supabase even when the app is completely closed or swiped away.
