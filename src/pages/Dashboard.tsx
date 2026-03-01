@@ -519,7 +519,7 @@ export default function Dashboard() {
         isOpen={showComingSoon}
         onClose={() => setShowComingSoon(false)}
         title="Notifications Coming Soon"
-        description="We are integrating real-time streaming notifications from Supabase to alert you of new sales and updates. Stay tuned!"
+        description="We are integrating real-time streaming notifications to alert you of alerts and updates. Stay tuned!"
       />
     </div>
   );
