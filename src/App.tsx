@@ -15,7 +15,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
   const hasLocalFlag = localStorage.getItem("stockflow_auth") === "true";
 
-  if (isLoading) {
+  if (isLoading && !hasLocalFlag) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
         <Loader2 className="h-8 w-8 animate-spin text-[#064a98] dark:text-blue-500" />

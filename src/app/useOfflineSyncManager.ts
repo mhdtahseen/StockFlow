@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { RootState } from "./store";
+import { RootState, store } from "./store";
 import { Phone } from "@/features/inventory/types";
 import { LedgerEntry } from "@/features/ledger/types";
 import {
@@ -128,7 +128,10 @@ export function useOfflineSyncManager() {
             issueTags: p.issue_tags,
             createdAt: p.created_at,
           }));
-          dispatch({ type: "inventory/setPhones", payload: phones });
+          // ONLY OVERWRITE IF NO MUTATIONS OCCURRED DURING FETCH
+          if (store.getState().sync.outbox.length === 0) {
+            dispatch({ type: "inventory/setPhones", payload: phones });
+          }
         }
 
         // Fetch Ledger
@@ -145,7 +148,9 @@ export function useOfflineSyncManager() {
             amount: e.amount,
             createdAt: e.created_at,
           }));
-          dispatch({ type: "ledger/setEntries", payload: entries });
+          if (store.getState().sync.outbox.length === 0) {
+            dispatch({ type: "ledger/setEntries", payload: entries });
+          }
         }
 
         // Fetch Master Data
@@ -169,17 +174,19 @@ export function useOfflineSyncManager() {
             }
           });
 
-          dispatch({
-            type: "masterData/setAll",
-            payload: {
-              brands: categorized.brand,
-              models: categorized.model,
-              ramOptions: categorized.ram,
-              storageOptions: categorized.storage,
-              colorOptions: categorized.color,
-              issueTags: categorized.issue_tag,
-            },
-          });
+          if (store.getState().sync.outbox.length === 0) {
+            dispatch({
+              type: "masterData/setAll",
+              payload: {
+                brands: categorized.brand,
+                models: categorized.model,
+                ramOptions: categorized.ram,
+                storageOptions: categorized.storage,
+                colorOptions: categorized.color,
+                issueTags: categorized.issue_tag,
+              },
+            });
+          }
         }
       } catch (err) {
         console.error("Error fetching initial data from Supabase:", err);

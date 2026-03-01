@@ -14,13 +14,8 @@ export default function AppLayout() {
     (state: RootState) => state.sync.outbox.length,
   );
 
-  if (isSyncing) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-[#064a98] dark:text-blue-500" />
-      </div>
-    );
-  }
+  // We no longer block the UI with isSyncing to achieve a true Offline-First UX.
+  // The Redux store is hydrated instantly, and background sync happens silently.
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
