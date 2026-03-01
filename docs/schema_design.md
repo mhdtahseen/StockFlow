@@ -33,6 +33,7 @@
 | `masterData.*`     | `master_data`          | Per-tenant                 |
 | `deviceCatalog.ts` | `catalog_models`       | Global                     |
 | —                  | `catalog_model_colors` | Global                     |
+| —                  | `notifications`        | Per-user, scoped to tenant |
 
 ---
 
@@ -675,3 +676,38 @@ The existing `deviceCatalog.ts` will be parsed into SQL:
 | -------------- | -------------------------------------------------------- |
 | Wallet buckets | Computed from ledger via selectors — not stored          |
 | Analytics      | Computed from phones + ledger via selectors — not stored |
+
+---
+
+## 8. Table: `notifications`
+
+Each row bounds to a tenant and is targeted toward a specific user for real-time alerts.
+
+```sql
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('PHONE_SOLD', 'ROLE_PROMOTED', 'LEDGER_ENTRY', 'SYSTEM_ALERT')),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    reference_id UUID,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- RLS
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users view own notifications"
+    ON notifications FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert for their tenant"
+    ON notifications FOR INSERT
+    WITH CHECK (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
+
+CREATE POLICY "Users update own notifications"
+    ON notifications FOR UPDATE
+    USING (auth.uid() = user_id);
+```

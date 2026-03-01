@@ -17,6 +17,7 @@ import SettingsPage from "./pages/Settings";
 import AboutApp from "./pages/AboutApp";
 import { useAuth } from "./context/AuthContext";
 import { Loader2 } from "lucide-react";
+import IosInstallPrompt from "./components/shared/IosInstallPrompt";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
@@ -67,6 +68,7 @@ function App() {
           <Route path="about" element={<AboutApp />} />
         </Route>
       </Routes>
+      <IosInstallPrompt />
     </BrowserRouter>
   );
 }

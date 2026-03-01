@@ -15,7 +15,8 @@ import {
   Smartphone,
   History,
   ChevronRight,
-  Settings,
+  Settings2,
+  Bell,
   Sun,
   Moon,
   Monitor,
@@ -31,6 +32,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import clsx from "clsx";
 import ExportModal from "../components/shared/ExportModal";
+import NotificationsPopover from "../components/shared/NotificationsPopover";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -115,12 +117,14 @@ export default function Dashboard() {
             Smart Manager
           </p>
         </div>
-        <div className="relative" ref={settingsRef}>
+        <div className="flex items-center gap-3 relative" ref={settingsRef}>
+          <NotificationsPopover />
+
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors relative"
           >
-            <Settings
+            <Settings2
               size={18}
               className="text-slate-600 dark:text-slate-400"
             />
@@ -181,7 +185,7 @@ export default function Dashboard() {
                       className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     >
                       <div className="flex items-center gap-2.5">
-                        <Settings size={14} />
+                        <Settings2 size={14} />
                         Settings
                       </div>
                       <ChevronRight size={14} className="text-slate-400" />

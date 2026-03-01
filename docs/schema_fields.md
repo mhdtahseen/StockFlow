@@ -187,3 +187,21 @@ Each row = one color for a specific model. Separate table because colors have st
 | `master_data`          | Tens per tenant                 | Custom values, slow growth           |
 | `catalog_models`       | ~500+ (seeded)                  | New phone releases                   |
 | `catalog_model_colors` | ~2,000+ (seeded)                | ~4 colors per model                  |
+
+---
+
+## 8. `notifications` — Real-Time Alert System
+
+Each row = one system-generated or user-generated alert. Scoped to a tenant and targeted to a specific user.
+
+| Column         | Type          | Nullable | Default             | Constraint                                  | Purpose                                                                                     |
+| -------------- | ------------- | -------- | ------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `id`           | `UUID`        | ❌       | `gen_random_uuid()` | **PRIMARY KEY**                             | Unique notification identifier.                                                             |
+| `tenant_id`    | `UUID`        | ❌       | —                   | **FK → `tenants(id)` ON DELETE CASCADE**    | Which shop this alert belongs to.                                                           |
+| `user_id`      | `UUID`        | ❌       | —                   | **FK → `auth.users(id)` ON DELETE CASCADE** | Who this notification is for. Important for individual unread states.                       |
+| `type`         | `TEXT`        | ❌       | —                   | `CHECK (type IN (...))`                     | Alert category (e.g. `PHONE_SOLD`, `ROLE_PROMOTED`, `LEDGER_ENTRY`, `SYSTEM_ALERT`).        |
+| `title`        | `TEXT`        | ❌       | —                   | —                                           | Short headline for the notification.                                                        |
+| `message`      | `TEXT`        | ❌       | —                   | —                                           | Detailed description of the event.                                                          |
+| `reference_id` | `UUID`        | ✅       | `NULL`              | —                                           | Optional ID linking back to a specific entity (e.g., phone ID, ledger ID) for deep-linking. |
+| `read_at`      | `TIMESTAMPTZ` | ✅       | `NULL`              | —                                           | Tracks read state. If `NULL`, the notification is unread.                                   |
+| `created_at`   | `TIMESTAMPTZ` | ❌       | `now()`             | —                                           | When this alert was generated.                                                              |
