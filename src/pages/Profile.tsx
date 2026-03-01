@@ -36,7 +36,7 @@ import { botttsNeutral } from "@dicebear/collection";
 
 // Generator helper to create unique avatar arrays dynamically
 const generateRandomAvatars = () => {
-  return Array.from({ length: 12 }).map(() => {
+  return Array.from({ length: 16 }).map(() => {
     const randomSeed = Math.random().toString(36).substring(2, 10);
     return createAvatar(botttsNeutral, {
       seed: randomSeed,
@@ -229,7 +229,7 @@ export default function ProfilePage() {
                   value={email}
                   readOnly
                   disabled
-                  className="pl-10 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 cursor-not-allowed"
+                  className="pl-10 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 opacity-100 cursor-not-allowed"
                 />
               </div>
               <p className="text-[10px] text-slate-400">

@@ -24,7 +24,8 @@ export default function IosInstallPrompt() {
     const checkAndShow = () => {
       const dismissedAt = localStorage.getItem("ios_install_dismissed_at");
       const isRecentlyDismissed =
-        dismissedAt && Date.now() - parseInt(dismissedAt) < 2 * 60 * 1000; // 2 minutes
+        dismissedAt &&
+        Date.now() - parseInt(dismissedAt) < 7 * 24 * 60 * 60 * 1000; // 7 days
 
       if (isIos() && !isStandalone() && !isRecentlyDismissed) {
         setIsVisible(true);
