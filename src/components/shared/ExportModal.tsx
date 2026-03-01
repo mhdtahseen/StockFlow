@@ -3,6 +3,7 @@ import { Download, X } from "lucide-react";
 import { useAppSelector } from "../../app/hooks";
 import { selectLedgerEntries } from "../../features/wallet/selectors";
 import { generateExport } from "../../utils/export";
+import { toast } from "sonner";
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -20,8 +21,20 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   if (!isOpen) return null;
 
   const handleExport = () => {
-    generateExport(phones, ledgerEntries, period);
-    onClose();
+    try {
+      generateExport(phones, ledgerEntries, period);
+      toast.success("Export Complete", {
+        description: "Your spreadsheet download should begin immediately.",
+      });
+      onClose();
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Export Failed", {
+        description:
+          error?.message ||
+          "An unexpected error occurred building the spreadsheet.",
+      });
+    }
   };
 
   return (

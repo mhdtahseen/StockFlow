@@ -148,6 +148,53 @@ export const generateExport = (
     return row;
   });
 
+  // Guard against completely empty arrays which crash XLSX
+  if (ledgerData.length === 0)
+    ledgerData.push({
+      Date: "-",
+      "Transaction Type": "-",
+      Reference: "-",
+      Amount: 0,
+      "Running Balance": 0,
+    } as any);
+  if (inventoryData.length === 0)
+    inventoryData.push({
+      Brand: "-",
+      Model: "-",
+      RAM: "-",
+      Storage: "-",
+      Color: "-",
+      "Purchase Price": 0,
+      "Sale Price": "-",
+      Status: "-",
+      "Profit/Loss": "-",
+      "Issue Tags": "-",
+      "Created Date": "-",
+    } as any);
+  if (soldData.length === 0)
+    soldData.push({
+      Brand: "-",
+      Model: "-",
+      RAM: "-",
+      Storage: "-",
+      Color: "-",
+      "Purchase Price": 0,
+      "Sale Price": "-",
+      Status: "-",
+      "Profit/Loss": "-",
+      "Issue Tags": "-",
+      "Created Date": "-",
+    } as any);
+  if (cashflowData.length === 0)
+    cashflowData.push({
+      Period: "-",
+      "Beginning Balance": 0,
+      "Total Cash In": 0,
+      "Total Cash Out": 0,
+      "Net Change": 0,
+      "Ending Balance": 0,
+    } as any);
+
   // Create workbook and append sheets
   const wb = XLSX.utils.book_new();
 
@@ -165,5 +212,15 @@ export const generateExport = (
 
   // Output file
   const timestamp = format(new Date(), "yyyyMMdd_HHmmss");
-  XLSX.writeFile(wb, `StockFlow_Export_${timestamp}.xlsx`);
+
+  // Use base64 approach to bypass buffer/array issues in Vite
+  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+  const a = document.createElement("a");
+  a.href =
+    "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," +
+    wbout;
+  a.download = `StockFlow_Export_${timestamp}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 };
