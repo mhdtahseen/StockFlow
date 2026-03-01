@@ -39,6 +39,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
+      immutableCheck: false, // Disabling as per warning for large states
     }).concat(supabaseMiddleware as any),
 });
 

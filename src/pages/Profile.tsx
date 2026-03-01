@@ -67,7 +67,7 @@ export default function ProfilePage() {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("full_name, avatar_url, email, raw_user_meta_data")
+          .select("full_name, avatar_url, email")
           .eq("id", session.user.id)
           .single();
 
@@ -77,7 +77,7 @@ export default function ProfilePage() {
           setFullName(data.full_name || "");
           setAvatarUrl(data.avatar_url || "");
           setEmail(data.email || session.user.email || "");
-          setPhone(data.raw_user_meta_data?.phone || "");
+          setPhone(session.user.user_metadata?.phone || "");
         }
       } catch (err: any) {
         toast.error("Error loading profile", { description: err.message });
