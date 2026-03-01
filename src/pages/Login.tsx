@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import {
@@ -169,10 +169,16 @@ export default function Login() {
               </Button>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col justify-center">
-            <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-4">
-              Secure access for verified personnel only.
-            </p>
+          <CardFooter className="flex flex-col space-y-4 justify-center pb-6">
+            <div className="text-sm text-slate-500 dark:text-slate-400">
+              Don't have an account?{" "}
+              <Link
+                to="/signup"
+                className="text-[#064a98] dark:text-blue-500 hover:underline font-medium"
+              >
+                Create one
+              </Link>
+            </div>
           </CardFooter>
         </Card>
       </div>

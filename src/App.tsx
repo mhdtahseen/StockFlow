@@ -8,6 +8,7 @@ import EditPhone from "./pages/EditPhone";
 import Wallet from "./pages/Wallet";
 import Analytics from "./pages/Analytics";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import { useAuth } from "./context/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -35,6 +36,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
         <Route
           path="/"
