@@ -32,7 +32,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import clsx from "clsx";
 import ExportModal from "../components/shared/ExportModal";
-import NotificationsPopover from "../components/shared/NotificationsPopover";
+import ComingSoonModal from "../components/shared/ComingSoonModal";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -43,6 +43,7 @@ export default function Dashboard() {
   const { session } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
   const [settingsView, setSettingsView] = useState<"main" | "theme">("main");
   const settingsRef = useRef<HTMLDivElement>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -118,7 +119,13 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3 relative" ref={settingsRef}>
-          <NotificationsPopover />
+          <button
+            onClick={() => setShowComingSoon(true)}
+            className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors relative"
+          >
+            <Bell size={18} className="text-slate-600 dark:text-slate-400" />
+            <span className="absolute top-2 right-2.5 size-2.5 bg-rose-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
+          </button>
 
           <button
             onClick={() => setShowSettings(!showSettings)}
@@ -507,6 +514,12 @@ export default function Dashboard() {
       <ExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
+      />
+      <ComingSoonModal
+        isOpen={showComingSoon}
+        onClose={() => setShowComingSoon(false)}
+        title="Notifications Coming Soon"
+        description="We are integrating real-time streaming notifications from Supabase to alert you of new sales and updates. Stay tuned!"
       />
     </div>
   );

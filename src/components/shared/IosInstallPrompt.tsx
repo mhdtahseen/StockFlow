@@ -21,18 +21,27 @@ export default function IosInstallPrompt() {
       );
     };
 
-    // Show prompt if iOS and not standalone, and not dismissed recently
-    const dismissed = localStorage.getItem("ios_install_dismissed");
+    const checkAndShow = () => {
+      const dismissedAt = localStorage.getItem("ios_install_dismissed_at");
+      const isRecentlyDismissed =
+        dismissedAt && Date.now() - parseInt(dismissedAt) < 2 * 60 * 1000; // 2 minutes
 
-    if (isIos() && !isStandalone() && dismissed !== "true") {
-      setIsVisible(true);
-    }
+      if (isIos() && !isStandalone() && !isRecentlyDismissed) {
+        setIsVisible(true);
+      }
+    };
+
+    // Initial check
+    checkAndShow();
+
+    // Check again every 30 seconds to see if the 2 mins have elapsed
+    const intervalId = setInterval(checkAndShow, 30000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleDismiss = () => {
     setIsVisible(false);
-    // Optional: Only hide it for a week or so, but let's hide it permanently for now
-    localStorage.setItem("ios_install_dismissed", "true");
+    localStorage.setItem("ios_install_dismissed_at", Date.now().toString());
   };
 
   if (!isVisible) return null;
