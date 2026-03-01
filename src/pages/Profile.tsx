@@ -34,31 +34,16 @@ import { toast } from "sonner";
 import { createAvatar } from "@dicebear/core";
 import { botttsNeutral } from "@dicebear/collection";
 
-const AVATAR_SEEDS = [
-  "Felix",
-  "Aneka",
-  "Mimi",
-  "Nala",
-  "Buster",
-  "Coco",
-  "Buddy",
-  "Lucy",
-  "Luna",
-  "Milo",
-  "Daisy",
-  "Simba",
-  "Loki",
-  "Oreo",
-  "Bella",
-  "Charlie",
-];
-
-const PREDEFINED_AVATARS = AVATAR_SEEDS.map((seed) => {
-  return createAvatar(botttsNeutral, {
-    seed: seed,
-    backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf"],
-  }).toDataUri();
-});
+// Generator helper to create unique avatar arrays dynamically
+const generateRandomAvatars = () => {
+  return Array.from({ length: 12 }).map(() => {
+    const randomSeed = Math.random().toString(36).substring(2, 10);
+    return createAvatar(botttsNeutral, {
+      seed: randomSeed,
+      backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf"],
+    }).toDataUri();
+  });
+};
 
 export default function ProfilePage() {
   const { session } = useAuth();
@@ -74,6 +59,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [modalAvatars, setModalAvatars] = useState<string[]>([]);
 
   useEffect(() => {
     async function loadProfile() {
@@ -160,6 +146,11 @@ export default function ProfilePage() {
     }
   };
 
+  const handleOpenAvatarModal = () => {
+    setModalAvatars(generateRandomAvatars());
+    setIsAvatarModalOpen(true);
+  };
+
   const handleSelectAvatar = (url: string) => {
     setAvatarUrl(url);
     setIsAvatarModalOpen(false);
@@ -194,7 +185,7 @@ export default function ProfilePage() {
         <div className="flex flex-col items-center pt-2">
           <div
             className="relative mb-4 group cursor-pointer"
-            onClick={() => setIsAvatarModalOpen(true)}
+            onClick={handleOpenAvatarModal}
           >
             <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-xl overflow-hidden flex items-center justify-center">
               {avatarUrl ? (
@@ -354,7 +345,7 @@ export default function ProfilePage() {
           </DialogHeader>
 
           <div className="grid grid-cols-4 gap-4 pb-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-            {PREDEFINED_AVATARS.map((url, idx) => (
+            {modalAvatars.map((url, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSelectAvatar(url)}
