@@ -9,6 +9,7 @@ import Wallet from "./pages/Wallet";
 import Analytics from "./pages/Analytics";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ManageTeam from "./pages/ManageTeam";
 import { useAuth } from "./context/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -53,6 +54,7 @@ function App() {
           <Route path="edit/:id" element={<EditPhone />} />
           <Route path="wallet" element={<Wallet />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="team" element={<ManageTeam />} />
         </Route>
       </Routes>
     </BrowserRouter>
