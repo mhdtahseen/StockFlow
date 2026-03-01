@@ -31,24 +31,34 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-const PREDEFINED_AVATARS = [
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Mimi",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Nala",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Buster",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Buddy",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Lucy",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Luna",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Milo",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Daisy",
-  "https://api.dicebear.com/7.x/bottts/svg?seed=Robot1",
-  "https://api.dicebear.com/7.x/bottts/svg?seed=Robot2",
-  "https://api.dicebear.com/7.x/bottts/svg?seed=Robot3",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Shape1",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Shape2",
+import { createAvatar } from "@dicebear/core";
+import { botttsNeutral } from "@dicebear/collection";
+
+const AVATAR_SEEDS = [
+  "Felix",
+  "Aneka",
+  "Mimi",
+  "Nala",
+  "Buster",
+  "Coco",
+  "Buddy",
+  "Lucy",
+  "Luna",
+  "Milo",
+  "Daisy",
+  "Simba",
+  "Loki",
+  "Oreo",
+  "Bella",
+  "Charlie",
 ];
+
+const PREDEFINED_AVATARS = AVATAR_SEEDS.map((seed) => {
+  return createAvatar(botttsNeutral, {
+    seed: seed,
+    backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf"],
+  }).toDataUri();
+});
 
 export default function ProfilePage() {
   const { session } = useAuth();
