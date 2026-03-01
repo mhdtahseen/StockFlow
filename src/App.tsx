@@ -12,6 +12,9 @@ import Signup from "./pages/Signup";
 import ManageTeam from "./pages/ManageTeam";
 import Verified from "./pages/Verified";
 import InviteSignup from "./pages/InviteSignup";
+import ProfilePage from "./pages/Profile";
+import SettingsPage from "./pages/Settings";
+import AboutApp from "./pages/AboutApp";
 import { useAuth } from "./context/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -59,6 +62,9 @@ function App() {
           <Route path="wallet" element={<Wallet />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="team" element={<ManageTeam />} />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="about" element={<AboutApp />} />
         </Route>
       </Routes>
     </BrowserRouter>
