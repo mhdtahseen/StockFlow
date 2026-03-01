@@ -8,7 +8,7 @@ import {
   Mail,
   Lock,
   Loader2,
-  Camera,
+  Pencil,
   Save,
   Phone,
 } from "lucide-react";
@@ -198,10 +198,10 @@ export default function ProfilePage() {
               )}
             </div>
             <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Camera className="text-white" size={24} />
+              <Pencil className="text-white" size={24} />
             </div>
             <div className="absolute bottom-0 right-0 bg-[#064a98] dark:bg-blue-600 p-2 rounded-full border-2 border-white dark:border-slate-900 text-white shadow-md">
-              <Camera size={14} />
+              <Pencil size={14} />
             </div>
           </div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
