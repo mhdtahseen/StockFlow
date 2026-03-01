@@ -51,7 +51,10 @@ export default function Signup() {
 
     try {
       const { data: authData, error } = await supabase.auth.signUp({
-        email: data.email, password: data.password, options: { emailRedirectTo: `${window.location.origin}/verified`, 
+        email: data.email,
+        password: data.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/verified`,
           data: {
             // These map perfectly to the Postgres trigger `handle_new_user()`
             full_name: data.fullName,
