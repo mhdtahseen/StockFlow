@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ManageTeam from "./pages/ManageTeam";
 import Verified from "./pages/Verified";
+import InviteSignup from "./pages/InviteSignup";
 import { useAuth } from "./context/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -39,6 +40,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/join" element={<InviteSignup />} />
         <Route path="/verified" element={<Verified />} />
 
         <Route

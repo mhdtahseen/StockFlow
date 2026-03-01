@@ -14,6 +14,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import clsx from "clsx";
 
@@ -33,13 +40,15 @@ export default function ManageTeam() {
   const [isCopied, setIsCopied] = useState(false);
   const [showInviteDetails, setShowInviteDetails] = useState(false);
 
+  const [orgName, setOrgName] = useState<string>("");
+
   useEffect(() => {
     async function fetchTeam() {
       setIsLoading(true);
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, email, full_name, role, tenant_id")
+          .select("id, email, full_name, role, tenant_id, tenants(name)")
           .order("role", { ascending: true });
 
         if (error) throw error;
@@ -48,6 +57,11 @@ export default function ManageTeam() {
           setProfiles(data);
           if (data.length > 0) {
             setTenantId(data[0].tenant_id);
+            // Extracted from related tenant table
+            const tenantObj = data[0].tenants as any;
+            if (tenantObj && tenantObj.name) {
+              setOrgName(tenantObj.name);
+            }
           }
         }
       } catch (err: any) {
@@ -63,7 +77,7 @@ export default function ManageTeam() {
   }, [session]);
 
   const inviteLink = tenantId
-    ? `${window.location.origin}/signup?invite=${tenantId}`
+    ? `${window.location.origin}/join?tenant_id=${tenantId}&org_name=${encodeURIComponent(orgName)}`
     : "";
 
   const handleCopy = () => {
@@ -96,6 +110,24 @@ export default function ManageTeam() {
             <User size={12} /> Associate
           </span>
         );
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ role: newRole })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      setProfiles((prev) =>
+        prev.map((p) => (p.id === userId ? { ...p, role: newRole } : p)),
+      );
+      toast.success("Role updated successfully.");
+    } catch (err: any) {
+      toast.error("Failed to update role", { description: err.message });
     }
   };
 
@@ -219,7 +251,39 @@ export default function ManageTeam() {
                       {profile.email}
                     </p>
                   </div>
-                  <div>{getRoleBadge(profile.role)}</div>
+                  <div>
+                    {isAdmin && profile.id !== session?.user.id ? (
+                      <Select
+                        defaultValue={profile.role}
+                        onValueChange={(val) =>
+                          handleRoleChange(profile.id, val)
+                        }
+                      >
+                        <SelectTrigger className="w-[120px] h-8 text-xs font-semibold bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800">
+                          <SelectValue placeholder="Role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">
+                            <span className="flex items-center gap-1.5 font-bold text-rose-600 dark:text-rose-400">
+                              <Shield size={12} /> Admin
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="manager">
+                            <span className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
+                              <Shield size={12} /> Manager
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="associate">
+                            <span className="flex items-center gap-1.5 font-bold text-blue-600 dark:text-blue-400">
+                              <User size={12} /> Associate
+                            </span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      getRoleBadge(profile.role)
+                    )}
+                  </div>
                 </div>
               ))
             )}
