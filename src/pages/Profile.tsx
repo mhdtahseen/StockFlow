@@ -22,7 +22,33 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
+
+const PREDEFINED_AVATARS = [
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Mimi",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Nala",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Buster",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Buddy",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Lucy",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Luna",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Milo",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Daisy",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=Robot1",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=Robot2",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=Robot3",
+  "https://api.dicebear.com/7.x/shapes/svg?seed=Shape1",
+  "https://api.dicebear.com/7.x/shapes/svg?seed=Shape2",
+];
 
 export default function ProfilePage() {
   const { session } = useAuth();
@@ -37,8 +63,7 @@ export default function ProfilePage() {
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -125,39 +150,9 @@ export default function ProfilePage() {
     }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !session?.user.id) return;
-
-    try {
-      toast.loading("Uploading avatar...");
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file);
-
-      if (uploadError) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setAvatarUrl(reader.result as string);
-          toast.dismiss();
-          toast.success("Avatar updated (stored locally)");
-        };
-        reader.readAsDataURL(file);
-        return;
-      }
-
-      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
-      setAvatarUrl(data.publicUrl);
-      toast.dismiss();
-      toast.success("Avatar uploaded successfully");
-    } catch (err) {
-      toast.dismiss();
-      toast.error("Failed to upload avatar");
-    }
+  const handleSelectAvatar = (url: string) => {
+    setAvatarUrl(url);
+    setIsAvatarModalOpen(false);
   };
 
   if (isLoading) {
@@ -189,7 +184,7 @@ export default function ProfilePage() {
         <div className="flex flex-col items-center pt-2">
           <div
             className="relative mb-4 group cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setIsAvatarModalOpen(true)}
           >
             <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-xl overflow-hidden flex items-center justify-center">
               {avatarUrl ? (
@@ -208,13 +203,6 @@ export default function ProfilePage() {
             <div className="absolute bottom-0 right-0 bg-[#064a98] dark:bg-blue-600 p-2 rounded-full border-2 border-white dark:border-slate-900 text-white shadow-md">
               <Camera size={14} />
             </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleAvatarUpload}
-            />
           </div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
             {fullName || "User"}
@@ -343,6 +331,49 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </main>
+
+      <Dialog open={isAvatarModalOpen} onOpenChange={setIsAvatarModalOpen}>
+        <DialogContent className="sm:max-w-md max-w-[90%] w-[400px] p-5 border-none bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl rounded-3xl">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+              Choose an Avatar
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
+              Select a new profile picture from the gallery below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-4 gap-4 pb-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+            {PREDEFINED_AVATARS.map((url, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSelectAvatar(url)}
+                className={`w-full aspect-square rounded-2xl bg-slate-100 dark:bg-slate-800 overflow-hidden border-2 transition-all hover:scale-105 hover:shadow-lg ${
+                  avatarUrl === url
+                    ? "border-[#064a98] dark:border-blue-500 shadow-xl shadow-blue-900/10"
+                    : "border-transparent hover:border-slate-300 dark:hover:border-slate-700"
+                }`}
+              >
+                <img
+                  src={url}
+                  alt={`Avatar option ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              variant="outline"
+              className="w-full rounded-xl"
+              onClick={() => setIsAvatarModalOpen(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
