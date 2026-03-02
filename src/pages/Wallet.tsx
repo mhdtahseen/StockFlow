@@ -43,6 +43,9 @@ export default function Wallet() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addAmount, setAddAmount] = useState("");
   const [actionType, setActionType] = useState<"ADD" | "WITHDRAW">("ADD");
+  const [withdrawSource, setWithdrawSource] = useState<"WALLET" | "PROFITS">(
+    "WALLET",
+  );
   const [filter, setFilter] = useState<"All" | "Sales" | "Purchases">(
     ["All", "Sales", "Purchases"].includes(initialFilter)
       ? initialFilter
@@ -113,6 +116,31 @@ export default function Wallet() {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
+  const runningBalances = useMemo(() => {
+    // Sort oldest first to calculate running balance correctly
+    const chronological = [...ledgerEntries].sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+    let currentWallet = 0;
+    const balances: Record<string, number> = {};
+    chronological.forEach((entry) => {
+      switch (entry.type) {
+        case "MONEY_ADDED":
+        case "WITHDRAWAL":
+        case "PROFIT_WITHDRAWAL":
+        case "FUNDS_RELEASED":
+          currentWallet += entry.amount;
+          break;
+        case "FUNDS_PLEDGED":
+          currentWallet -= entry.amount;
+          break;
+      }
+      balances[entry.id] = currentWallet;
+    });
+    return balances;
+  }, [ledgerEntries]);
+
   // Default to last 3 days when no explicit date filter
   const defaultCutoff = useMemo(() => startOfDay(subDays(new Date(), 2)), []); // 3 days: today, yesterday, day before
 
@@ -180,11 +208,9 @@ export default function Wallet() {
         )
           return;
       }
-      if (["MONEY_ADDED", "FUNDS_RELEASED", "PHONE_SALE"].includes(entry.type))
+      if (["MONEY_ADDED", "PHONE_SALE"].includes(entry.type))
         income += entry.amount;
-      else if (
-        ["FUNDS_PLEDGED", "FUNDS_CONSUMED", "WITHDRAWAL"].includes(entry.type)
-      )
+      else if (["FUNDS_CONSUMED", "WITHDRAWAL"].includes(entry.type))
         expense += Math.abs(entry.amount);
     });
     return { income, expense };
@@ -196,7 +222,12 @@ export default function Wallet() {
     dispatch(
       addEntry({
         id: crypto.randomUUID(),
-        type: actionType === "ADD" ? "MONEY_ADDED" : "WITHDRAWAL",
+        type:
+          actionType === "ADD"
+            ? "MONEY_ADDED"
+            : withdrawSource === "PROFITS"
+              ? "PROFIT_WITHDRAWAL"
+              : "WITHDRAWAL",
         amount: actionType === "ADD" ? Number(addAmount) : -Number(addAmount),
         createdAt: new Date().toISOString(),
       }),
@@ -208,7 +239,7 @@ export default function Wallet() {
       });
     } else {
       toast.success("Funds Withdrawn", {
-        description: `₹${Number(addAmount)} removed from your Available Cash.`,
+        description: `₹${Number(addAmount)} removed from your ${withdrawSource === "PROFITS" ? "Profit Bucket" : "Available Cash"}.`,
       });
     }
 
@@ -232,6 +263,14 @@ export default function Wallet() {
           color:
             "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
           note: "Transfer to Personal",
+        };
+      case "PROFIT_WITHDRAWAL":
+        return {
+          label: "Profit Withdrawal",
+          icon: <Banknote size={20} />,
+          color:
+            "bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400",
+          note: "Taking Profits",
         };
       case "FUNDS_PLEDGED": {
         const p = phones.find((ph) => ph.id === entry.referenceId);
@@ -512,13 +551,34 @@ export default function Wallet() {
                   {dateLabel}
                 </h3>
                 <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden divide-y divide-slate-50 dark:divide-slate-800">
-                  {entries.map((entry) => {
+                  {entries.map((entry, index) => {
                     const details = getTransactionDetails(entry);
                     const isPositive = [
                       "MONEY_ADDED",
                       "PHONE_SALE",
                       "FUNDS_RELEASED",
                     ].includes(entry.type);
+
+                    // Specific logic for running totals on this specific day (calculated by iterating backwards)
+                    let dailyAccumulatedExpense = 0;
+                    let dailyAccumulatedProfit = 0;
+                    if (entry.type === "FUNDS_CONSUMED") {
+                      for (let i = entries.length - 1; i >= index; i--) {
+                        if (entries[i].type === "FUNDS_CONSUMED") {
+                          dailyAccumulatedExpense += Math.abs(
+                            entries[i].amount,
+                          );
+                        }
+                      }
+                    } else if (entry.type === "PHONE_SALE") {
+                      // Note: Assuming amount is pure revenue, or we estimate profit. Without cost basis attached to the entry, we define "profit" as the full sale amount here as requested by context.
+                      for (let i = entries.length - 1; i >= index; i--) {
+                        if (entries[i].type === "PHONE_SALE") {
+                          dailyAccumulatedProfit += entries[i].amount;
+                        }
+                      }
+                    }
+
                     return (
                       <div
                         key={entry.id}
@@ -555,19 +615,63 @@ export default function Wallet() {
                                 {details.note} •{" "}
                                 {format(parseISO(entry.createdAt), "h:mm a")}
                               </span>
-                              <span className="text-slate-400 dark:text-slate-500 font-medium bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-700">
-                                {entry.type === "FUNDS_PLEDGED"
-                                  ? "Escrowed"
-                                  : entry.type === "FUNDS_CONSUMED"
-                                    ? "Settled"
-                                    : "Cleared"}
-                              </span>
+                              {[
+                                "MONEY_ADDED",
+                                "WITHDRAWAL",
+                                "PROFIT_WITHDRAWAL",
+                                "FUNDS_PLEDGED",
+                                "FUNDS_RELEASED",
+                              ].includes(entry.type) ? (
+                                <span className="text-slate-500 dark:text-slate-400 font-medium">
+                                  Balance:{" "}
+                                  {formatCurrency(runningBalances[entry.id])}
+                                </span>
+                              ) : entry.type === "FUNDS_CONSUMED" ? (
+                                <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+                                  Expense:{" "}
+                                  {formatCurrency(dailyAccumulatedExpense)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+                                  Revenue:{" "}
+                                  {formatCurrency(dailyAccumulatedProfit)}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
                       </div>
                     );
                   })}
+
+                  {/* Daily Summary Footers */}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 text-xs flex justify-between items-center text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
+                    <div className="font-medium">
+                      Opening Bal:{" "}
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                        {formatCurrency(
+                          runningBalances[entries[entries.length - 1].id] -
+                            ([
+                              "MONEY_ADDED",
+                              "WITHDRAWAL",
+                              "PROFIT_WITHDRAWAL",
+                              "FUNDS_RELEASED",
+                            ].includes(entries[entries.length - 1].type)
+                              ? entries[entries.length - 1].amount
+                              : entries[entries.length - 1].type ===
+                                  "FUNDS_PLEDGED"
+                                ? -entries[entries.length - 1].amount
+                                : 0),
+                        )}
+                      </span>
+                    </div>
+                    <div className="font-medium">
+                      EOD Bal:{" "}
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                        {formatCurrency(runningBalances[entries[0].id])}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))
@@ -582,12 +686,72 @@ export default function Wallet() {
             <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1 tracking-tight">
               {actionType === "ADD" ? "Top Up Wallet" : "Withdraw Funds"}
             </h3>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 flex items-center gap-1.5">
-              Available Cash:{" "}
-              <span className="font-bold text-slate-900 dark:text-slate-100">
-                {formatCurrency(buckets.wallet)}
-              </span>
-            </p>
+
+            {actionType === "ADD" ? (
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 flex items-center gap-1.5">
+                Available Cash:{" "}
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  {formatCurrency(buckets.wallet)}
+                </span>
+              </p>
+            ) : (
+              <div className="mb-6 mt-3 space-y-3">
+                <label
+                  className={clsx(
+                    "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors",
+                    withdrawSource === "WALLET"
+                      ? "bg-slate-50 dark:bg-slate-800 border-[#064a98] dark:border-blue-500"
+                      : "border-slate-200 dark:border-slate-700",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="withdrawSource"
+                    className="w-4 h-4 text-[#064a98] focus:ring-[#064a98]"
+                    checked={withdrawSource === "WALLET"}
+                    onChange={() => setWithdrawSource("WALLET")}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      Cash at Hand
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Available: {formatCurrency(buckets.wallet)}
+                    </p>
+                  </div>
+                </label>
+                <label
+                  className={clsx(
+                    "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors",
+                    withdrawSource === "PROFITS"
+                      ? "bg-slate-50 dark:bg-slate-800 border-[#064a98] dark:border-blue-500"
+                      : "border-slate-200 dark:border-slate-700",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="withdrawSource"
+                    className="w-4 h-4 text-[#064a98] focus:ring-[#064a98]"
+                    checked={withdrawSource === "PROFITS"}
+                    onChange={() => setWithdrawSource("PROFITS")}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      Profit Bucket
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Available:{" "}
+                      {formatCurrency(
+                        buckets.sales -
+                          buckets.purchases -
+                          (buckets.profitWithdrawals || 0),
+                      )}
+                    </p>
+                  </div>
+                </label>
+              </div>
+            )}
+
             <div className="relative mb-6">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-bold text-xl">
                 ₹

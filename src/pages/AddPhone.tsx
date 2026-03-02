@@ -19,6 +19,8 @@ import {
   type ColorOption,
 } from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
+import ImeiSection from "../components/ImeiSection";
+import { type ImeiEntry, validateImei } from "../utils/validateImei";
 import clsx from "clsx";
 import {
   Smartphone,
@@ -89,6 +91,11 @@ export default function AddPhone() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState(false);
 
+  // ── IMEI state ────────────────────────────────────────────────────────────
+  const [imeis, setImeis] = useState<ImeiEntry[]>([
+    { value: "", status: "UNVERIFIED" },
+  ]);
+
   // ─── Derived options (memoized, catalog-only) ───────────────────────────────
 
   /** Brand list — catalog only, computed once */
@@ -156,6 +163,18 @@ export default function AddPhone() {
     const errs = validate(brand, model, storage, color, priceNum);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
+
+    // Block save if any filled IMEI is invalid
+    const filledImeis = imeis.filter((e) => e.value.length > 0);
+    const hasInvalidImei = filledImeis.some(
+      (e) => validateImei(e.value) !== null,
+    );
+    if (hasInvalidImei) {
+      toast.error("Invalid IMEI", {
+        description: "Please fix or remove invalid IMEI entries.",
+      });
+      return;
+    }
 
     // Persist any custom values to masterData
     if (!isCatalogBrand(brand) && !masterData.brands.includes(brand))
@@ -249,6 +268,7 @@ export default function AddPhone() {
     setColor("");
     setPrice("");
     setSelectedTags([]);
+    setImeis([{ value: "", status: "UNVERIFIED" }]);
     setErrors({});
     setTouched(false);
   };
@@ -499,6 +519,9 @@ export default function AddPhone() {
               </div>
             </div>
           </div>
+
+          {/* ── IMEI ────────────────────────────────────────────────────── */}
+          <ImeiSection imeis={imeis} onChange={setImeis} />
 
           {/* ── Financials ───────────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4 mb-8">

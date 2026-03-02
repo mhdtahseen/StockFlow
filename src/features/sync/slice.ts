@@ -7,6 +7,7 @@ export interface SyncState {
     action: AnyAction;
     timestamp: number;
     retryCount: number;
+    nextAttemptAt: number;
   }[];
   isOnline: boolean;
 }
@@ -29,6 +30,7 @@ const syncSlice = createSlice({
         action: action.payload,
         timestamp: Date.now(),
         retryCount: 0,
+        nextAttemptAt: Date.now(),
       });
     },
     removeAction: (state, action: PayloadAction<string>) => {
@@ -36,7 +38,16 @@ const syncSlice = createSlice({
     },
     incrementRetry: (state, action: PayloadAction<string>) => {
       const item = state.outbox.find((i) => i.id === action.payload);
-      if (item) item.retryCount += 1;
+      if (item) {
+        item.retryCount += 1;
+        const baseDelayMs = 1500;
+        const maxDelayMs = 30000;
+        const backoffMs = Math.min(
+          maxDelayMs,
+          baseDelayMs * Math.pow(2, Math.min(item.retryCount, 5)),
+        );
+        item.nextAttemptAt = Date.now() + backoffMs;
+      }
     },
   },
 });

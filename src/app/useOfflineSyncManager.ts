@@ -61,6 +61,7 @@ export function useOfflineSyncManager() {
     if (isProcessingOutboxRef.current) return;
 
     let mounted = true;
+    let retryTimer: number | undefined;
 
     async function processOutbox() {
       if (isProcessingOutboxRef.current) return;
@@ -68,9 +69,21 @@ export function useOfflineSyncManager() {
 
       // We make a stable copy of the outbox array to process
       const currentOutbox = [...outbox];
+      const now = Date.now();
+      let earliestNextAttemptAt: number | null = null;
 
       for (const item of currentOutbox) {
         if (!mounted || !isOnline) break;
+
+        if (item.nextAttemptAt && item.nextAttemptAt > now) {
+          if (
+            earliestNextAttemptAt === null ||
+            item.nextAttemptAt < earliestNextAttemptAt
+          ) {
+            earliestNextAttemptAt = item.nextAttemptAt;
+          }
+          continue;
+        }
 
         const success = await syncActionToSupabase(item.action);
 
@@ -86,12 +99,22 @@ export function useOfflineSyncManager() {
       }
 
       isProcessingOutboxRef.current = false;
+
+      if (mounted && isOnline && earliestNextAttemptAt !== null) {
+        const delayMs = Math.max(0, earliestNextAttemptAt - Date.now());
+        retryTimer = window.setTimeout(() => {
+          processOutbox();
+        }, delayMs);
+      }
     }
 
     processOutbox();
 
     return () => {
       mounted = false;
+      if (retryTimer) {
+        window.clearTimeout(retryTimer);
+      }
     };
   }, [isOnline, outbox, session, dispatch]);
 
@@ -122,8 +145,8 @@ export function useOfflineSyncManager() {
             storage: p.storage,
             ram: p.ram,
             color: p.color,
-            purchasePrice: p.purchase_price,
-            salePrice: p.sale_price ?? undefined,
+            purchasePrice: Number(p.purchase_price),
+            salePrice: p.sale_price ? Number(p.sale_price) : undefined,
             status: p.status as any,
             issueTags: p.issue_tags,
             createdAt: p.created_at,
@@ -145,7 +168,7 @@ export function useOfflineSyncManager() {
             id: e.id,
             type: e.type as any,
             referenceId: e.reference_id ?? undefined,
-            amount: e.amount,
+            amount: Number(e.amount),
             createdAt: e.created_at,
           }));
           if (store.getState().sync.outbox.length === 0) {

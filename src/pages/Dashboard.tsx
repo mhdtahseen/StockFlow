@@ -33,6 +33,7 @@ import { useTheme } from "../context/ThemeContext";
 import clsx from "clsx";
 import ExportModal from "../components/shared/ExportModal";
 import ComingSoonModal from "../components/shared/ComingSoonModal";
+import NotificationsPopover from "../components/shared/NotificationsPopover";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -119,13 +120,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3 relative" ref={settingsRef}>
-          <button
-            onClick={() => setShowComingSoon(true)}
-            className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors relative"
-          >
-            <Bell size={18} className="text-slate-600 dark:text-slate-400" />
-            <span className="absolute top-2 right-2.5 size-2.5 bg-rose-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
-          </button>
+          <NotificationsPopover />
 
           <button
             onClick={() => setShowSettings(!showSettings)}

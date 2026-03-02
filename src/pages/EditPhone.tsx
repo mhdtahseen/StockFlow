@@ -19,6 +19,8 @@ import {
   type ColorOption,
 } from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
+import ImeiSection from "../components/ImeiSection";
+import { type ImeiEntry, validateImei } from "../utils/validateImei";
 import clsx from "clsx";
 import {
   Smartphone,
@@ -137,6 +139,11 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState(false);
 
+  // ── IMEI state (will be pre-populated from Supabase in future) ───────────
+  const [imeis, setImeis] = useState<ImeiEntry[]>([
+    { value: "", status: "UNVERIFIED" },
+  ]);
+
   // ─── Derived options (memoized, catalog-only) ──────────────────────────────
 
   const brandOptions = useMemo<string[]>(
@@ -196,6 +203,18 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
     const errs = validate(brand, model, storage, color, priceNum);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
+
+    // Block save if any filled IMEI is invalid
+    const filledImeis = imeis.filter((e) => e.value.length > 0);
+    const hasInvalidImei = filledImeis.some(
+      (e) => validateImei(e.value) !== null,
+    );
+    if (hasInvalidImei) {
+      toast.error("Invalid IMEI", {
+        description: "Please fix or remove invalid IMEI entries.",
+      });
+      return;
+    }
 
     // Persist custom values to masterData
     if (!isCatalogBrand(brand) && !masterData.brands.includes(brand))
@@ -545,6 +564,9 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
               </div>
             </div>
           </div>
+
+          {/* ── IMEI ────────────────────────────────────────────────────── */}
+          <ImeiSection imeis={imeis} onChange={setImeis} />
 
           {/* ── Financials ───────────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4 mb-8">

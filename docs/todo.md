@@ -22,7 +22,12 @@ _Note: RLS (Row Level Security) is mapped out in the database to prevent unautho
 
 - [ ] **Financial Ledgers CSV:** Hook up the "Export Financial ledgers" button in `Settings.tsx` to actually download a CSV parsed from the Redux `ledger` state.
 
-### 4. Final Code Quality & Audit
+### 4. Admin & Financial Reporting Utilities
+
+- [ ] **EOD Summary Email Alert:** Send an End Of Day email alert to Admin containing the closing balance, total profit, and total expenses.
+- [ ] **Withdrawals:** Fully implement Owner Withdrawal logic that respects constraints.
+
+### 5. Final Code Quality & Audit
 
 - [ ] Check for any unresolved TypeScript `any` types that can be strictly defined.
 - [ ] End-to-End test of the "Invite Associate" flow via the sent email link to ensure the `tenant_id` perfectly bridges to the new user.

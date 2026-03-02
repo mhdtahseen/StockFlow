@@ -4,7 +4,8 @@ export type LedgerEntryType =
   | "FUNDS_RELEASED"
   | "FUNDS_CONSUMED"
   | "PHONE_SALE"
-  | "WITHDRAWAL";
+  | "WITHDRAWAL"
+  | "PROFIT_WITHDRAWAL";
 
 export interface LedgerEntry {
   id: string;

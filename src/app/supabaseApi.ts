@@ -22,21 +22,31 @@ export const getTenantId = async () => {
   return cachedTenantId;
 };
 
+const doesPhoneExist = async (id: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from("phones")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data?.id);
+};
+
 export const syncActionToSupabase = async (
   action: AnyAction,
 ): Promise<boolean> => {
   try {
     const type = action.type;
     const payload = action.payload;
-    const tenant_id = await getTenantId();
-    if (!tenant_id) return false;
+    const tenant_id = await getTenantId(); // Still useful for updates/deletes
 
     switch (type) {
       // ─── INVENTORY ──────────────────────────────────────────────────
       case "inventory/addPhone": {
         const { error } = await supabase.from("phones").insert({
           id: payload.id,
-          tenant_id,
+          // tenant_id and user_id handled by DB trigger
           brand: payload.brand,
           model: payload.model,
           storage: payload.storage,
@@ -105,9 +115,15 @@ export const syncActionToSupabase = async (
 
       // ─── LEDGER ─────────────────────────────────────────────────────
       case "ledger/addEntry": {
+        if (payload.referenceId) {
+          const exists = await doesPhoneExist(payload.referenceId);
+          if (!exists) {
+            return false;
+          }
+        }
         const { error } = await supabase.from("ledger").insert({
           id: payload.id,
-          tenant_id,
+          // tenant_id and user_id handled by DB trigger
           type: payload.type,
           reference_id: payload.referenceId,
           amount: payload.amount,
@@ -145,7 +161,7 @@ export const syncActionToSupabase = async (
         if (!category) break;
 
         const { error } = await supabase.from("master_data").insert({
-          tenant_id,
+          // tenant_id and user_id handled by DB trigger
           category,
           value: payload,
         });
@@ -160,6 +176,6 @@ export const syncActionToSupabase = async (
     return true; // Sync succeeded
   } catch (error: any) {
     console.warn("Supabase Sync Failed:", error.message || error);
-    return false; // Network error or connection error
+    return false; // Sync failed
   }
 };

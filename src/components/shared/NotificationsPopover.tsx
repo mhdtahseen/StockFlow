@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Popover,
   PopoverContent,
@@ -12,8 +12,9 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import clsx from "clsx";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 
-// Dummy Notification data structure matching our to-be Postgres Architecture
 type Notification = {
   id: string;
   type: "ROLE_PROMOTED" | "PHONE_SOLD" | "LEDGER_ENTRY" | "SYSTEM_ALERT";
@@ -23,52 +24,98 @@ type Notification = {
   created_at: string;
 };
 
-const DUMMY_NOTIFS: Notification[] = [
-  {
-    id: "n-1",
-    type: "PHONE_SOLD",
-    title: "iPhone 15 Pro Max Sold",
-    message: "Admin sold item for ₹1,20,000 via Cash.",
-    read_at: null,
-    created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 mins ago
-  },
-  {
-    id: "n-2",
-    type: "ROLE_PROMOTED",
-    title: "Role Updated",
-    message: "You have been promoted to Manager. Please restart your app.",
-    read_at: null,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-  },
-  {
-    id: "n-3",
-    type: "LEDGER_ENTRY",
-    title: "New Expense Added",
-    message: "₹500 deducted for shop utilities.",
-    read_at: new Date().toISOString(), // Already read
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-  },
-];
-
 export default function NotificationsPopover() {
-  const [notifications, setNotifications] =
-    useState<Notification[]>(DUMMY_NOTIFS);
+  const { session } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user.id) return;
+
+    // 1. Initial Fetch
+    const fetchNotifications = async () => {
+      const { data } = await supabase
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (data) setNotifications(data as Notification[]);
+    };
+
+    fetchNotifications();
+
+    // 2. Realtime Subscription
+    const channel = supabase
+      .channel(`user-notifications-${session.user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${session.user.id}`,
+        },
+        (payload) => {
+          setNotifications((prev) => [payload.new as Notification, ...prev]);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${session.user.id}`,
+        },
+        (payload) => {
+          setNotifications((prev) =>
+            prev.map((n) =>
+              n.id === payload.new.id ? (payload.new as Notification) : n,
+            ),
+          );
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user.id]);
 
   const unreadCount = notifications.filter((n) => n.read_at === null).length;
 
-  const markAllAsRead = () => {
-    setNotifications((prev) =>
-      prev.map((n) => ({ ...n, read_at: new Date().toISOString() })),
-    );
+  const markAllAsRead = async () => {
+    if (!session?.user.id) return;
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("user_id", session.user.id)
+      .is("read_at", null);
+
+    if (!error) {
+      setNotifications((prev) =>
+        prev.map((n) => ({
+          ...n,
+          read_at: n.read_at || new Date().toISOString(),
+        })),
+      );
+    }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === id ? { ...n, read_at: new Date().toISOString() } : n,
-      ),
-    );
+  const markAsRead = async (id: string) => {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (!error) {
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, read_at: new Date().toISOString() } : n,
+        ),
+      );
+    }
   };
 
   const getIcon = (type: Notification["type"]) => {

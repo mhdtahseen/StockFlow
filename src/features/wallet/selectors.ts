@@ -10,6 +10,7 @@ export const selectWalletBuckets = createSelector(
     let lien = 0;
     let purchases = 0;
     let sales = 0;
+    let profitWithdrawals = 0;
 
     entries.forEach((entry) => {
       switch (entry.type) {
@@ -18,6 +19,10 @@ export const selectWalletBuckets = createSelector(
           break;
         case "WITHDRAWAL":
           wallet += entry.amount; // Usually a negative amount passing in, or subtracted
+          break;
+        case "PROFIT_WITHDRAWAL":
+          wallet += entry.amount; // Withdrawals are physical money leaving wallet
+          profitWithdrawals += Math.abs(entry.amount);
           break;
         case "FUNDS_PLEDGED":
           wallet -= entry.amount;
@@ -37,6 +42,6 @@ export const selectWalletBuckets = createSelector(
       }
     });
 
-    return { wallet, lien, purchases, sales };
+    return { wallet, lien, purchases, sales, profitWithdrawals };
   },
 );
