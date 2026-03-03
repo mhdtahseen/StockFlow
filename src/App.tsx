@@ -20,6 +20,7 @@ import { useAuth } from "./context/AuthContext";
 import { Loader2 } from "lucide-react";
 import IosInstallPrompt from "./components/shared/IosInstallPrompt";
 import SplashScreen from "./components/SplashScreen";
+import AdminCatalog from "./pages/AdminCatalog";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
@@ -56,6 +57,16 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/join" element={<InviteSignup />} />
           <Route path="/verified" element={<Verified />} />
+
+          {/* Admin routes — outside AppLayout (no bottom nav) */}
+          <Route
+            path="/admin/catalog"
+            element={
+              <ProtectedRoute>
+                <AdminCatalog />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/"
