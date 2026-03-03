@@ -84,13 +84,14 @@ export default function Login() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 p-4 font-sans transition-colors duration-300">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="size-16 bg-[#064a98] rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-blue-900/20">
-            <span className="text-white text-3xl font-bold tracking-tighter">
-              S
-            </span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            StockFlow
+          <img
+            src="/logo.svg"
+            alt="StockFlow"
+            className="h-16 w-16 mb-2 dark:brightness-0 dark:invert"
+          />
+          <h1 className="text-3xl tracking-tight text-slate-900 dark:text-slate-100">
+            <span className="font-bold">Stock</span>
+            <span className="font-medium">Flow</span>
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
             Smart Inventory Manager

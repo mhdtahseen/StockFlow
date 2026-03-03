@@ -111,13 +111,21 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 py-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            StockFlow
-          </h1>
-          <p className="text-slate-400 dark:text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
-            Smart Manager
-          </p>
+        <div className="flex items-center gap-3">
+          <img
+            src="/logo.svg"
+            alt="StockFlow"
+            className="h-9 w-9 dark:brightness-0 dark:invert"
+          />
+          <div>
+            <h1 className="text-xl tracking-tight text-slate-900 dark:text-slate-100">
+              <span className="font-bold">Stock</span>
+              <span className="font-medium">Flow</span>
+            </h1>
+            <p className="text-slate-400 dark:text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
+              Smart Manager
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3 relative" ref={settingsRef}>
           <NotificationsPopover />
