@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useSearchParams } from "react-router-dom";
+import CurrencyInput from "../components/ui/CurrencyInput";
 
 export default function Wallet() {
   const dispatch = useAppDispatch();
@@ -752,18 +753,12 @@ export default function Wallet() {
               </div>
             )}
 
-            <div className="relative mb-6">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-bold text-xl">
-                ₹
-              </span>
-              <input
-                type="number"
-                autoFocus
+            <div className="mb-6">
+              <CurrencyInput
                 value={addAmount}
-                onChange={(e) => setAddAmount(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-4 pl-10 outline-none focus:border-[#064a98] dark:focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all text-2xl font-bold text-slate-900 dark:text-slate-100"
-                placeholder="0"
-                min="0"
+                onChange={setAddAmount}
+                autoFocus
+                className="rounded-2xl"
               />
             </div>
             <div className="flex gap-3">

@@ -21,6 +21,7 @@ import {
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
+import CurrencyInput from "../components/ui/CurrencyInput";
 import clsx from "clsx";
 import {
   Smartphone,
@@ -538,32 +539,20 @@ export default function AddPhone() {
               <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
                 Purchase Cost / Lien Amount
               </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-bold text-xl">
-                  ₹
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => {
-                    setPrice(e.target.value);
-                    if (touched) {
-                      const n =
-                        e.target.value !== ""
-                          ? parseFloat(e.target.value)
-                          : undefined;
-                      setErrors((prev) => ({
-                        ...prev,
-                        purchasePrice:
-                          !n || n <= 0 ? "Must be greater than 0" : undefined,
-                      }));
-                    }
-                  }}
-                  className="w-full rounded-xl border-2 border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-[#064a98] dark:focus:border-blue-500 pl-10 pr-4 py-4 text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 transition-all placeholder:font-bold placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none"
-                  placeholder="0"
-                />
-              </div>
+              <CurrencyInput
+                value={price}
+                onChange={(raw) => {
+                  setPrice(raw);
+                  if (touched) {
+                    const n = raw !== "" ? parseFloat(raw) : undefined;
+                    setErrors((prev) => ({
+                      ...prev,
+                      purchasePrice:
+                        !n || n <= 0 ? "Must be greater than 0" : undefined,
+                    }));
+                  }
+                }}
+              />
               {errors.purchasePrice && (
                 <span className="text-red-500 text-xs font-semibold block mt-2">
                   {errors.purchasePrice}
