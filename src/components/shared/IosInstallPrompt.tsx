@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Share, PlusSquare, X, MonitorSmartphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useLocation } from "react-router-dom";
 
 export default function IosInstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
+    // Only process if we are on the dashboard
+    if (location.pathname !== "/") {
+      setIsVisible(false);
+      return;
+    }
+
     // Detect iOS
     const isIos = () => {
       const userAgent = window.navigator.userAgent.toLowerCase();
@@ -22,27 +29,26 @@ export default function IosInstallPrompt() {
     };
 
     const checkAndShow = () => {
-      const dismissedAt = localStorage.getItem("ios_install_dismissed_at");
-      const isRecentlyDismissed =
-        dismissedAt &&
-        Date.now() - parseInt(dismissedAt) < 7 * 24 * 60 * 60 * 1000; // 7 days
+      const lastShownAt = localStorage.getItem("ios_install_last_shown");
+      const isRecentlyShown =
+        lastShownAt && Date.now() - parseInt(lastShownAt) < 24 * 60 * 60 * 1000; // 24 hours
 
-      if (isIos() && !isStandalone() && !isRecentlyDismissed) {
+      if (isIos() && !isStandalone() && !isRecentlyShown) {
         setIsVisible(true);
+        localStorage.setItem("ios_install_last_shown", Date.now().toString());
       }
     };
 
-    // Initial check
-    checkAndShow();
+    // Trigger after 10s on the dashboard
+    const timer = setTimeout(() => {
+      checkAndShow();
+    }, 10000);
 
-    // Check again every 30 seconds to see if the 2 mins have elapsed
-    const intervalId = setInterval(checkAndShow, 30000);
-    return () => clearInterval(intervalId);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
 
   const handleDismiss = () => {
     setIsVisible(false);
-    localStorage.setItem("ios_install_dismissed_at", Date.now().toString());
   };
 
   if (!isVisible) return null;

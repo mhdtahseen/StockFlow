@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import CurrencyInput from "../components/ui/CurrencyInput";
 import { useAppSelector, useAppDispatch } from "../app/hooks";
 import {
   markAsInStock,
@@ -406,19 +407,11 @@ export default function PhoneDetail() {
             </p>
 
             <form onSubmit={handleConfirmSale}>
-              <div className="relative mb-6">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">
-                  ₹
-                </span>
-                <input
-                  type="number"
+              <div className="mb-6">
+                <CurrencyInput
                   autoFocus
-                  required
-                  min="1"
-                  step="0.01"
                   value={salePriceInput}
-                  onChange={(e) => setSalePriceInput(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-4 pl-10 outline-none focus:border-[#064a98] dark:focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all text-2xl font-bold text-slate-900 dark:text-slate-100"
+                  onChange={setSalePriceInput}
                   placeholder={expectedSalePrice.toFixed(0)}
                 />
               </div>
@@ -460,20 +453,11 @@ export default function PhoneDetail() {
             </p>
 
             <form onSubmit={handleConfirmPurchase}>
-              <div className="relative mb-6">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-bold text-xl">
-                  ₹
-                </span>
-                <input
-                  type="number"
-                  autoFocus
-                  required
-                  min="1"
-                  step="0.01"
+              <div className="mb-6">
+                <CurrencyInput
                   value={purchasePriceInput}
-                  onChange={(e) => setPurchasePriceInput(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-4 pl-10 outline-none focus:border-amber-500 dark:focus:border-amber-400 focus:bg-white dark:focus:bg-slate-800 transition-all text-2xl font-bold text-slate-900 dark:text-slate-100"
-                  placeholder={String(phone.purchasePrice)}
+                  onChange={setPurchasePriceInput}
+                  autoFocus
                 />
               </div>
               <div className="flex gap-3">

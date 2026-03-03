@@ -15,6 +15,19 @@ import "./index.css";
 // Register the PWA service worker
 registerSW({ immediate: true });
 
+// Listen for the service worker taking control. The 'autoUpdate' strategy
+// will automatically install and claim clients, but we need to reload the
+// page so the browser fetches the new HTML/JS instead of running old cached code.
+if ("serviceWorker" in navigator) {
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+}
+
 // Setup React Query Client with Offline Persistence
 const queryClient = new QueryClient({
   defaultOptions: {
