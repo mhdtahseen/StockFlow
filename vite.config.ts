@@ -10,6 +10,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      workbox: {
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB
+      },
       manifest: {
         name: "StockFlow - Smart Inventory",
         short_name: "StockFlow",
@@ -33,6 +36,17 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-zxing": ["@zxing/browser", "@zxing/library"],
+          "vendor-charts": ["recharts"],
+          "vendor-xlsx": ["xlsx"],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
