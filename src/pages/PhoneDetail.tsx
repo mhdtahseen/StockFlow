@@ -7,7 +7,7 @@ import {
   markAsSold,
   removePhone,
 } from "../features/inventory/slice";
-import { addEntry } from "../features/ledger/slice";
+import { addEntry, removeEntry } from "../features/ledger/slice";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -21,6 +21,10 @@ import {
   Package,
   Wrench,
   Plus,
+  ChevronDown,
+  Trash2,
+  Pencil,
+  X,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -44,12 +48,20 @@ export default function PhoneDetail() {
   const [showRepairModal, setShowRepairModal] = useState(false);
   const [repairAmount, setRepairAmount] = useState("");
   const [repairNote, setRepairNote] = useState("");
+  const [repairAccordionOpen, setRepairAccordionOpen] = useState(false);
+  // Inline editing state: repairId → { note, amount }
+  const [editingRepairId, setEditingRepairId] = useState<string | null>(null);
+  const [editNote, setEditNote] = useState("");
+  const [editAmount, setEditAmount] = useState("");
 
-  // All repair costs tied to this phone
+  // All repair costs tied to this phone (sorted oldest first)
   const repairEntries = useAppSelector((state) =>
-    state.ledger.entries.filter(
-      (e) => e.type === "REPAIR_COST" && e.referenceId === id,
-    ),
+    [...state.ledger.entries]
+      .filter((e) => e.type === "REPAIR_COST" && e.referenceId === id)
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      ),
   );
   const totalRepairCost = useMemo(
     () => repairEntries.reduce((sum, e) => sum + e.amount, 0),
@@ -180,6 +192,32 @@ export default function PhoneDetail() {
     setRepairAmount("");
     setRepairNote("");
     setShowRepairModal(false);
+    setRepairAccordionOpen(true); // auto-open accordion after logging
+  };
+
+  const handleDeleteRepair = (entryId: string) => {
+    dispatch(removeEntry(entryId));
+    toast.success("Repair entry removed");
+  };
+
+  const handleSaveRepairEdit = (entry: { id: string; createdAt: string }) => {
+    if (!editAmount || Number(editAmount) <= 0) return;
+    // Remove old + add updated entry (keeps full ledger audit trail intact)
+    dispatch(removeEntry(entry.id));
+    dispatch(
+      addEntry({
+        id: crypto.randomUUID(),
+        type: "REPAIR_COST",
+        referenceId: phone.id,
+        amount: Number(editAmount),
+        note: editNote.trim() || "Repair",
+        createdAt: entry.createdAt, // preserve original date
+      }),
+    );
+    setEditingRepairId(null);
+    setEditNote("");
+    setEditAmount("");
+    toast.success("Repair entry updated");
   };
 
   const statusConfig = {
@@ -254,14 +292,16 @@ export default function PhoneDetail() {
               </h2>
               <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
                 {phone.storage} • {phone.color} • {phone.ram}
+              </p>
+              <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 font-mono mt-0.5">
+                IMEI:{" "}
                 {phone.imeis &&
-                  phone.imeis.length > 0 &&
-                  phone.imeis[0].length >= 4 && (
-                    <span className="font-mono">
-                      {" "}
-                      • **{phone.imeis[0].slice(-4)}
-                    </span>
-                  )}
+                phone.imeis.length > 0 &&
+                phone.imeis[0].length >= 4 ? (
+                  `**${phone.imeis[0].slice(-4)}`
+                ) : (
+                  <span className="text-slate-300 dark:text-slate-600">—</span>
+                )}
               </p>
             </div>
           </div>
@@ -318,41 +358,127 @@ export default function PhoneDetail() {
               </span>
             </div>
 
-            {/* Repair costs breakdown */}
-            {repairEntries.map((r) => (
-              <div
-                key={r.id}
-                className="px-4 py-2.5 flex justify-between items-center bg-amber-50/40 dark:bg-amber-950/30"
-              >
-                <div className="flex items-center gap-2">
-                  <Wrench
-                    size={13}
-                    className="text-amber-600 dark:text-amber-400 shrink-0"
-                  />
-                  <span className="text-amber-700 dark:text-amber-400 font-medium text-xs">
-                    {r.note || "Repair"}
-                  </span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                    {format(parseISO(r.createdAt), "MMM d")}
-                  </span>
-                </div>
-                <span className="font-bold text-amber-700 dark:text-amber-400 text-sm">
-                  +{formatCurrency(r.amount)}
-                </span>
-              </div>
-            ))}
+            {/* Additional Expenses Accordion — only if repairs logged */}
+            {repairEntries.length > 0 && (
+              <div className="border-amber-100 dark:border-amber-900">
+                {/* Accordion header */}
+                <button
+                  type="button"
+                  onClick={() => setRepairAccordionOpen((o) => !o)}
+                  className="w-full px-4 py-3 flex items-center justify-between bg-amber-50/70 dark:bg-amber-950/40 hover:bg-amber-50 dark:hover:bg-amber-950/60 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Wrench
+                      size={14}
+                      className="text-amber-600 dark:text-amber-400"
+                    />
+                    <span className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                      Additional Expenses
+                    </span>
+                    <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                      {repairEntries.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-amber-700 dark:text-amber-400 text-sm">
+                      {formatCurrency(totalRepairCost)}
+                    </span>
+                    <ChevronDown
+                      size={15}
+                      className={clsx(
+                        "text-amber-500 transition-transform duration-200",
+                        repairAccordionOpen ? "rotate-180" : "",
+                      )}
+                    />
+                  </div>
+                </button>
 
-            {/* Effective cost basis if any repairs */}
-            {totalRepairCost > 0 && (
-              <div className="px-4 py-3 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60">
-                <span className="text-slate-600 dark:text-slate-300 font-bold text-sm">
-                  Total Cost Basis
-                </span>
-                <span className="font-black text-slate-900 dark:text-slate-100">
-                  {formatCurrency(phone.purchasePrice + totalRepairCost)}
-                </span>
+                {/* Accordion body */}
+                {repairAccordionOpen && (
+                  <div className="divide-y divide-amber-50 dark:divide-amber-900/50 bg-amber-50/30 dark:bg-amber-950/20">
+                    {repairEntries.map((r) => (
+                      <div key={r.id}>
+                        {editingRepairId === r.id ? (
+                          // ── Inline edit form ────────────────────────────
+                          <div className="px-4 py-3 space-y-2">
+                            <input
+                              type="text"
+                              value={editNote}
+                              onChange={(e) => setEditNote(e.target.value)}
+                              placeholder="Description"
+                              className="w-full text-xs rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400"
+                            />
+                            <div className="flex gap-2 items-center">
+                              <input
+                                type="number"
+                                value={editAmount}
+                                onChange={(e) => setEditAmount(e.target.value)}
+                                placeholder="Amount"
+                                className="flex-1 text-xs rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400"
+                              />
+                              <button
+                                onClick={() => handleSaveRepairEdit(r)}
+                                className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingRepairId(null)}
+                                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          // ── Read row ──────────────────────────────────────
+                          <div className="px-4 py-2.5 flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 truncate">
+                                {r.note || "Repair"}
+                              </p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                                {format(parseISO(r.createdAt), "MMM d, yyyy")}
+                              </p>
+                            </div>
+                            <span className="font-bold text-amber-700 dark:text-amber-400 text-sm mr-2">
+                              {formatCurrency(r.amount)}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setEditingRepairId(r.id);
+                                setEditNote(r.note || "");
+                                setEditAmount(String(r.amount));
+                              }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#064a98] dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRepair(r.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Total cost basis footer */}
+                    <div className="px-4 py-2.5 flex justify-between items-center bg-amber-100/50 dark:bg-amber-900/30">
+                      <span className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                        Total Cost Basis
+                      </span>
+                      <span className="font-black text-slate-900 dark:text-slate-100 text-sm">
+                        {formatCurrency(phone.purchasePrice + totalRepairCost)}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
+
             {phone.status === "SOLD" ? (
               <div className="p-4 flex justify-between items-center">
                 <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
@@ -504,32 +630,7 @@ export default function PhoneDetail() {
                 </p>
               </div>
 
-              {/* Repair history (if any) */}
-              {repairEntries.length > 0 && (
-                <div className="bg-amber-50/60 dark:bg-amber-950/30 rounded-xl border border-amber-100 dark:border-amber-900 overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-amber-100 dark:border-amber-900 flex items-center justify-between">
-                    <p className="text-xs font-black text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                      <Wrench size={13} /> Repair History
-                    </p>
-                    <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                      Total: {formatCurrency(totalRepairCost)}
-                    </p>
-                  </div>
-                  {repairEntries.map((r) => (
-                    <div
-                      key={r.id}
-                      className="px-4 py-2 flex justify-between items-center text-xs border-b border-amber-50 dark:border-amber-900/50 last:border-0"
-                    >
-                      <span className="text-slate-600 dark:text-slate-300 font-medium">
-                        {r.note || "Repair"}
-                      </span>
-                      <span className="font-bold text-amber-700 dark:text-amber-400">
-                        {formatCurrency(r.amount)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Repair history moved to accordion in Financial Breakdown */}
 
               <div className="flex gap-3">
                 <button

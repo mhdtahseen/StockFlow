@@ -165,8 +165,16 @@ export default function AddPhone() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    // Block save if any filled IMEI is invalid
+    // IMEI Validation (Mandatory field now)
     const filledImeis = imeis.filter((e) => e.value.length > 0);
+
+    if (filledImeis.length === 0) {
+      toast.error("IMEI Required", {
+        description: "Please enter or scan at least one IMEI number.",
+      });
+      return;
+    }
+
     const hasInvalidImei = filledImeis.some(
       (e) => validateImei(e.value) !== null,
     );
