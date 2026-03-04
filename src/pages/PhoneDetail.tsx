@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import CurrencyInput from "../components/ui/CurrencyInput";
 import { useAppSelector, useAppDispatch } from "../app/hooks";
@@ -19,6 +19,8 @@ import {
   ShieldAlert,
   TrendingUp,
   Package,
+  Wrench,
+  Plus,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -39,6 +41,20 @@ export default function PhoneDetail() {
   const [salePriceInput, setSalePriceInput] = useState("");
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = useState("");
+  const [showRepairModal, setShowRepairModal] = useState(false);
+  const [repairAmount, setRepairAmount] = useState("");
+  const [repairNote, setRepairNote] = useState("");
+
+  // All repair costs tied to this phone
+  const repairEntries = useAppSelector((state) =>
+    state.ledger.entries.filter(
+      (e) => e.type === "REPAIR_COST" && e.referenceId === id,
+    ),
+  );
+  const totalRepairCost = useMemo(
+    () => repairEntries.reduce((sum, e) => sum + e.amount, 0),
+    [repairEntries],
+  );
 
   if (!phone) {
     return (
@@ -65,9 +81,10 @@ export default function PhoneDetail() {
     }).format(amount);
   };
 
-  const expectedSalePrice = phone.purchasePrice * 1.25;
+  const effectiveCostBasis = phone.purchasePrice + totalRepairCost;
+  const expectedSalePrice = effectiveCostBasis * 1.25;
   const marginPercentage = phone.salePrice
-    ? ((phone.salePrice - phone.purchasePrice) / phone.purchasePrice) * 100
+    ? ((phone.salePrice - effectiveCostBasis) / effectiveCostBasis) * 100
     : 25.0;
 
   const handleConfirmPurchase = (e: React.FormEvent) => {
@@ -141,6 +158,28 @@ export default function PhoneDetail() {
     toast.success("Sale Recorded", {
       description: `${phone.brand} ${phone.model} sold for ₹${price}. Vault updated.`,
     });
+  };
+
+  const handleLogRepair = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!repairAmount || Number(repairAmount) <= 0) return;
+    const amount = Number(repairAmount);
+    dispatch(
+      addEntry({
+        id: crypto.randomUUID(),
+        type: "REPAIR_COST",
+        referenceId: phone.id,
+        amount,
+        note: repairNote.trim() || "Repair",
+        createdAt: new Date().toISOString(),
+      }),
+    );
+    toast.success("Repair Cost Logged", {
+      description: `₹${amount} repair expense recorded for ${phone.brand} ${phone.model}.`,
+    });
+    setRepairAmount("");
+    setRepairNote("");
+    setShowRepairModal(false);
   };
 
   const statusConfig = {
@@ -279,6 +318,41 @@ export default function PhoneDetail() {
               </span>
             </div>
 
+            {/* Repair costs breakdown */}
+            {repairEntries.map((r) => (
+              <div
+                key={r.id}
+                className="px-4 py-2.5 flex justify-between items-center bg-amber-50/40 dark:bg-amber-950/30"
+              >
+                <div className="flex items-center gap-2">
+                  <Wrench
+                    size={13}
+                    className="text-amber-600 dark:text-amber-400 shrink-0"
+                  />
+                  <span className="text-amber-700 dark:text-amber-400 font-medium text-xs">
+                    {r.note || "Repair"}
+                  </span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                    {format(parseISO(r.createdAt), "MMM d")}
+                  </span>
+                </div>
+                <span className="font-bold text-amber-700 dark:text-amber-400 text-sm">
+                  +{formatCurrency(r.amount)}
+                </span>
+              </div>
+            ))}
+
+            {/* Effective cost basis if any repairs */}
+            {totalRepairCost > 0 && (
+              <div className="px-4 py-3 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60">
+                <span className="text-slate-600 dark:text-slate-300 font-bold text-sm">
+                  Total Cost Basis
+                </span>
+                <span className="font-black text-slate-900 dark:text-slate-100">
+                  {formatCurrency(phone.purchasePrice + totalRepairCost)}
+                </span>
+              </div>
+            )}
             {phone.status === "SOLD" ? (
               <div className="p-4 flex justify-between items-center">
                 <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
@@ -334,7 +408,8 @@ export default function PhoneDetail() {
             {phone.status === "SOLD" &&
               phone.salePrice &&
               (() => {
-                const net = phone.salePrice - phone.purchasePrice;
+                const effectiveCost = phone.purchasePrice + totalRepairCost;
+                const net = phone.salePrice - effectiveCost;
                 const isLoss = net < 0;
                 return (
                   <div
@@ -366,6 +441,11 @@ export default function PhoneDetail() {
                       {isLoss ? "-" : "+"}
                       {formatCurrency(Math.abs(net))}
                     </span>
+                    {totalRepairCost > 0 && (
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium w-full text-right -mt-1 pr-0.5">
+                        incl. ₹{totalRepairCost.toLocaleString("en-IN")} repairs
+                      </span>
+                    )}
                   </div>
                 );
               })()}
@@ -423,12 +503,48 @@ export default function PhoneDetail() {
                   Device is currently in your active inventory.
                 </p>
               </div>
-              <button
-                onClick={() => setShowSaleModal(true)}
-                className="w-full bg-[#064a98] hover:bg-blue-800 dark:hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all text-sm"
-              >
-                Mark as Sold
-              </button>
+
+              {/* Repair history (if any) */}
+              {repairEntries.length > 0 && (
+                <div className="bg-amber-50/60 dark:bg-amber-950/30 rounded-xl border border-amber-100 dark:border-amber-900 overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-amber-100 dark:border-amber-900 flex items-center justify-between">
+                    <p className="text-xs font-black text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                      <Wrench size={13} /> Repair History
+                    </p>
+                    <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                      Total: {formatCurrency(totalRepairCost)}
+                    </p>
+                  </div>
+                  {repairEntries.map((r) => (
+                    <div
+                      key={r.id}
+                      className="px-4 py-2 flex justify-between items-center text-xs border-b border-amber-50 dark:border-amber-900/50 last:border-0"
+                    >
+                      <span className="text-slate-600 dark:text-slate-300 font-medium">
+                        {r.note || "Repair"}
+                      </span>
+                      <span className="font-bold text-amber-700 dark:text-amber-400">
+                        {formatCurrency(r.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRepairModal(true)}
+                  className="flex-[0.45] flex items-center justify-center gap-1.5 bg-amber-50 dark:bg-amber-950 hover:bg-amber-100 dark:hover:bg-amber-900 text-amber-700 dark:text-amber-400 font-bold py-3.5 rounded-xl border border-amber-200 dark:border-amber-800 active:scale-[0.98] transition-all text-sm"
+                >
+                  <Wrench size={16} /> Repair
+                </button>
+                <button
+                  onClick={() => setShowSaleModal(true)}
+                  className="flex-1 bg-[#064a98] hover:bg-blue-800 dark:hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all text-sm"
+                >
+                  Mark as Sold
+                </button>
+              </div>
             </div>
           )}
 
@@ -541,6 +657,81 @@ export default function PhoneDetail() {
                   className="flex-1 py-3.5 font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all"
                 >
                   Confirm & Add to Stock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Repair Cost Modal */}
+      {showRepairModal && (
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl dark:shadow-black/40 border border-transparent dark:border-slate-800">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="size-10 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <Wrench size={20} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                  Log Repair Cost
+                </h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                  {phone.brand} {phone.model}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5 mt-3 font-medium">
+              This will be tracked as an expense tied to this device and
+              deducted from profit calculations.
+            </p>
+
+            <form onSubmit={handleLogRepair}>
+              {/* Description */}
+              <div className="mb-4">
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">
+                  What was repaired?
+                </label>
+                <input
+                  type="text"
+                  value={repairNote}
+                  onChange={(e) => setRepairNote(e.target.value)}
+                  placeholder="e.g. Screen replacement, Battery swap…"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-600 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-900 transition-all"
+                />
+              </div>
+
+              {/* Amount */}
+              <div className="mb-6">
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">
+                  Repair Cost
+                </label>
+                <CurrencyInput
+                  value={repairAmount}
+                  onChange={setRepairAmount}
+                  autoFocus
+                  className="rounded-2xl border-amber-200 dark:border-amber-800 focus:border-amber-400"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRepairModal(false);
+                    setRepairAmount("");
+                    setRepairNote("");
+                  }}
+                  className="flex-[0.5] py-3.5 font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!repairAmount || Number(repairAmount) <= 0}
+                  className="flex-1 py-3.5 font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:pointer-events-none rounded-xl shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all"
+                >
+                  Log Repair
                 </button>
               </div>
             </form>

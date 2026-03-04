@@ -54,6 +54,7 @@ export const selectCashflowSummary = (period: TimePeriod) =>
       if (isAfter(entryDate, startDate)) {
         if (entry.type === "PHONE_SALE") grossSales += entry.amount;
         if (entry.type === "FUNDS_CONSUMED") capitalInvested += entry.amount;
+        if (entry.type === "REPAIR_COST") capitalInvested += entry.amount;
         if (entry.type === "FUNDS_PLEDGED") pledgedCapital += entry.amount;
         if (entry.type === "FUNDS_RELEASED") pledgedCapital -= entry.amount;
         if (entry.type === "MONEY_ADDED") topUps += entry.amount;
@@ -80,9 +81,24 @@ export const selectInventoryMetrics = createSelector(
     const pending = phones.filter((p) => p.status === "PENDING");
     const sold = phones.filter((p) => p.status === "SOLD");
 
-    const investment = inStock.reduce((acc, p) => acc + p.purchasePrice, 0);
+    // Sum repair costs from ledger keyed by phone id
+    const repairByPhone: Record<string, number> = {};
+    entries.forEach((e) => {
+      if (e.type === "REPAIR_COST" && e.referenceId) {
+        repairByPhone[e.referenceId] =
+          (repairByPhone[e.referenceId] || 0) + e.amount;
+      }
+    });
+
+    const investment = inStock.reduce(
+      (acc, p) => acc + p.purchasePrice + (repairByPhone[p.id] || 0),
+      0,
+    );
     const totalSales = sold.reduce((acc, p) => acc + (p.salePrice || 0), 0);
-    const costOfGoodsSold = sold.reduce((acc, p) => acc + p.purchasePrice, 0);
+    const costOfGoodsSold = sold.reduce(
+      (acc, p) => acc + p.purchasePrice + (repairByPhone[p.id] || 0),
+      0,
+    );
     const netProfit = totalSales - costOfGoodsSold;
 
     let avgMargin = 0;

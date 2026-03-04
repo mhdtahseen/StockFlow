@@ -28,6 +28,7 @@ import {
   ArrowDown,
   Calendar,
   X,
+  Wrench,
 } from "lucide-react";
 import clsx from "clsx";
 import { useSearchParams } from "react-router-dom";
@@ -47,9 +48,11 @@ export default function Wallet() {
   const [withdrawSource, setWithdrawSource] = useState<"WALLET" | "PROFITS">(
     "WALLET",
   );
-  const [filter, setFilter] = useState<"All" | "Sales" | "Purchases">(
-    ["All", "Sales", "Purchases"].includes(initialFilter)
-      ? initialFilter
+  const [filter, setFilter] = useState<
+    "All" | "Sales" | "Purchases" | "Repairs"
+  >(
+    ["All", "Sales", "Purchases", "Repairs"].includes(initialFilter)
+      ? (initialFilter as any)
       : "All",
   );
   const [showDateMenu, setShowDateMenu] = useState(false);
@@ -134,6 +137,7 @@ export default function Wallet() {
           currentWallet += entry.amount;
           break;
         case "FUNDS_PLEDGED":
+        case "REPAIR_COST":
           currentWallet -= entry.amount;
           break;
       }
@@ -150,6 +154,7 @@ export default function Wallet() {
       if (filter === "Sales" && entry.type !== "PHONE_SALE") return false;
       if (filter === "Purchases" && entry.type !== "FUNDS_CONSUMED")
         return false;
+      if (filter === "Repairs" && entry.type !== "REPAIR_COST") return false;
 
       const entryDate = parseISO(entry.createdAt);
 
@@ -211,7 +216,9 @@ export default function Wallet() {
       }
       if (["MONEY_ADDED", "PHONE_SALE"].includes(entry.type))
         income += entry.amount;
-      else if (["FUNDS_CONSUMED", "WITHDRAWAL"].includes(entry.type))
+      else if (
+        ["FUNDS_CONSUMED", "WITHDRAWAL", "REPAIR_COST"].includes(entry.type)
+      )
         expense += Math.abs(entry.amount);
     });
     return { income, expense };
@@ -299,6 +306,16 @@ export default function Wallet() {
           icon: <Package size={20} />,
           color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400",
           note: "Acquisition",
+        };
+      }
+      case "REPAIR_COST": {
+        const rp = phones.find((ph) => ph.id === entry.referenceId);
+        return {
+          label: rp ? `Repair: ${rp.brand} ${rp.model}` : "Repair Expense",
+          icon: <Wrench size={20} />,
+          color:
+            "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400",
+          note: (entry as any).note || "Repair Cost",
         };
       }
       case "PHONE_SALE": {
@@ -511,7 +528,7 @@ export default function Wallet() {
 
         {/* Filter chips — type only */}
         <section className="py-3 flex items-center gap-2 overflow-x-auto hide-scrollbar -mx-4 px-4">
-          {["All", "Sales", "Purchases"].map((f) => (
+          {["All", "Sales", "Purchases", "Repairs"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f as any)}
