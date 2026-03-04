@@ -7,13 +7,10 @@ import {
   Camera,
   AlertCircle,
   Loader2,
-  Hash,
-  ScanBarcode,
-  CheckCircle2,
   RefreshCw,
 } from "lucide-react";
 import { createWorker } from "tesseract.js";
-import { sanitizeImei, isValidImeiFormat } from "../utils/validateImei";
+import { sanitizeImei, isValidImeiLuhn } from "../utils/validateImei";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -37,7 +34,7 @@ function extractImeiFromText(raw: string): string | null {
   if (!matches) return null;
   for (const m of matches) {
     const candidate = sanitizeImei(m.substring(0, 15));
-    if (isValidImeiFormat(candidate)) return candidate;
+    if (isValidImeiLuhn(candidate)) return candidate;
   }
   return null;
 }
@@ -64,7 +61,6 @@ export default function ImeiScannerModal({
   const [isLoading, setIsLoading] = useState(true);
   const [flashOn, setFlashOn] = useState(false);
   const [flashSupported, setFlashSupported] = useState(false);
-  const [ocrSuggestion, setOcrSuggestion] = useState<string | null>(null);
   const [ocrScanning, setOcrScanning] = useState(false);
 
   // ─── Cleanup ───────────────────────────────────────────────────────────────
@@ -88,7 +84,6 @@ export default function ImeiScannerModal({
     setFlashSupported(false);
     setIsLoading(true);
     setError(null);
-    setOcrSuggestion(null);
     setOcrScanning(false);
   }, []);
 
@@ -139,7 +134,7 @@ export default function ImeiScannerModal({
         if (result) {
           const text = result.getText();
           const cleaned = sanitizeImei(text);
-          if (isValidImeiFormat(cleaned)) {
+          if (isValidImeiLuhn(cleaned)) {
             onScan(cleaned);
             stopEverything();
             onClose();
@@ -206,13 +201,10 @@ export default function ImeiScannerModal({
 
           const found = extractImeiFromText(data.text);
           if (found) {
-            setOcrSuggestion(found);
-            // Auto-accept if it's a completely valid format
-            if (isValidImeiFormat(found)) {
-              onScan(found);
-              stopEverything();
-              onClose();
-            }
+            // Already Luhn verified by `extractImeiFromText`! Auto-accept immediately.
+            onScan(found);
+            stopEverything();
+            onClose();
           }
         } catch {
           // ignore OCR errors silently
@@ -233,7 +225,6 @@ export default function ImeiScannerModal({
       return;
     }
 
-    setOcrSuggestion(null);
     setError(null);
     setIsLoading(true);
 
@@ -265,16 +256,6 @@ export default function ImeiScannerModal({
       setFlashOn(!flashOn);
     } catch {
       // not supported
-    }
-  };
-
-  // ─── Confirm OCR suggestion ────────────────────────────────────────────────
-
-  const confirmSuggestion = () => {
-    if (ocrSuggestion) {
-      onScan(ocrSuggestion);
-      stopEverything();
-      onClose();
     }
   };
 
@@ -382,28 +363,6 @@ export default function ImeiScannerModal({
             </div>
           )}
         </div>
-
-        {/* OCR detected number banner */}
-        {ocrSuggestion && (
-          <div className="mx-4 mb-3 bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 flex items-center gap-3">
-            <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                Text Detected (Verify)
-              </p>
-              <p className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm tracking-widest truncate">
-                {ocrSuggestion}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={confirmSuggestion}
-              className="shrink-0 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-lg transition-colors"
-            >
-              Use
-            </button>
-          </div>
-        )}
 
         {/* Footer hint */}
         <div className="px-5 pb-4 text-center">
