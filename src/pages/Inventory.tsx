@@ -150,18 +150,23 @@ export default function Inventory() {
       label = "Pledged Value";
     } else if (activeTab === "SOLD") {
       value = filteredPhones.reduce((sum, p) => sum + (p.salePrice || 0), 0);
-    } else if (activeTab === "ALL") {
-      value = filteredPhones.reduce(
-        (sum, p) =>
-          sum +
-          (p.status === "SOLD" && p.salePrice ? p.salePrice : p.purchasePrice),
-        0,
-      );
-      label = "Total Asset Value";
+      label = "Total Revenue";
     }
 
     return { count, value, label };
   };
+
+  const activeCapital = useMemo(() => {
+    return phones
+      .filter((p) => ["IN_STOCK", "PENDING"].includes(p.status))
+      .reduce((sum, p) => sum + p.purchasePrice, 0);
+  }, [phones]);
+
+  const realizedProfit = useMemo(() => {
+    return phones
+      .filter((p) => p.status === "SOLD")
+      .reduce((sum, p) => sum + ((p.salePrice || 0) - p.purchasePrice), 0);
+  }, [phones]);
 
   const getRelativeDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -350,22 +355,30 @@ export default function Inventory() {
 
         {/* Tabs */}
         <div className="px-4 pb-3">
-          <div className="flex bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-[16px] shadow-inner text-sm font-semibold">
-            {tabs.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
-                className={clsx(
-                  "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[12px] transition-all duration-200 uppercase tracking-wider text-[10px]",
-                  activeTab === tab.value
-                    ? "bg-primary-500 text-white shadow-sm font-bold"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium",
-                )}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
+          <div className="bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-[16px] shadow-inner text-sm font-semibold">
+            <div className="flex relative">
+              <div
+                className="absolute top-0 bottom-0 w-1/4 rounded-[12px] bg-primary-500 shadow-sm transition-transform duration-300 ease-out z-0"
+                style={{
+                  transform: `translateX(${tabs.findIndex((t) => t.value === activeTab) * 100}%)`,
+                }}
+              />
+              {tabs.map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => setActiveTab(tab.value)}
+                  className={clsx(
+                    "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[12px] transition-colors duration-300 uppercase tracking-wider text-[10px] z-10",
+                    activeTab === tab.value
+                      ? "text-white font-bold"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium",
+                  )}
+                >
+                  {tab.icon}
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>
@@ -394,26 +407,51 @@ export default function Inventory() {
         )}
 
         {/* Metric Cards */}
-        <div className="flex gap-4">
-          <div className="bg-white dark:bg-slate-900 flex-[1.2] p-5 rounded-2xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-[#064a98]/5 dark:bg-blue-500/5 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
-            <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#064a98] dark:bg-blue-400"></span>
-              {label}
-            </p>
-            <p className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              {formatCurrency(value)}
-            </p>
+        {activeTab === "ALL" ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col justify-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-[#064a98]/5 dark:bg-blue-500/5 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
+              <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#064a98] dark:bg-blue-400"></span>
+                Active Capital
+              </p>
+              <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                {formatCurrency(activeCapital)}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col justify-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
+              <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Realized Profit
+              </p>
+              <p className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
+                +{formatCurrency(realizedProfit)}
+              </p>
+            </div>
           </div>
-          <div className="bg-white dark:bg-slate-900 flex-[0.8] p-5 rounded-2xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center">
-            <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2">
-              Units
-            </p>
-            <p className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              {count}
-            </p>
+        ) : (
+          <div className="flex gap-4">
+            <div className="bg-white dark:bg-slate-900 flex-[1.2] p-5 rounded-2xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-[#064a98]/5 dark:bg-blue-500/5 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
+              <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#064a98] dark:bg-blue-400"></span>
+                {label}
+              </p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                {formatCurrency(value)}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-slate-900 flex-[0.8] p-5 rounded-2xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center">
+              <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2">
+                Units
+              </p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                {count}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* List */}
         <section className="flex flex-col gap-3">
