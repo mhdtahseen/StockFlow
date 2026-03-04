@@ -414,7 +414,7 @@ export default function Inventory() {
                 key={phone.id}
                 to={`/inventory/${phone.id}`}
                 className={clsx(
-                  "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border border-slate-100 dark:border-slate-800 block hover:border-[#064a98]/20 dark:hover:border-blue-500/30 active:scale-[0.98] transition-all group",
+                  "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border border-slate-100 dark:border-slate-800 block hover:border-primary-500/20 dark:hover:border-primary-500/30 active:scale-[0.98] transition-all group",
                   phone.status === "SOLD" && "opacity-90",
                 )}
               >
@@ -462,7 +462,7 @@ export default function Inventory() {
                         </span>
                       </div>
                     ) : (
-                      <span className="text-lg font-extrabold text-[#064a98] dark:text-blue-400 leading-none">
+                      <span className="text-lg font-extrabold text-primary-500 leading-none">
                         {formatCurrency(phone.purchasePrice)}
                       </span>
                     )}
