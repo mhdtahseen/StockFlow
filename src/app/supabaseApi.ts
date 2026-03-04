@@ -55,6 +55,7 @@ export const syncActionToSupabase = async (
           purchase_price: payload.purchasePrice,
           status: payload.status,
           issue_tags: payload.issueTags,
+          imeis: payload.imeis || [],
           created_at: payload.createdAt,
         });
         if (error) throw error;
@@ -73,6 +74,7 @@ export const syncActionToSupabase = async (
             sale_price: payload.salePrice,
             status: payload.status,
             issue_tags: payload.issueTags,
+            imeis: payload.imeis || [],
           })
           .eq("id", payload.id)
           .eq("tenant_id", tenant_id);

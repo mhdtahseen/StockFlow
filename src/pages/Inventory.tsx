@@ -17,6 +17,7 @@ import {
   Cpu,
   ArrowDown,
   TrendingUp,
+  Clock,
 } from "lucide-react";
 import {
   formatDistanceToNow,
@@ -456,7 +457,7 @@ export default function Inventory() {
                     <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
                       {phone.brand} {phone.model}
                     </h3>
-                    <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono mt-1.5">
+                    <div className="flex items-center gap-1 text-[12px] text-slate-400 font-mono mt-1.5">
                       <Fingerprint size={12} />
                       <span>
                         IMEI:{" "}
@@ -467,7 +468,7 @@ export default function Inventory() {
                           : "—"}
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-slate-500 mt-1">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium text-slate-500 mt-1">
                       <Cpu size={14} />
                       <span>
                         {phone.ram !== "N/A" ? `${phone.ram} / ` : ""}
@@ -503,9 +504,12 @@ export default function Inventory() {
                 </div>
 
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-[10px] uppercase font-bold text-slate-400">
-                    Added {getRelativeDate(phone.createdAt)}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <Clock size={11} className="text-slate-400" />
+                    <p className="text-[10px] uppercase font-bold text-slate-400">
+                      {getRelativeDate(phone.createdAt)}
+                    </p>
+                  </div>
                   <div className="flex items-center gap-3">
                     {/* ONLY SHOW ISSUES BADGE IF ISSUES EXIST */}
                     {phone.issueTags.length > 0 && (
