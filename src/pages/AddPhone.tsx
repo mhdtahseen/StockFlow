@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { addPhone } from "../features/inventory/slice";
 import { addEntry } from "../features/ledger/slice";
@@ -136,22 +137,59 @@ export default function AddPhone() {
 
   // ── Autofill from existing inventory ──────────────────────────────────────
   useEffect(() => {
-    // Find the first valid 15-digit IMEI currently entered
-    const validImei = imeis.find((i) => i.value.length === 15)?.value;
+    let active = true;
 
-    if (validImei) {
-      // Search the Redux store for any phone containing this exact IMEI
+    async function checkImei() {
+      // Find the first valid 15-digit IMEI currently entered
+      const validImei = imeis.find((i) => i.value.length === 15)?.value;
+      if (!validImei) return;
+
+      // 1. Search the Redux store first
+      let foundBrand = "";
+      let foundModel = "";
+      let foundRam = "";
+      let foundStorage = "";
+      let foundColor = "";
+
       const existingPhone = phones.find((p) => p.imeis?.includes(validImei));
 
       if (existingPhone) {
-        if (brand !== existingPhone.brand) setBrand(existingPhone.brand);
-        if (model !== existingPhone.model) setModel(existingPhone.model);
-        if (ram !== existingPhone.ram) setRam(existingPhone.ram);
-        if (storage !== existingPhone.storage)
-          setStorage(existingPhone.storage);
-        if (color !== existingPhone.color) setColor(existingPhone.color);
+        foundBrand = existingPhone.brand;
+        foundModel = existingPhone.model;
+        foundRam = existingPhone.ram;
+        foundStorage = existingPhone.storage;
+        foundColor = existingPhone.color;
+      } else {
+        // 2. Fallback: Search the DB directly
+        const { data, error } = await supabase
+          .from("phones")
+          .select("brand, model, ram, storage, color")
+          .contains("imeis", [validImei])
+          .maybeSingle();
+
+        if (data && !error && active) {
+          foundBrand = data.brand;
+          foundModel = data.model;
+          foundRam = data.ram;
+          foundStorage = data.storage;
+          foundColor = data.color;
+        }
+      }
+
+      if (foundBrand && active) {
+        if (brand !== foundBrand) setBrand(foundBrand);
+        if (model !== foundModel) setModel(foundModel);
+        if (ram !== foundRam) setRam(foundRam);
+        if (storage !== foundStorage) setStorage(foundStorage);
+        if (color !== foundColor) setColor(foundColor);
       }
     }
+
+    checkImei();
+
+    return () => {
+      active = false;
+    };
   }, [imeis, phones, brand, model, ram, storage, color]);
 
   // ─── Derived options (memoized, catalog-only) ───────────────────────────────
