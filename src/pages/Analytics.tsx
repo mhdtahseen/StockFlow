@@ -40,6 +40,7 @@ import Autoplay from "embla-carousel-autoplay";
 import clsx from "clsx";
 import { TrendingUp, Clock, Package, Calendar } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 
 export default function Analytics() {
   const [period, setPeriod] = useState<TimePeriod>("monthly");
@@ -209,22 +210,29 @@ export default function Analytics() {
         total++;
       });
     });
-    const issueColors = [
-      "bg-rose-500",
-      "bg-amber-500",
-      "bg-[#064a98]",
-      "bg-slate-400",
-      "bg-violet-500",
-      "bg-pink-500",
-    ];
+
     return Object.entries(tagMap)
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 4)
-      .map(([tag, count], i) => ({
-        label: tag,
-        pct: total > 0 ? Math.round((count / total) * 100) : 0,
-        color: issueColors[i % issueColors.length],
-      }));
+      .slice(0, 5) // Show top 5 instead of 4
+      .map(([tag, count]) => {
+        // Find severity to color match it properly
+        const catalogItem = issuesFlatList.find(
+          (i) => i.label === tag || i.aliases?.includes(tag),
+        );
+        const severity = catalogItem?.severity || 1;
+        const colorData = severityColorMap[severity];
+
+        // We map severity Tailwind hex to basic semantic tailwind solid colors for the bars
+        // as we can't easily animate dynamic hex backgrounds with basic tailwind `bg-` classes.
+        // We'll just pass inline styles for background!
+
+        return {
+          label: tag,
+          pct: total > 0 ? Math.round((count / total) * 100) : 0,
+          colorCode: colorData.bg,
+          textColorCode: colorData.text,
+        };
+      });
   }, [phones]);
 
   // Net Change calculation
@@ -448,7 +456,8 @@ export default function Analytics() {
                   <div className="flex justify-between items-end mb-2">
                     <div className="flex items-center gap-2">
                       <span
-                        className={clsx("size-2 rounded-full", issue.color)}
+                        className="size-2 rounded-full"
+                        style={{ backgroundColor: issue.colorCode }}
                       ></span>
                       <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         {issue.label}
@@ -460,11 +469,11 @@ export default function Analytics() {
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div
-                      className={clsx(
-                        "h-full rounded-full transition-all",
-                        issue.color,
-                      )}
-                      style={{ width: `${issue.pct}%` }}
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${issue.pct}%`,
+                        backgroundColor: issue.colorCode,
+                      }}
                     ></div>
                   </div>
                 </div>
