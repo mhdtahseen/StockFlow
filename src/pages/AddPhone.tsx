@@ -209,6 +209,7 @@ export default function AddPhone() {
       ram: ram || "N/A",
       storage,
       color,
+      imeis: filledImeis.map((e) => e.value).slice(0, 2),
       purchasePrice: parseFloat(price),
       status: "PENDING",
       issueTags: selectedTags,

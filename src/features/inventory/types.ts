@@ -7,6 +7,7 @@ export interface Phone {
   ram: string;
   storage: string;
   color: string;
+  imeis?: string[];
   purchasePrice: number;
   salePrice?: number;
   status: PhoneStatus;

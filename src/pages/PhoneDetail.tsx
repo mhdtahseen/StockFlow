@@ -215,6 +215,14 @@ export default function PhoneDetail() {
               </h2>
               <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
                 {phone.storage} • {phone.color} • {phone.ram}
+                {phone.imeis &&
+                  phone.imeis.length > 0 &&
+                  phone.imeis[0].length >= 4 && (
+                    <span className="font-mono">
+                      {" "}
+                      • **{phone.imeis[0].slice(-4)}
+                    </span>
+                  )}
               </p>
             </div>
           </div>

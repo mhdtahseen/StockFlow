@@ -403,6 +403,13 @@ export default function Inventory() {
                     <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-700 truncate max-w-[80px]">
                       {phone.color}
                     </span>
+                    {phone.imeis &&
+                      phone.imeis.length > 0 &&
+                      phone.imeis[0].length >= 4 && (
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono font-bold px-0.5 py-0.5 ml-1">
+                          **{phone.imeis[0].slice(-4)}
+                        </span>
+                      )}
                     {phone.issueTags.length > 0 && (
                       <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950 border border-rose-100 dark:border-rose-900 px-1.5 py-0.5 rounded ml-1">
                         {phone.issueTags.length} issues
