@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { addPhone } from "../features/inventory/slice";
 import { addEntry } from "../features/ledger/slice";
@@ -133,6 +133,26 @@ export default function AddPhone() {
   const [imeis, setImeis] = useState<ImeiEntry[]>([
     { value: "", status: "UNVERIFIED" },
   ]);
+
+  // ── Autofill from existing inventory ──────────────────────────────────────
+  useEffect(() => {
+    // Find the first valid 15-digit IMEI currently entered
+    const validImei = imeis.find((i) => i.value.length === 15)?.value;
+
+    if (validImei) {
+      // Search the Redux store for any phone containing this exact IMEI
+      const existingPhone = phones.find((p) => p.imeis?.includes(validImei));
+
+      if (existingPhone) {
+        if (brand !== existingPhone.brand) setBrand(existingPhone.brand);
+        if (model !== existingPhone.model) setModel(existingPhone.model);
+        if (ram !== existingPhone.ram) setRam(existingPhone.ram);
+        if (storage !== existingPhone.storage)
+          setStorage(existingPhone.storage);
+        if (color !== existingPhone.color) setColor(existingPhone.color);
+      }
+    }
+  }, [imeis, phones, brand, model, ram, storage, color]);
 
   // ─── Derived options (memoized, catalog-only) ───────────────────────────────
 
@@ -349,6 +369,9 @@ export default function AddPhone() {
 
       <main className="flex-1 w-full max-w-lg mx-auto p-4 overflow-y-auto z-10">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ── IMEI ────────────────────────────────────────────────────── */}
+          <ImeiSection imeis={imeis} onChange={setImeis} />
+
           {/* ── Device Details ───────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -622,9 +645,6 @@ export default function AddPhone() {
               </div>
             </div>
           </div>
-
-          {/* ── IMEI ────────────────────────────────────────────────────── */}
-          <ImeiSection imeis={imeis} onChange={setImeis} />
 
           {/* ── Financials ───────────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4 mb-8">
