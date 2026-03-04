@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Plus } from "lucide-react";
 import clsx from "clsx";
+import Fuse from "fuse.js";
 
 export type AutocompleteItem = {
   id: string;
   label: string;
   categoryLabel?: string;
   aliases?: string[];
+  severity?: 1 | 2 | 3 | 4 | 5;
 };
 
 export interface ReusableAutocompleteProps {
@@ -43,21 +45,21 @@ export default function ReusableAutocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const fuse = useMemo(
+    () =>
+      new Fuse(data, {
+        keys: ["label", "aliases"],
+        threshold: 0.3,
+        ignoreLocation: true,
+      }),
+    [data],
+  );
+
   const filteredItems = useMemo(() => {
     if (!value.trim()) return [];
-    const lowerVal = value.toLowerCase();
-    return data
-      .filter((item) => {
-        if (item.label.toLowerCase().includes(lowerVal)) return true;
-        if (
-          item.aliases &&
-          item.aliases.some((alias) => alias.toLowerCase().includes(lowerVal))
-        )
-          return true;
-        return false;
-      })
-      .slice(0, 15); // Show reasonable number to prevent massive list
-  }, [value, data]);
+    const results = fuse.search(value.trim());
+    return results.map((r) => r.item).slice(0, 15);
+  }, [value, fuse]);
 
   // Open dropdown when typing
   useEffect(() => {

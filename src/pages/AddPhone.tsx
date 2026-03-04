@@ -20,7 +20,7 @@ import {
 } from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
 import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
-import { issuesFlatList } from "../data/issueCatalog";
+import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
 import CurrencyInput from "../components/ui/CurrencyInput";
@@ -38,9 +38,22 @@ import {
   Palette,
   Search,
   HardDrive,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 // ─── Validation (simple, no zod overhead on every render) ────────────────────
+
+const COMMON_ISSUES = [
+  "Cracked / Shattered Screen",
+  "Battery Draining Fast",
+  "Scuff Marks",
+  "Deep Scratch on Screen",
+  "Body Discolouration / Yellowing",
+  "Ghost Touch / Phantom Inputs",
+  "Phone Slow / Lagging",
+  "No Mobile Signal",
+];
 
 type FormErrors = Partial<
   Record<"brand" | "model" | "storage" | "color" | "purchasePrice", string>
@@ -91,6 +104,7 @@ export default function AddPhone() {
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [isIssuesExpanded, setIsIssuesExpanded] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState(false);
 
@@ -456,56 +470,101 @@ export default function AddPhone() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {[...new Set([...masterData.issueTags, ...selectedTags])].map(
-                (tag) => {
-                  const isSelected = selectedTags.includes(tag);
-                  const isSevere =
-                    tag.toLowerCase().includes("crack") ||
-                    tag.toLowerCase().includes("dead") ||
-                    tag.toLowerCase().includes("broken");
-                  const isWarning =
-                    tag.toLowerCase().includes("fail") ||
-                    tag.toLowerCase().includes("battery") ||
-                    tag.toLowerCase().includes("scratch");
+              {(() => {
+                const hasManySelected = selectedTags.length > 3;
+                let chipsToRender: string[] = [];
 
-                  let baseStyle =
-                    "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600";
-                  if (isSelected) {
-                    if (isSevere)
-                      baseStyle =
-                        "bg-rose-50 dark:bg-rose-950 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 font-bold";
-                    else if (isWarning)
-                      baseStyle =
-                        "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-bold";
-                    else
-                      baseStyle =
-                        "bg-[#064a98]/10 dark:bg-blue-500/10 border-[#064a98]/30 dark:border-blue-500/30 text-[#064a98] dark:text-blue-400 font-bold";
+                if (isIssuesExpanded) {
+                  chipsToRender = [
+                    ...new Set([...COMMON_ISSUES, ...selectedTags]),
+                  ];
+                } else {
+                  if (hasManySelected) {
+                    chipsToRender = selectedTags.slice(-3); // Show 3 latest
+                  } else {
+                    chipsToRender = [
+                      ...new Set([...COMMON_ISSUES, ...selectedTags]),
+                    ];
                   }
+                }
 
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      className={clsx(
-                        "group flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-xs font-semibold transition-all active:scale-95",
-                        baseStyle,
-                      )}
-                    >
-                      <span>{tag}</span>
-                      {isSelected ? (
-                        <Check
-                          size={14}
-                          strokeWidth={3}
-                          className="opacity-80"
-                        />
-                      ) : (
-                        <Plus size={14} className="opacity-40" />
-                      )}
-                    </button>
-                  );
-                },
-              )}
+                const hiddenCount =
+                  hasManySelected && !isIssuesExpanded
+                    ? selectedTags.length - 3
+                    : 0;
+
+                return (
+                  <>
+                    {chipsToRender.map((tag) => {
+                      const isSelected = selectedTags.includes(tag);
+                      // Find severity from catalog, default to 1 if custom
+                      const catalogItem = issuesFlatList.find(
+                        (i) => i.label === tag || i.aliases?.includes(tag),
+                      );
+                      const severity = catalogItem?.severity || 1;
+                      const severityColors = severityColorMap[severity];
+
+                      let baseStyle =
+                        "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600";
+
+                      let inlineStyle = {};
+
+                      if (isSelected) {
+                        baseStyle = "font-bold";
+                        inlineStyle = {
+                          backgroundColor: severityColors.bg,
+                          color: severityColors.text,
+                          borderColor: severityColors.text + "40", // 25% opacity for border
+                        };
+                      }
+
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          style={inlineStyle}
+                          className={clsx(
+                            "group flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-xs font-semibold transition-all active:scale-95",
+                            baseStyle,
+                          )}
+                        >
+                          <span>{tag}</span>
+                          {isSelected ? (
+                            <Check
+                              size={14}
+                              strokeWidth={3}
+                              className="opacity-80"
+                            />
+                          ) : (
+                            <Plus size={14} className="opacity-40" />
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {hasManySelected && (
+                      <button
+                        type="button"
+                        onClick={() => setIsIssuesExpanded(!isIssuesExpanded)}
+                        className="group flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold transition-all active:scale-95 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        {!isIssuesExpanded ? (
+                          <>
+                            <span>+{hiddenCount} More</span>
+                            <ChevronDown size={14} className="opacity-60" />
+                          </>
+                        ) : (
+                          <>
+                            <span>Show Less</span>
+                            <ChevronUp size={14} className="opacity-60" />
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <div className="pt-3 border-t border-slate-50 dark:border-slate-800 mt-2">

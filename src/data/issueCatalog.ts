@@ -1,12 +1,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Smartphone Issues Catalog
-// Structured for autocomplete: category → issues[]
-// Each issue has a unique id, display label, and aliases for fuzzy search
+// Smartphone Issues Catalog — Reseller / Appraisal Edition
+// Includes functional faults, cosmetic defects, and minor blemishes
+//
+// severity: 1–5
+//   1 = Cosmetic / negligible  (hairline scratch, minor scuff)
+//   2 = Minor defect            (dust in camera, small chip)
+//   3 = Moderate fault          (touch issues, battery drain)
+//   4 = Serious fault           (no signal, bootloop)
+//   5 = Critical                (no power, liquid damage, motherboard)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type Issue = {
   id: string;
   label: string;
+  severity: 1 | 2 | 3 | 4 | 5;
   aliases?: string[];
 };
 
@@ -17,6 +24,195 @@ export type IssueCategory = {
 };
 
 export const issueCatalog: IssueCategory[] = [
+  // ── Cosmetic & Blemishes ───────────────────────────────────────────────────
+  {
+    id: "cosmetic_blemishes",
+    label: "Cosmetic & Blemishes",
+    issues: [
+      {
+        id: "hairline_scratch_screen",
+        label: "Hairline Scratch on Screen",
+        severity: 1,
+        aliases: ["micro scratch", "fine scratch", "light scratch screen"],
+      },
+      {
+        id: "deep_scratch_screen",
+        label: "Deep Scratch on Screen",
+        severity: 2,
+        aliases: [
+          "visible scratch screen",
+          "gouge screen",
+          "scratched display",
+        ],
+      },
+      {
+        id: "scratch_back",
+        label: "Scratch on Back / Rear",
+        severity: 1,
+        aliases: ["scratched back glass", "rear scratch", "back panel scratch"],
+      },
+      {
+        id: "scratch_frame",
+        label: "Scratch on Frame / Rails",
+        severity: 1,
+        aliases: ["frame scratch", "scratched sides", "rail scratch"],
+      },
+      {
+        id: "scuff_mark",
+        label: "Scuff Marks",
+        severity: 1,
+        aliases: ["scuffs", "paint wear", "surface scuff"],
+      },
+      {
+        id: "dent_frame",
+        label: "Dent on Frame",
+        severity: 2,
+        aliases: ["frame dent", "ding", "corner dent", "impact dent"],
+      },
+      {
+        id: "chip_corner",
+        label: "Chipped Corner",
+        severity: 2,
+        aliases: ["corner chip", "edge chip", "glass chip corner"],
+      },
+      {
+        id: "chip_screen_edge",
+        label: "Chipped Screen Edge",
+        severity: 2,
+        aliases: [
+          "edge chip screen",
+          "corner glass missing",
+          "display edge chip",
+        ],
+      },
+      {
+        id: "crack_back_minor",
+        label: "Minor Crack on Back Glass",
+        severity: 2,
+        aliases: [
+          "small crack back",
+          "hairline crack rear",
+          "back glass crack",
+        ],
+      },
+      {
+        id: "crack_back_major",
+        label: "Shattered Back Glass",
+        severity: 3,
+        aliases: [
+          "broken back glass",
+          "smashed rear glass",
+          "back completely cracked",
+        ],
+      },
+      {
+        id: "paint_peeling",
+        label: "Paint / Coating Peeling",
+        severity: 2,
+        aliases: ["coating flaking", "colour peeling", "anodising wear"],
+      },
+      {
+        id: "discolouration_body",
+        label: "Body Discolouration / Yellowing",
+        severity: 1,
+        aliases: ["yellowed plastic", "plastic yellowing", "discoloured back"],
+      },
+      {
+        id: "worn_logo",
+        label: "Logo / Branding Worn Off",
+        severity: 1,
+        aliases: ["apple logo worn", "samsung logo faded", "brand mark gone"],
+      },
+      {
+        id: "sticky_residue",
+        label: "Sticky Residue / Sticker Marks",
+        severity: 1,
+        aliases: [
+          "glue residue",
+          "sticker mark",
+          "adhesive residue",
+          "tape mark",
+        ],
+      },
+      {
+        id: "worn_buttons",
+        label: "Worn / Faded Buttons",
+        severity: 1,
+        aliases: ["button label worn", "faded power button", "worn volume key"],
+      },
+      {
+        id: "dirt_buildup",
+        label: "Dirt / Grime Buildup",
+        severity: 1,
+        aliases: [
+          "dirty phone",
+          "grime in ports",
+          "filthy device",
+          "built up dirt",
+        ],
+      },
+      {
+        id: "oxidation_frame",
+        label: "Oxidation / Tarnish on Frame",
+        severity: 2,
+        aliases: ["oxidised metal", "tarnished frame", "frame discolouration"],
+      },
+      {
+        id: "bend_slight",
+        label: "Slight Bend / Warp",
+        severity: 2,
+        aliases: ["slightly bent", "minor warp", "barely bent frame"],
+      },
+      {
+        id: "burn_mark_body",
+        label: "Burn Mark on Body",
+        severity: 3,
+        aliases: ["scorch mark", "heat mark", "burnt casing"],
+      },
+      {
+        id: "missing_accessories",
+        label: "Missing Accessories / Packaging",
+        severity: 1,
+        aliases: ["no box", "no charger", "no earphones", "incomplete package"],
+      },
+      {
+        id: "previously_repaired",
+        label: "Evidence of Previous Repair",
+        severity: 2,
+        aliases: [
+          "third party repair",
+          "non-original parts",
+          "repaired before",
+          "aftermarket screen",
+        ],
+      },
+      {
+        id: "non_genuine_parts",
+        label: "Non-Genuine / Aftermarket Parts Fitted",
+        severity: 3,
+        aliases: [
+          "fake screen",
+          "third party battery",
+          "non-oem parts",
+          "clone parts",
+        ],
+      },
+      {
+        id: "missing_screws",
+        label: "Missing Screws",
+        severity: 2,
+        aliases: ["screw missing", "no screws", "loose bottom screws"],
+      },
+      {
+        id: "sim_tray_damaged",
+        label: "SIM Tray Damaged / Missing",
+        severity: 2,
+        aliases: ["sim slot broken", "sim ejector missing", "sim tray bent"],
+      },
+    ],
+  },
+
+  // ── Screen & Display ───────────────────────────────────────────────────────
   {
     id: "screen_display",
     label: "Screen & Display",
@@ -24,31 +220,25 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "cracked_screen",
         label: "Cracked / Shattered Screen",
-        aliases: [
-          "broken screen",
-          "smashed screen",
-          "shattered display",
-          "cracked glass",
-        ],
+        severity: 3,
+        aliases: ["broken screen", "smashed screen", "shattered display"],
       },
       {
         id: "broken_lcd",
         label: "Broken LCD / Black Blotch",
-        aliases: [
-          "black spot",
-          "ink spot",
-          "lcd damage",
-          "dark patch on screen",
-        ],
+        severity: 4,
+        aliases: ["black spot", "ink spot", "lcd damage", "dark patch"],
       },
       {
         id: "screen_not_turning_on",
         label: "Screen Not Turning On",
+        severity: 5,
         aliases: ["black screen", "blank display", "screen won't turn on"],
       },
       {
         id: "touch_unresponsive",
         label: "Touchscreen Not Responding",
+        severity: 4,
         aliases: [
           "touch not working",
           "unresponsive touch",
@@ -58,85 +248,223 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "touch_ghost",
         label: "Ghost Touch / Phantom Inputs",
-        aliases: [
-          "screen touching itself",
-          "random taps",
-          "phantom touch",
-          "ghost input",
-        ],
+        severity: 3,
+        aliases: ["screen touching itself", "random taps", "phantom touch"],
       },
       {
         id: "screen_flickering",
         label: "Screen Flickering",
+        severity: 3,
         aliases: ["flashing screen", "blinking display", "screen blink"],
       },
       {
         id: "lines_on_screen",
         label: "Lines on Screen",
+        severity: 4,
         aliases: ["horizontal lines", "vertical lines", "stripes on display"],
       },
       {
         id: "dead_pixels",
         label: "Dead / Stuck Pixels",
+        severity: 2,
         aliases: ["pixel dot", "stuck pixel", "white dot", "dead spot"],
       },
       {
         id: "screen_burn_in",
         label: "Screen Burn-In",
-        aliases: [
-          "ghost image",
-          "image retention",
-          "permanent image",
-          "burn in",
-        ],
+        severity: 3,
+        aliases: ["ghost image", "image retention", "permanent image"],
       },
       {
         id: "screen_discolouration",
         label: "Screen Discolouration / Tint",
-        aliases: [
-          "yellow tint",
-          "green tint",
-          "pink tint",
-          "screen colour issue",
-          "colour cast",
-        ],
+        severity: 2,
+        aliases: ["yellow tint", "green tint", "pink tint"],
       },
       {
         id: "screen_dim",
         label: "Screen Too Dim",
-        aliases: ["low brightness", "dark display", "screen not bright enough"],
+        severity: 2,
+        aliases: ["low brightness", "dark display", "not bright enough"],
       },
       {
-        id: "auto_brightness",
-        label: "Auto-Brightness Not Working",
-        aliases: ["brightness sensor", "adaptive brightness broken"],
-      },
-      {
-        id: "screen_timeout",
-        label: "Screen Timeout / Sleep Issues",
+        id: "dust_under_screen",
+        label: "Dust Under Screen",
+        severity: 2,
         aliases: [
-          "screen turns off too fast",
-          "screen stays on",
-          "always on display issue",
+          "dust behind glass",
+          "particle under display",
+          "dust spot screen",
         ],
       },
       {
-        id: "refresh_rate_issue",
-        label: "Refresh Rate / Lag on Display",
-        aliases: ["choppy scrolling", "stuttery display", "120hz not working"],
+        id: "water_mark_screen",
+        label: "Water Mark / Moisture Under Screen",
+        severity: 3,
+        aliases: [
+          "moisture under display",
+          "condensation screen",
+          "water spot display",
+        ],
       },
       {
-        id: "notch_punch_hole_issue",
-        label: "Notch / Punch-Hole Area Issue",
-        aliases: ["camera cutout issue", "notch dark", "punch hole dark"],
+        id: "screen_protector_cracked",
+        label: "Screen Protector Cracked / Lifting",
+        severity: 1,
+        aliases: [
+          "tempered glass cracked",
+          "protector lifting",
+          "screen guard broken",
+        ],
+      },
+      {
+        id: "oleophobic_worn",
+        label: "Oleophobic Coating Worn Off",
+        severity: 1,
+        aliases: ["fingerprint coating gone", "smudgy screen", "oily screen"],
+      },
+      {
+        id: "proximity_sensor_issue",
+        label: "Proximity Sensor Not Working",
+        severity: 3,
+        aliases: ["screen stays on during call", "proximity sensor broken"],
       },
       {
         id: "earpiece_mesh_blocked",
-        label: "Earpiece Mesh Blocked",
-        aliases: ["top speaker dirty", "can't hear calls", "earpiece clogged"],
+        label: "Earpiece Mesh Blocked / Dirty",
+        severity: 1,
+        aliases: [
+          "top speaker dirty",
+          "earpiece clogged",
+          "speaker grille blocked",
+        ],
+      },
+      {
+        id: "auto_brightness_issue",
+        label: "Auto-Brightness Not Working",
+        severity: 2,
+        aliases: ["brightness sensor broken", "adaptive brightness issue"],
+      },
+      {
+        id: "refresh_rate_issue",
+        label: "Display Stutter / Refresh Rate Issue",
+        severity: 2,
+        aliases: ["choppy scrolling", "stuttery display", "120hz not working"],
       },
     ],
   },
+
+  // ── Camera ─────────────────────────────────────────────────────────────────
+  {
+    id: "camera_issues",
+    label: "Camera",
+    issues: [
+      {
+        id: "dust_in_camera",
+        label: "Dust Inside Rear Camera Lens",
+        severity: 2,
+        aliases: [
+          "dust spot camera",
+          "particle in lens",
+          "dirt in camera module",
+        ],
+      },
+      {
+        id: "dust_front_camera",
+        label: "Dust Inside Front Camera",
+        severity: 2,
+        aliases: ["selfie cam dusty", "front lens dirty", "dust selfie camera"],
+      },
+      {
+        id: "camera_lens_cracked",
+        label: "Camera Lens Glass Cracked",
+        severity: 2,
+        aliases: ["cracked camera glass", "lens cover broken"],
+      },
+      {
+        id: "camera_lens_scratched",
+        label: "Camera Lens Scratched",
+        severity: 2,
+        aliases: [
+          "lens scratch",
+          "scratched camera cover",
+          "camera glass mark",
+        ],
+      },
+      {
+        id: "condensation_camera",
+        label: "Condensation Inside Camera",
+        severity: 3,
+        aliases: ["fogged camera", "moisture in lens", "foggy camera module"],
+      },
+      {
+        id: "camera_not_opening",
+        label: "Camera App Not Opening",
+        severity: 3,
+        aliases: ["camera crash", "camera app fails", "camera force close"],
+      },
+      {
+        id: "camera_black_screen",
+        label: "Camera Shows Black Screen",
+        severity: 4,
+        aliases: ["camera blank", "camera no preview", "camera not showing"],
+      },
+      {
+        id: "camera_blurry",
+        label: "Camera Taking Blurry Photos",
+        severity: 3,
+        aliases: ["out of focus", "blurry pictures", "camera not sharp"],
+      },
+      {
+        id: "autofocus_not_working",
+        label: "Autofocus Not Working",
+        severity: 3,
+        aliases: ["won't focus", "focus stuck", "manual focus only"],
+      },
+      {
+        id: "camera_lines_artifacts",
+        label: "Lines / Artifacts in Camera",
+        severity: 3,
+        aliases: ["camera distortion", "lines in viewfinder", "camera noise"],
+      },
+      {
+        id: "flash_not_working",
+        label: "Flash / Torch Not Working",
+        severity: 2,
+        aliases: ["flashlight broken", "led flash not working", "torch not on"],
+      },
+      {
+        id: "camera_shaking",
+        label: "Camera Shaky / OIS Not Working",
+        severity: 3,
+        aliases: [
+          "ois broken",
+          "shaky photos",
+          "image stabilisation not working",
+        ],
+      },
+      {
+        id: "zoom_not_working",
+        label: "Zoom / Telephoto Not Working",
+        severity: 3,
+        aliases: ["telephoto broken", "optical zoom issue", "periscope issue"],
+      },
+      {
+        id: "front_camera_issue",
+        label: "Front Camera Not Working",
+        severity: 4,
+        aliases: ["selfie camera broken", "front facing camera issue"],
+      },
+      {
+        id: "rear_camera_issue",
+        label: "Rear Camera Not Working",
+        severity: 4,
+        aliases: ["back camera broken", "main camera not working"],
+      },
+    ],
+  },
+
+  // ── Battery & Power ────────────────────────────────────────────────────────
   {
     id: "battery_power",
     label: "Battery & Power",
@@ -144,21 +472,19 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "battery_draining_fast",
         label: "Battery Draining Fast",
-        aliases: [
-          "poor battery life",
-          "battery dies quickly",
-          "short battery",
-          "low endurance",
-        ],
+        severity: 3,
+        aliases: ["poor battery life", "battery dies quickly", "short battery"],
       },
       {
         id: "phone_not_charging",
         label: "Phone Not Charging",
+        severity: 4,
         aliases: ["won't charge", "no charge", "not charging at all"],
       },
       {
         id: "slow_charging",
         label: "Charging Slowly",
+        severity: 3,
         aliases: [
           "slow charge",
           "takes long to charge",
@@ -168,166 +494,68 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "wireless_charging_fail",
         label: "Wireless Charging Not Working",
-        aliases: [
-          "qi not working",
-          "inductive charging broken",
-          "pad not charging",
-        ],
-      },
-      {
-        id: "reverse_charging_fail",
-        label: "Reverse Wireless Charging Not Working",
-        aliases: ["powershare not working", "share charge broken"],
+        severity: 3,
+        aliases: ["qi not working", "inductive charging broken"],
       },
       {
         id: "overheating",
         label: "Phone Overheating",
-        aliases: [
-          "phone too hot",
-          "heating up",
-          "thermal throttle",
-          "burns while charging",
-        ],
+        severity: 4,
+        aliases: ["phone too hot", "heating up", "thermal throttle"],
       },
       {
         id: "battery_swollen",
         label: "Swollen / Bloated Battery",
-        aliases: [
-          "puffed battery",
-          "bulging battery",
-          "swelled battery",
-          "battery bump",
-        ],
+        severity: 5,
+        aliases: ["puffed battery", "bulging battery", "swelled battery"],
       },
       {
         id: "phone_not_turning_on",
         label: "Phone Not Turning On",
+        severity: 5,
         aliases: [
           "dead phone",
           "won't power on",
-          "black screen of death",
           "no power",
+          "black screen of death",
         ],
       },
       {
         id: "phone_randomly_shuts_off",
         label: "Phone Randomly Shuts Off",
+        severity: 4,
         aliases: [
           "turns off by itself",
           "random shutdown",
           "spontaneous reboot",
-          "powers off",
         ],
       },
       {
         id: "battery_percentage_jump",
-        label: "Battery Percentage Jumping",
+        label: "Battery Percentage Jumping / Inaccurate",
+        severity: 3,
         aliases: [
           "inaccurate battery",
-          "battery percentage wrong",
+          "battery drops suddenly",
           "jumps from 20 to dead",
         ],
       },
       {
         id: "charging_port_loose",
         label: "Charging Port Loose / Wobbly",
+        severity: 3,
         aliases: ["cable falls out", "port not gripping", "loose usb"],
       },
       {
         id: "charging_port_dirty",
         label: "Charging Port Dirty / Blocked",
+        severity: 2,
         aliases: ["lint in port", "fluff in charger", "debris in port"],
       },
     ],
   },
-  {
-    id: "camera_issues",
-    label: "Camera",
-    issues: [
-      {
-        id: "camera_not_opening",
-        label: "Camera App Not Opening",
-        aliases: ["camera crash", "camera app fails", "camera force close"],
-      },
-      {
-        id: "camera_black_screen",
-        label: "Camera Shows Black Screen",
-        aliases: [
-          "camera blank",
-          "camera not showing image",
-          "camera no preview",
-        ],
-      },
-      {
-        id: "camera_blurry",
-        label: "Camera Taking Blurry Photos",
-        aliases: ["out of focus", "blurry pictures", "camera not sharp"],
-      },
-      {
-        id: "autofocus_not_working",
-        label: "Autofocus Not Working",
-        aliases: ["won't focus", "focus stuck", "manual focus only"],
-      },
-      {
-        id: "camera_lens_cracked",
-        label: "Camera Lens Cracked / Scratched",
-        aliases: ["cracked camera glass", "scratched lens", "lens damage"],
-      },
-      {
-        id: "front_camera_issue",
-        label: "Front Camera Not Working",
-        aliases: ["selfie camera broken", "front facing camera issue"],
-      },
-      {
-        id: "rear_camera_issue",
-        label: "Rear Camera Not Working",
-        aliases: ["back camera broken", "main camera not working"],
-      },
-      {
-        id: "camera_lines_artifacts",
-        label: "Lines / Artifacts in Camera",
-        aliases: ["camera distortion", "lines in viewfinder", "camera noise"],
-      },
-      {
-        id: "camera_overexposed",
-        label: "Photos Overexposed / Washed Out",
-        aliases: ["too bright photos", "white out photos", "exposure issue"],
-      },
-      {
-        id: "camera_dark_photos",
-        label: "Photos Too Dark",
-        aliases: ["dark pictures", "underexposed", "low light issue"],
-      },
-      {
-        id: "flash_not_working",
-        label: "Flash / Torch Not Working",
-        aliases: ["flashlight broken", "led flash not working", "torch not on"],
-      },
-      {
-        id: "camera_shaking",
-        label: "Camera Shaky / OIS Not Working",
-        aliases: [
-          "ois broken",
-          "shaky photos",
-          "image stabilisation not working",
-        ],
-      },
-      {
-        id: "zoom_not_working",
-        label: "Zoom Not Working",
-        aliases: [
-          "telephoto broken",
-          "optical zoom issue",
-          "periscope camera issue",
-        ],
-      },
-      {
-        id: "video_recording_issue",
-        label: "Video Recording Issue",
-        aliases: ["video not recording", "video laggy", "video crash"],
-      },
-    ],
-  },
+
+  // ── Audio & Sound ──────────────────────────────────────────────────────────
   {
     id: "audio_sound",
     label: "Audio & Sound",
@@ -335,82 +563,61 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "no_sound",
         label: "No Sound / Audio Output",
-        aliases: ["silent phone", "no audio", "muted phone"],
+        severity: 4,
+        aliases: ["silent phone", "no audio", "muted"],
       },
       {
         id: "loudspeaker_not_working",
         label: "Loudspeaker Not Working",
-        aliases: [
-          "bottom speaker broken",
-          "external speaker dead",
-          "no speaker sound",
-        ],
+        severity: 4,
+        aliases: ["bottom speaker broken", "external speaker dead"],
       },
       {
         id: "earpiece_not_working",
         label: "Earpiece Not Working",
-        aliases: [
-          "can't hear on calls",
-          "top speaker broken",
-          "call speaker dead",
-        ],
+        severity: 4,
+        aliases: ["can't hear on calls", "top speaker broken"],
       },
       {
         id: "distorted_audio",
         label: "Distorted / Crackling Sound",
-        aliases: [
-          "buzzing speaker",
-          "crackling audio",
-          "muffled sound",
-          "static",
-        ],
+        severity: 3,
+        aliases: ["buzzing speaker", "crackling audio", "muffled sound"],
       },
       {
         id: "microphone_not_working",
         label: "Microphone Not Working",
-        aliases: [
-          "mic dead",
-          "caller can't hear me",
-          "voice not picked up",
-          "no mic",
-        ],
+        severity: 4,
+        aliases: ["mic dead", "caller can't hear me", "no mic"],
       },
       {
         id: "muffled_microphone",
         label: "Muffled Microphone",
-        aliases: ["mic muffled", "bad microphone quality", "voice unclear"],
+        severity: 3,
+        aliases: ["mic muffled", "bad mic quality", "voice unclear"],
+      },
+      {
+        id: "speaker_mesh_dirty",
+        label: "Speaker Mesh Dirty / Blocked",
+        severity: 1,
+        aliases: ["clogged speaker grille", "dirty mesh", "blocked speaker"],
       },
       {
         id: "headphone_jack_issue",
         label: "Headphone Jack Issue",
+        severity: 3,
         aliases: ["aux not working", "3.5mm broken", "earphones not detected"],
-      },
-      {
-        id: "bluetooth_audio_issue",
-        label: "Bluetooth Audio Issues",
-        aliases: [
-          "bt headphones cutting out",
-          "bluetooth audio lag",
-          "earbuds disconnecting",
-        ],
       },
       {
         id: "volume_buttons_not_working",
         label: "Volume Buttons Not Working",
+        severity: 3,
         aliases: ["can't adjust volume", "volume key stuck", "volume broken"],
-      },
-      {
-        id: "call_quality_poor",
-        label: "Poor Call Quality",
-        aliases: [
-          "calls cutting out",
-          "choppy calls",
-          "echo on calls",
-          "bad reception on calls",
-        ],
       },
     ],
   },
+
+  // ── Connectivity ───────────────────────────────────────────────────────────
   {
     id: "connectivity",
     label: "Connectivity",
@@ -418,136 +625,73 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "no_signal",
         label: "No Mobile Signal",
-        aliases: ["no network", "no bars", "no service", "lost signal"],
+        severity: 4,
+        aliases: ["no network", "no bars", "no service"],
       },
       {
         id: "weak_signal",
         label: "Weak / Dropping Signal",
-        aliases: [
-          "low signal",
-          "dropped calls",
-          "intermittent signal",
-          "poor reception",
-        ],
+        severity: 3,
+        aliases: ["low signal", "dropped calls", "poor reception"],
       },
       {
         id: "wifi_not_connecting",
         label: "Wi-Fi Not Connecting",
-        aliases: ["wifi broken", "can't join wifi", "wifi fails to connect"],
+        severity: 3,
+        aliases: ["wifi broken", "can't join wifi"],
       },
       {
         id: "wifi_dropping",
         label: "Wi-Fi Keeps Dropping",
-        aliases: [
-          "wifi disconnects",
-          "unstable wifi",
-          "wifi keeps cutting out",
-        ],
-      },
-      {
-        id: "wifi_slow",
-        label: "Slow Wi-Fi Speed",
-        aliases: ["wifi slow", "weak wifi", "bad wifi speed"],
+        severity: 3,
+        aliases: ["wifi disconnects", "unstable wifi"],
       },
       {
         id: "bluetooth_not_connecting",
         label: "Bluetooth Not Connecting",
-        aliases: [
-          "bt not pairing",
-          "bluetooth broken",
-          "can't find bluetooth device",
-        ],
-      },
-      {
-        id: "bluetooth_dropping",
-        label: "Bluetooth Keeps Disconnecting",
-        aliases: ["bluetooth cutting out", "bt drops", "bluetooth unstable"],
+        severity: 3,
+        aliases: ["bt not pairing", "bluetooth broken"],
       },
       {
         id: "nfc_not_working",
         label: "NFC Not Working",
-        aliases: [
-          "contactless payment broken",
-          "tap to pay not working",
-          "nfc broken",
-        ],
+        severity: 3,
+        aliases: ["contactless payment broken", "tap to pay not working"],
       },
       {
         id: "5g_not_working",
         label: "5G Not Working",
-        aliases: [
-          "5g broken",
-          "stuck on 4g",
-          "no 5g signal",
-          "5g not available",
-        ],
-      },
-      {
-        id: "4g_lte_issue",
-        label: "4G / LTE Issue",
-        aliases: ["no lte", "slow 4g", "4g dropping", "mobile data slow"],
+        severity: 3,
+        aliases: ["5g broken", "stuck on 4g", "no 5g signal"],
       },
       {
         id: "mobile_data_not_working",
         label: "Mobile Data Not Working",
-        aliases: [
-          "internet not working",
-          "data not connecting",
-          "no internet on data",
-        ],
+        severity: 4,
+        aliases: ["internet not working", "data not connecting"],
       },
       {
         id: "gps_not_working",
         label: "GPS / Location Not Working",
-        aliases: [
-          "maps not accurate",
-          "location off",
-          "gps fix slow",
-          "navigation issue",
-        ],
-      },
-      {
-        id: "hotspot_not_working",
-        label: "Mobile Hotspot Not Working",
-        aliases: [
-          "tethering broken",
-          "personal hotspot issue",
-          "wifi sharing not working",
-        ],
-      },
-      {
-        id: "usb_not_detected",
-        label: "USB / PC Not Detecting Phone",
-        aliases: [
-          "not recognized by computer",
-          "usb connection issue",
-          "mtp not working",
-        ],
+        severity: 3,
+        aliases: ["maps not accurate", "location off", "gps fix slow"],
       },
       {
         id: "sim_not_detected",
         label: "SIM Card Not Detected",
+        severity: 4,
         aliases: ["no sim", "sim not reading", "invalid sim", "sim error"],
-      },
-      {
-        id: "dual_sim_issue",
-        label: "Dual SIM Issue",
-        aliases: [
-          "second sim not working",
-          "esim issue",
-          "dual sim switching problem",
-        ],
       },
       {
         id: "airplane_mode_stuck",
         label: "Stuck in Airplane Mode",
-        aliases: [
-          "can't turn off airplane mode",
-          "airplane mode won't disable",
-        ],
+        severity: 4,
+        aliases: ["can't turn off airplane mode"],
       },
     ],
   },
+
+  // ── Software & System ──────────────────────────────────────────────────────
   {
     id: "software_system",
     label: "Software & System",
@@ -555,135 +699,73 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "phone_slow",
         label: "Phone Slow / Lagging",
-        aliases: [
-          "sluggish phone",
-          "performance issue",
-          "running slow",
-          "freezing",
-        ],
+        severity: 3,
+        aliases: ["sluggish phone", "performance issue", "running slow"],
       },
       {
         id: "apps_crashing",
         label: "Apps Crashing / Force Closing",
-        aliases: [
-          "app keeps stopping",
-          "app crash",
-          "force close",
-          "apps not opening",
-        ],
+        severity: 3,
+        aliases: ["app keeps stopping", "app crash", "force close"],
       },
       {
         id: "bootloop",
         label: "Stuck in Bootloop",
-        aliases: [
-          "stuck on logo",
-          "keeps restarting",
-          "boot loop",
-          "infinite reboot",
-        ],
+        severity: 5,
+        aliases: ["stuck on logo", "keeps restarting", "infinite reboot"],
       },
       {
         id: "phone_freezing",
         label: "Phone Freezing / Unresponsive",
+        severity: 4,
         aliases: ["frozen screen", "phone hung", "completely unresponsive"],
       },
       {
         id: "random_restarts",
         label: "Random Restarts",
-        aliases: [
-          "phone rebooting itself",
-          "spontaneous restart",
-          "turns off and on",
-        ],
+        severity: 4,
+        aliases: ["phone rebooting itself", "spontaneous restart"],
       },
       {
         id: "update_failed",
-        label: "Software Update Failed",
-        aliases: [
-          "update error",
-          "os update stuck",
-          "update loop",
-          "firmware fail",
-        ],
+        label: "Software Update Failed / Stuck",
+        severity: 4,
+        aliases: ["update error", "os update stuck", "firmware fail"],
       },
       {
         id: "storage_full",
-        label: "Storage Full / Low Space",
-        aliases: [
-          "no storage",
-          "storage almost full",
-          "not enough space",
-          "memory full",
-        ],
-      },
-      {
-        id: "app_not_installing",
-        label: "Apps Not Installing",
-        aliases: [
-          "can't install app",
-          "installation failed",
-          "app won't download",
-        ],
-      },
-      {
-        id: "play_store_issue",
-        label: "Play Store / App Store Not Working",
-        aliases: ["google play broken", "app store error", "can't open store"],
+        label: "Storage Full",
+        severity: 2,
+        aliases: ["no storage", "not enough space", "memory full"],
       },
       {
         id: "notifications_not_working",
         label: "Notifications Not Working",
-        aliases: [
-          "no notifications",
-          "missing notifications",
-          "push notifications broken",
-        ],
+        severity: 2,
+        aliases: ["no notifications", "missing notifications"],
       },
       {
-        id: "phone_hot_software",
-        label: "Phone Overheating (Software-Related)",
+        id: "imei_issue",
+        label: "IMEI Issue / Invalid / Blacklisted",
+        severity: 5,
         aliases: [
-          "software causing heat",
-          "app causing overheating",
-          "background process heat",
+          "no imei",
+          "imei null",
+          "invalid imei",
+          "imei blacklisted",
+          "barred imei",
         ],
-      },
-      {
-        id: "dark_mode_issue",
-        label: "Dark Mode / Display Settings Issue",
-        aliases: [
-          "dark mode not applying",
-          "theme broken",
-          "display settings stuck",
-        ],
-      },
-      {
-        id: "settings_crashing",
-        label: "Settings App Crashing",
-        aliases: ["settings won't open", "settings force close"],
       },
       {
         id: "date_time_wrong",
         label: "Date / Time Incorrect",
-        aliases: [
-          "wrong time",
-          "clock wrong",
-          "time resetting",
-          "date incorrect",
-        ],
-      },
-      {
-        id: "language_locale_issue",
-        label: "Language / Region Issue",
-        aliases: ["language changed", "region wrong", "locale bug"],
-      },
-      {
-        id: "developer_options_issue",
-        label: "Developer Options / Debugging Issue",
-        aliases: ["usb debugging", "adb issue", "developer mode stuck"],
+        severity: 1,
+        aliases: ["wrong time", "clock wrong", "date incorrect"],
       },
     ],
   },
+
+  // ── Security & Access ──────────────────────────────────────────────────────
   {
     id: "security_access",
     label: "Security & Access",
@@ -691,6 +773,7 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "fingerprint_not_working",
         label: "Fingerprint Sensor Not Working",
+        severity: 3,
         aliases: [
           "fingerprint broken",
           "touch id failing",
@@ -700,34 +783,25 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "face_unlock_not_working",
         label: "Face Unlock Not Working",
-        aliases: [
-          "face id broken",
-          "face recognition failing",
-          "face not recognised",
-        ],
+        severity: 3,
+        aliases: ["face id broken", "face recognition failing"],
       },
       {
         id: "locked_out",
         label: "Locked Out of Phone",
-        aliases: [
-          "forgot pin",
-          "forgot password",
-          "forgot pattern",
-          "can't unlock",
-        ],
+        severity: 4,
+        aliases: ["forgot pin", "forgot password", "forgot pattern"],
       },
       {
         id: "icloud_lock",
         label: "iCloud Activation Lock",
-        aliases: [
-          "find my iphone lock",
-          "icloud locked",
-          "activation locked iphone",
-        ],
+        severity: 5,
+        aliases: ["find my iphone lock", "icloud locked", "activation locked"],
       },
       {
         id: "google_frp_lock",
         label: "Google FRP / Account Lock",
+        severity: 5,
         aliases: [
           "factory reset protection",
           "frp bypass",
@@ -737,158 +811,19 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "network_locked",
         label: "Network / Carrier Locked",
-        aliases: [
-          "sim locked",
-          "carrier locked",
-          "locked to network",
-          "not accepting sim",
-        ],
+        severity: 3,
+        aliases: ["sim locked", "carrier locked", "not accepting sim"],
       },
       {
         id: "virus_malware",
         label: "Virus / Malware Suspected",
-        aliases: [
-          "phone hacked",
-          "malware on phone",
-          "suspicious app",
-          "virus",
-        ],
-      },
-      {
-        id: "privacy_concern",
-        label: "Privacy / Security Concern",
-        aliases: ["data breach concern", "phone monitored", "spyware"],
+        severity: 4,
+        aliases: ["phone hacked", "malware on phone", "suspicious app"],
       },
     ],
   },
-  {
-    id: "calls_messaging",
-    label: "Calls & Messaging",
-    issues: [
-      {
-        id: "cant_make_calls",
-        label: "Can't Make / Receive Calls",
-        aliases: [
-          "no calling",
-          "calls not working",
-          "call failed",
-          "dialer issue",
-        ],
-      },
-      {
-        id: "calls_dropping",
-        label: "Calls Dropping / Cutting Out",
-        aliases: ["call drops", "disconnected calls", "call keeps ending"],
-      },
-      {
-        id: "echo_on_calls",
-        label: "Echo / Feedback on Calls",
-        aliases: ["hearing myself on call", "call echo", "voice echo"],
-      },
-      {
-        id: "sms_not_sending",
-        label: "SMS / Text Messages Not Sending",
-        aliases: ["texts not going through", "messages failing", "sms failed"],
-      },
-      {
-        id: "mms_not_working",
-        label: "MMS / Picture Messages Not Working",
-        aliases: [
-          "can't send pictures via sms",
-          "mms failed",
-          "group sms issue",
-        ],
-      },
-      {
-        id: "whatsapp_call_issue",
-        label: "WhatsApp / VoIP Call Issue",
-        aliases: [
-          "whatsapp calling not working",
-          "voip issue",
-          "internet call problem",
-        ],
-      },
-      {
-        id: "voicemail_issue",
-        label: "Voicemail Not Working",
-        aliases: [
-          "visual voicemail broken",
-          "can't access voicemail",
-          "voicemail setup issue",
-        ],
-      },
-      {
-        id: "caller_id_issue",
-        label: "Caller ID Not Showing",
-        aliases: [
-          "no caller id",
-          "unknown number showing",
-          "caller name not appearing",
-        ],
-      },
-      {
-        id: "call_forwarding_issue",
-        label: "Call Forwarding Not Working",
-        aliases: ["call divert broken", "forward calls issue"],
-      },
-    ],
-  },
-  {
-    id: "physical_damage",
-    label: "Physical & Liquid Damage",
-    issues: [
-      {
-        id: "water_damage",
-        label: "Water / Liquid Damage",
-        aliases: [
-          "dropped in water",
-          "wet phone",
-          "phone got wet",
-          "liquid damage",
-          "rain damage",
-        ],
-      },
-      {
-        id: "dropped_phone",
-        label: "Phone Dropped / Impact Damage",
-        aliases: ["fell on floor", "dropped", "physical impact", "fall damage"],
-      },
-      {
-        id: "bent_phone",
-        label: "Bent / Warped Frame",
-        aliases: [
-          "phone bent",
-          "chassis warped",
-          "curved frame",
-          "bent chassis",
-        ],
-      },
-      {
-        id: "cracked_back",
-        label: "Cracked / Broken Back Glass",
-        aliases: ["back glass broken", "rear glass cracked", "shattered back"],
-      },
-      {
-        id: "dented_frame",
-        label: "Dented / Scratched Frame",
-        aliases: ["frame dent", "scratches on body", "cosmetic damage"],
-      },
-      {
-        id: "phone_in_sand_dust",
-        label: "Sand / Dust Ingress",
-        aliases: ["dust inside phone", "sand damage", "dust under screen"],
-      },
-      {
-        id: "phone_run_over",
-        label: "Phone Run Over / Crushed",
-        aliases: [
-          "car ran over phone",
-          "crushed phone",
-          "severe physical damage",
-        ],
-      },
-    ],
-  },
+
+  // ── Buttons & Biometrics ───────────────────────────────────────────────────
   {
     id: "buttons_biometrics",
     label: "Buttons & Biometrics",
@@ -896,6 +831,7 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "power_button_stuck",
         label: "Power Button Stuck / Not Working",
+        severity: 4,
         aliases: [
           "on/off stuck",
           "side button broken",
@@ -905,33 +841,107 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "volume_button_stuck",
         label: "Volume Button Stuck / Not Working",
-        aliases: [
-          "volume key stuck",
-          "volume button broken",
-          "volume unresponsive",
-        ],
+        severity: 3,
+        aliases: ["volume key stuck", "volume button broken"],
       },
       {
         id: "home_button_broken",
         label: "Home Button Not Working",
+        severity: 4,
         aliases: ["home key broken", "capacitive home broken"],
       },
       {
         id: "mute_switch_broken",
         label: "Mute / Silent Switch Broken",
+        severity: 3,
         aliases: ["ringer switch broken", "silent toggle stuck"],
       },
       {
         id: "in_display_fingerprint",
         label: "In-Display Fingerprint Not Working",
+        severity: 3,
+        aliases: ["under display fingerprint", "optical fingerprint broken"],
+      },
+      {
+        id: "button_wobbly",
+        label: "Button Loose / Wobbly",
+        severity: 2,
         aliases: [
-          "under display fingerprint",
-          "optical fingerprint broken",
-          "ultrasonic fingerprint issue",
+          "rattly button",
+          "loose power key",
+          "button not clicking properly",
         ],
       },
     ],
   },
+
+  // ── Physical & Liquid Damage ───────────────────────────────────────────────
+  {
+    id: "physical_damage",
+    label: "Physical & Liquid Damage",
+    issues: [
+      {
+        id: "water_damage",
+        label: "Water / Liquid Damage",
+        severity: 5,
+        aliases: ["dropped in water", "wet phone", "liquid damage"],
+      },
+      {
+        id: "water_indicator_triggered",
+        label: "Water Damage Indicator Triggered",
+        severity: 4,
+        aliases: ["wdi red", "liquid indicator activated", "water sticker red"],
+      },
+      {
+        id: "corrosion",
+        label: "Corrosion / Oxidation on Board",
+        severity: 5,
+        aliases: ["corroded board", "rust", "green corrosion", "oxidation"],
+      },
+      {
+        id: "dropped_phone",
+        label: "Phone Dropped / Impact Damage",
+        severity: 3,
+        aliases: ["fell on floor", "dropped", "fall damage"],
+      },
+      {
+        id: "bent_phone",
+        label: "Bent / Warped Frame",
+        severity: 3,
+        aliases: ["phone bent", "chassis warped", "curved frame"],
+      },
+      {
+        id: "sand_dust_ingress",
+        label: "Sand / Dust Ingress Inside Phone",
+        severity: 3,
+        aliases: ["dust inside phone", "sand damage", "grit inside device"],
+      },
+      {
+        id: "water_resistant_seal_broken",
+        label: "Water-Resistant Seal Compromised",
+        severity: 3,
+        aliases: ["ip rating lost", "seal broken", "no longer waterproof"],
+      },
+      {
+        id: "phone_run_over",
+        label: "Phone Run Over / Severely Crushed",
+        severity: 5,
+        aliases: ["car ran over phone", "crushed phone", "severe damage"],
+      },
+      {
+        id: "rattle_inside",
+        label: "Rattle / Loose Component Inside",
+        severity: 3,
+        aliases: [
+          "rattling phone",
+          "loose part inside",
+          "something loose inside",
+        ],
+      },
+    ],
+  },
+
+  // ── Foldable Phone ─────────────────────────────────────────────────────────
   {
     id: "foldable_specific",
     label: "Foldable Phone",
@@ -939,234 +949,99 @@ export const issueCatalog: IssueCategory[] = [
       {
         id: "hinge_stiff",
         label: "Hinge Stiff / Hard to Open",
+        severity: 3,
         aliases: ["fold hard to open", "stiff hinge", "flip hard to open"],
       },
       {
         id: "hinge_loose",
         label: "Hinge Loose / Wobbly",
+        severity: 3,
         aliases: ["loose hinge", "floppy hinge", "fold not staying open"],
       },
       {
         id: "hinge_creak",
         label: "Hinge Creaking / Grinding",
+        severity: 2,
         aliases: ["hinge noise", "creak when folding", "grinding hinge"],
+      },
+      {
+        id: "hinge_gap",
+        label: "Gap / Misalignment at Hinge",
+        severity: 2,
+        aliases: ["hinge uneven", "fold gap", "asymmetric fold"],
       },
       {
         id: "inner_screen_cracked",
         label: "Inner Foldable Screen Cracked",
-        aliases: [
-          "fold screen cracked",
-          "main screen broken",
-          "inner display damaged",
-        ],
+        severity: 5,
+        aliases: ["fold screen cracked", "main screen broken"],
       },
       {
         id: "fold_crease_severe",
-        label: "Fold Crease / Visible Crease",
+        label: "Fold Crease Deep / Visible",
+        severity: 2,
         aliases: ["screen crease", "fold line visible", "middle crease deep"],
       },
       {
         id: "cover_screen_cracked",
         label: "Cover Screen Cracked",
+        severity: 3,
         aliases: ["outer screen broken", "external display cracked"],
       },
       {
         id: "fold_not_flat",
-        label: "Phone Not Folding / Unfolding Flat",
+        label: "Phone Not Folding / Closing Flat",
+        severity: 3,
         aliases: ["won't close fully", "gap when closed", "doesn't lay flat"],
       },
       {
         id: "utg_peeling",
-        label: "Screen Protector / UTG Peeling",
+        label: "Screen Film / UTG Peeling",
+        severity: 2,
         aliases: [
           "film peeling",
           "screen layer lifting",
-          "ultra thin glass issue",
-        ],
-      },
-      {
-        id: "water_ingress_fold",
-        label: "Water Ingress at Hinge",
-        aliases: ["water in fold", "liquid at hinge", "moisture in hinge"],
-      },
-    ],
-  },
-  {
-    id: "performance",
-    label: "Performance & Storage",
-    issues: [
-      {
-        id: "low_storage",
-        label: "Low Storage Space",
-        aliases: [
-          "full storage",
-          "no space",
-          "internal memory full",
-          "can't save files",
-        ],
-      },
-      {
-        id: "ram_issue",
-        label: "RAM / Memory Issue",
-        aliases: [
-          "apps closing in background",
-          "multitasking issue",
-          "not enough ram",
-        ],
-      },
-      {
-        id: "phone_laggy",
-        label: "Phone Laggy / Slow Performance",
-        aliases: ["slow phone", "lagging", "sluggish", "performance degraded"],
-      },
-      {
-        id: "phone_heating_performance",
-        label: "Phone Heating Affecting Performance",
-        aliases: [
-          "thermal throttling",
-          "slows down when hot",
-          "overheating lag",
-        ],
-      },
-      {
-        id: "gaming_performance",
-        label: "Poor Gaming Performance",
-        aliases: [
-          "games lagging",
-          "fps drops",
-          "game stuttering",
-          "frame drops",
-        ],
-      },
-      {
-        id: "sd_card_issue",
-        label: "SD Card Not Detected / Error",
-        aliases: [
-          "memory card issue",
-          "sd card not reading",
-          "external storage error",
+          "ultra thin glass peeling",
         ],
       },
     ],
   },
+
+  // ── Miscellaneous ──────────────────────────────────────────────────────────
   {
-    id: "accessories",
-    label: "Accessories & Peripherals",
+    id: "miscellaneous",
+    label: "Miscellaneous",
     issues: [
       {
-        id: "case_fit_issue",
-        label: "Case Not Fitting Properly",
-        aliases: ["case loose", "cover doesn't fit", "case gap"],
+        id: "vibration_weak",
+        label: "Vibration Weak / Not Working",
+        severity: 2,
+        aliases: ["haptic broken", "no vibration", "vibrate not working"],
       },
       {
         id: "stylus_not_working",
         label: "S Pen / Stylus Not Working",
+        severity: 3,
         aliases: ["s pen broken", "stylus unresponsive", "pen not detected"],
       },
       {
-        id: "stylus_silo_issue",
-        label: "Stylus Silo / Slot Issue",
-        aliases: ["s pen slot broken", "stylus stuck", "pen not inserting"],
+        id: "calls_dropping",
+        label: "Calls Dropping / Cutting Out",
+        severity: 4,
+        aliases: ["call drops", "disconnected calls"],
       },
       {
-        id: "charger_not_working",
-        label: "Charger / Cable Not Working",
-        aliases: ["charger broken", "cable fault", "charging brick issue"],
-      },
-      {
-        id: "screen_protector_issue",
-        label: "Screen Protector Issue",
-        aliases: [
-          "tempered glass lifting",
-          "protector bubbling",
-          "protector affecting touch",
-        ],
-      },
-      {
-        id: "earbuds_not_pairing",
-        label: "Earbuds / Headphones Not Pairing",
-        aliases: [
-          "earphones won't connect",
-          "buds won't pair",
-          "wireless headphones issue",
-        ],
-      },
-      {
-        id: "smartwatch_sync_issue",
-        label: "Smartwatch / Wearable Sync Issue",
-        aliases: [
-          "watch not syncing",
-          "galaxy watch not connecting",
-          "wearable disconnecting",
-        ],
-      },
-    ],
-  },
-  {
-    id: "data_account",
-    label: "Data, Backup & Accounts",
-    issues: [
-      {
-        id: "data_lost",
-        label: "Data Lost / Accidentally Deleted",
-        aliases: ["deleted photos", "lost contacts", "wiped data", "data gone"],
-      },
-      {
-        id: "backup_not_working",
-        label: "Backup Not Working",
-        aliases: [
-          "icloud backup failed",
-          "google backup failed",
-          "backup error",
-        ],
-      },
-      {
-        id: "sync_issue",
-        label: "Contacts / Calendar Not Syncing",
-        aliases: [
-          "contacts not syncing",
-          "calendar sync broken",
-          "google sync issue",
-        ],
-      },
-      {
-        id: "google_account_issue",
-        label: "Google Account Issue",
-        aliases: ["google account not signing in", "google account sync error"],
-      },
-      {
-        id: "apple_id_issue",
-        label: "Apple ID Issue",
-        aliases: [
-          "apple id not working",
-          "icloud sign in issue",
-          "apple account locked",
-        ],
-      },
-      {
-        id: "email_not_syncing",
-        label: "Email Not Syncing",
-        aliases: [
-          "emails not loading",
-          "inbox not updating",
-          "mail sync broken",
-        ],
-      },
-      {
-        id: "photo_cloud_sync",
-        label: "Photos Not Syncing to Cloud",
-        aliases: [
-          "google photos not uploading",
-          "icloud photos not syncing",
-          "photo backup failed",
-        ],
+        id: "sms_not_sending",
+        label: "SMS / Text Messages Not Sending",
+        severity: 3,
+        aliases: ["texts not going through", "messages failing"],
       },
     ],
   },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Flat list — for simple autocomplete, all issues in one array
+// Flat list — for autocomplete
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type FlatIssue = Issue & { categoryId: string; categoryLabel: string };
@@ -1178,5 +1053,20 @@ export const issuesFlatList: FlatIssue[] = issueCatalog.flatMap((category) =>
     categoryLabel: category.label,
   })),
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Severity colour map — for UI colour coordination
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const severityColorMap: Record<
+  1 | 2 | 3 | 4 | 5,
+  { bg: string; text: string; label: string }
+> = {
+  1: { bg: "#F0FDF4", text: "#166534", label: "Negligible" },
+  2: { bg: "#FEF9C3", text: "#854D0E", label: "Minor" },
+  3: { bg: "#FFF7ED", text: "#9A3412", label: "Moderate" },
+  4: { bg: "#FEF2F2", text: "#991B1B", label: "Serious" },
+  5: { bg: "#450A0A", text: "#FEF2F2", label: "Critical" },
+};
 
 export default issueCatalog;
