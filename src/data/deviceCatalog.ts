@@ -134,7 +134,7 @@ export const deviceCatalog: BrandCatalog = {
         ],
       },
       "iPhone 11 Pro Max": {
-        storage: ["64GB", "256GB", "512GB"],
+        storage: ["64GB", "128GB", "256GB", "512GB"],
         ram: ["4GB"],
         colors: [
           { label: "Midnight Green", hex: "#4E5851" },

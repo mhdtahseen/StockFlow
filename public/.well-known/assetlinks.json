@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "app.vercel.stock_flow_pwa.twa",
+      "package_name": "app.vercel.stock_flow_dev.twa",
       "sha256_cert_fingerprints": [
-        "DD:5B:1F:58:AF:CB:EF:77:2D:42:19:EC:77:BD:32:2E:FD:4F:F8:8D:1F:97:94:12:CD:57:4E:DA:AC:27:16:F8"
+        "3E:25:60:E9:B8:14:41:FE:46:03:48:6D:30:9B:FF:FE:91:FB:11:E1:B5:0B:F0:0F:61:71:3E:B2:09:4B:F1:C4"
       ]
     }
   }
