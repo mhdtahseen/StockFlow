@@ -18,7 +18,12 @@ import {
   ArrowDown,
   TrendingUp,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import {
+  formatDistanceToNow,
+  differenceInHours,
+  isYesterday,
+  format,
+} from "date-fns";
 
 export type TabOption = PhoneStatus | "ALL";
 const VALID_TABS: TabOption[] = ["ALL", "IN_STOCK", "PENDING", "SOLD"];
@@ -71,15 +76,22 @@ export default function Inventory() {
         ? phones
         : phones.filter((p) => p.status === activeTab);
 
-    // Text search across brand, model, color, storage, tags, imei
+    // Text search across brand, model, color, storage, tags, imei, ram
     if (query.trim()) {
       const q = query.toLowerCase().trim();
+      const qStripped = q.replace(/\s+/g, "");
+
       result = result.filter(
         (p) =>
           p.brand.toLowerCase().includes(q) ||
+          p.brand.toLowerCase().replace(/\s+/g, "").includes(qStripped) ||
           p.model.toLowerCase().includes(q) ||
+          p.model.toLowerCase().replace(/\s+/g, "").includes(qStripped) ||
           p.color.toLowerCase().includes(q) ||
           p.storage.toLowerCase().includes(q) ||
+          p.storage.toLowerCase().replace(/\s+/g, "").includes(qStripped) ||
+          p.ram.toLowerCase().includes(q) ||
+          p.ram.toLowerCase().replace(/\s+/g, "").includes(qStripped) ||
           p.issueTags.some((t) => t.toLowerCase().includes(q)) ||
           p.imeis?.some(
             (imei) =>
@@ -148,6 +160,27 @@ export default function Inventory() {
     }
 
     return { count, value, label };
+  };
+
+  const getRelativeDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const hours = differenceInHours(new Date(), date);
+
+    if (hours < 24 && !isYesterday(date)) {
+      const dist = formatDistanceToNow(date, { addSuffix: true }).replace(
+        "about ",
+        "",
+      );
+      if (dist.includes("less than a minute")) return "a few seconds ago";
+      if (dist.includes("1 minute ago") || dist.includes("a minute ago"))
+        return "1 min ago";
+      return dist;
+    }
+
+    if (isYesterday(date)) return "yesterday";
+    if (hours < 48) return "a day ago";
+
+    return format(date, "do MMMM");
   };
 
   const { count, value, label } = getTabMetrics();
@@ -421,7 +454,7 @@ export default function Inventory() {
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1 pr-4">
                     <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                      {phone.brand} {phone.model} - {phone.color}
+                      {phone.brand} {phone.model}
                     </h3>
                     <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono mt-1.5">
                       <Fingerprint size={12} />
@@ -470,27 +503,33 @@ export default function Inventory() {
                 </div>
 
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-[10px] text-slate-400">
-                    Added{" "}
-                    {formatDistanceToNow(new Date(phone.createdAt), {
-                      addSuffix: true,
-                    })}
+                  <p className="text-[10px] uppercase font-bold text-slate-400">
+                    Added {getRelativeDate(phone.createdAt)}
                   </p>
                   <div className="flex items-center gap-3">
+                    {/* ONLY SHOW ISSUES BADGE IF ISSUES EXIST */}
+                    {phone.issueTags.length > 0 && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                        {phone.issueTags.length}{" "}
+                        {phone.issueTags.length === 1 ? "Issue" : "Issues"}
+                      </span>
+                    )}
+
+                    {/* STATUS BADGE PLACED AT THE END */}
                     {activeTab === "ALL" && (
                       <span
                         className={clsx(
-                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1",
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
                           phone.status === "IN_STOCK"
-                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                            ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
                             : phone.status === "PENDING"
-                              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-500",
+                              ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
+                              : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
                         )}
                       >
                         <span
                           className={clsx(
-                            "size-1 rounded-full",
+                            "size-1.5 rounded-full",
                             phone.status === "IN_STOCK"
                               ? "bg-emerald-500"
                               : phone.status === "PENDING"
@@ -501,20 +540,21 @@ export default function Inventory() {
                         {phone.status.replace("_", " ")}
                       </span>
                     )}
+
                     {activeTab !== "ALL" && (
                       <span
                         className={clsx(
-                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1",
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
                           activeTab === "IN_STOCK"
-                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                            ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
                             : activeTab === "PENDING"
-                              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-500",
+                              ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
+                              : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
                         )}
                       >
                         <span
                           className={clsx(
-                            "size-1 rounded-full",
+                            "size-1.5 rounded-full",
                             activeTab === "IN_STOCK"
                               ? "bg-emerald-500"
                               : activeTab === "PENDING"
@@ -525,17 +565,6 @@ export default function Inventory() {
                         {activeTab.replace("_", " ")}
                       </span>
                     )}
-
-                    <span
-                      className={clsx(
-                        "px-2 py-0.5 rounded text-[10px] font-bold",
-                        phone.issueTags.length > 0
-                          ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-500",
-                      )}
-                    >
-                      [{phone.issueTags.length}] ISSUES
-                    </span>
                   </div>
                 </div>
               </Link>
