@@ -44,17 +44,6 @@ import {
 
 // ─── Validation (simple, no zod overhead on every render) ────────────────────
 
-const COMMON_ISSUES = [
-  "Cracked / Shattered Screen",
-  "Battery Draining Fast",
-  "Scuff Marks",
-  "Deep Scratch on Screen",
-  "Body Discolouration / Yellowing",
-  "Ghost Touch / Phantom Inputs",
-  "Phone Slow / Lagging",
-  "No Mobile Signal",
-];
-
 type FormErrors = Partial<
   Record<"brand" | "model" | "storage" | "color" | "purchasePrice", string>
 >;
@@ -83,6 +72,38 @@ export default function AddPhone() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const masterData = useAppSelector((state) => state.masterData);
+  const phones = useAppSelector((state) => state.inventory.phones);
+
+  const topIssues = useMemo(() => {
+    // Collect all tags from inventory
+    const tagCounts: Record<string, number> = {};
+    phones.forEach((p) => {
+      p.issueTags.forEach((tag) => {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      });
+    });
+
+    // Sort by descending frequency
+    const sortedTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag]) => tag);
+
+    if (sortedTags.length >= 5) {
+      return sortedTags.slice(0, 5);
+    }
+
+    // Fallback if not enough history
+    const fallback = [
+      "Cracked / Shattered Screen",
+      "Battery Draining Fast",
+      "Scuff Marks",
+      "Deep Scratch on Screen",
+      "Body Discolouration / Yellowing",
+    ];
+
+    // Merge history + fallback, distinct, limit 5
+    return [...new Set([...sortedTags, ...fallback])].slice(0, 5);
+  }, [phones]);
 
   const {
     getBrandOptions,
@@ -475,15 +496,13 @@ export default function AddPhone() {
                 let chipsToRender: string[] = [];
 
                 if (isIssuesExpanded) {
-                  chipsToRender = [
-                    ...new Set([...COMMON_ISSUES, ...selectedTags]),
-                  ];
+                  chipsToRender = [...new Set([...topIssues, ...selectedTags])];
                 } else {
                   if (hasManySelected) {
                     chipsToRender = selectedTags.slice(-3); // Show 3 latest
                   } else {
                     chipsToRender = [
-                      ...new Set([...COMMON_ISSUES, ...selectedTags]),
+                      ...new Set([...topIssues, ...selectedTags]),
                     ];
                   }
                 }
