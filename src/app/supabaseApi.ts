@@ -127,6 +127,7 @@ export const syncActionToSupabase = async (
           type: payload.type,
           reference_id: payload.referenceId,
           amount: payload.amount,
+          note: payload.note ?? null,
           created_at: payload.createdAt,
         });
         if (error) throw error;

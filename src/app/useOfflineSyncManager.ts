@@ -169,6 +169,7 @@ export function useOfflineSyncManager() {
             type: e.type as any,
             referenceId: e.reference_id ?? undefined,
             amount: Number(e.amount),
+            note: e.note ?? undefined,
             createdAt: e.created_at,
           }));
           if (store.getState().sync.outbox.length === 0) {
