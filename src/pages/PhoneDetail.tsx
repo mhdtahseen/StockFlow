@@ -360,33 +360,29 @@ export default function PhoneDetail() {
 
             {/* Additional Expenses Accordion — only if repairs logged */}
             {repairEntries.length > 0 && (
-              <div className="border-amber-100 dark:border-amber-900">
+              <div>
                 {/* Accordion header */}
                 <button
                   type="button"
                   onClick={() => setRepairAccordionOpen((o) => !o)}
-                  className="w-full px-4 py-3 flex items-center justify-between bg-amber-50/70 dark:bg-amber-950/40 hover:bg-amber-50 dark:hover:bg-amber-950/60 transition-colors"
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    <Wrench
-                      size={14}
-                      className="text-amber-600 dark:text-amber-400"
-                    />
-                    <span className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
                       Additional Expenses
                     </span>
-                    <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full">
                       {repairEntries.length}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-amber-700 dark:text-amber-400 text-sm">
+                    <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
                       {formatCurrency(totalRepairCost)}
                     </span>
                     <ChevronDown
                       size={15}
                       className={clsx(
-                        "text-amber-500 transition-transform duration-200",
+                        "text-slate-400 transition-transform duration-200",
                         repairAccordionOpen ? "rotate-180" : "",
                       )}
                     />
@@ -395,7 +391,7 @@ export default function PhoneDetail() {
 
                 {/* Accordion body */}
                 {repairAccordionOpen && (
-                  <div className="divide-y divide-amber-50 dark:divide-amber-900/50 bg-amber-50/30 dark:bg-amber-950/20">
+                  <div className="divide-y divide-slate-50 dark:divide-slate-800/50 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-50 dark:border-slate-800/50">
                     {repairEntries.map((r) => (
                       <div key={r.id}>
                         {editingRepairId === r.id ? (
@@ -406,7 +402,7 @@ export default function PhoneDetail() {
                               value={editNote}
                               onChange={(e) => setEditNote(e.target.value)}
                               placeholder="Description"
-                              className="w-full text-xs rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400"
+                              className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
                             />
                             <div className="flex gap-2 items-center">
                               <input
@@ -414,11 +410,11 @@ export default function PhoneDetail() {
                                 value={editAmount}
                                 onChange={(e) => setEditAmount(e.target.value)}
                                 placeholder="Amount"
-                                className="flex-1 text-xs rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400"
+                                className="flex-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
                               />
                               <button
                                 onClick={() => handleSaveRepairEdit(r)}
-                                className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors"
+                                className="px-3 py-2 bg-[#064a98] hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
                               >
                                 Save
                               </button>
@@ -434,14 +430,14 @@ export default function PhoneDetail() {
                           // ── Read row ──────────────────────────────────────
                           <div className="px-4 py-2.5 flex items-center gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 truncate">
-                                {r.note || "Repair"}
+                              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">
+                                {r.note || "Expense"}
                               </p>
                               <p className="text-[10px] text-slate-400 dark:text-slate-500">
                                 {format(parseISO(r.createdAt), "MMM d, yyyy")}
                               </p>
                             </div>
-                            <span className="font-bold text-amber-700 dark:text-amber-400 text-sm mr-2">
+                            <span className="font-bold text-slate-700 dark:text-slate-300 text-sm mr-2">
                               {formatCurrency(r.amount)}
                             </span>
                             <button
@@ -464,18 +460,20 @@ export default function PhoneDetail() {
                         )}
                       </div>
                     ))}
-
-                    {/* Total cost basis footer */}
-                    <div className="px-4 py-2.5 flex justify-between items-center bg-amber-100/50 dark:bg-amber-900/30">
-                      <span className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                        Total Cost Basis
-                      </span>
-                      <span className="font-black text-slate-900 dark:text-slate-100 text-sm">
-                        {formatCurrency(phone.purchasePrice + totalRepairCost)}
-                      </span>
-                    </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Effective cost basis if any repairs */}
+            {totalRepairCost > 0 && (
+              <div className="px-4 py-3 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                <span className="text-slate-600 dark:text-slate-300 font-bold text-sm">
+                  Total Cost Basis
+                </span>
+                <span className="font-black text-slate-900 dark:text-slate-100">
+                  {formatCurrency(phone.purchasePrice + totalRepairCost)}
+                </span>
               </div>
             )}
 
