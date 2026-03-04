@@ -12,9 +12,11 @@ import {
   ChevronRight,
   SlidersHorizontal,
   ArrowUpDown,
+  Layers,
 } from "lucide-react";
 
-const VALID_TABS: PhoneStatus[] = ["IN_STOCK", "PENDING", "SOLD"];
+export type TabOption = PhoneStatus | "ALL";
+const VALID_TABS: TabOption[] = ["ALL", "IN_STOCK", "PENDING", "SOLD"];
 
 type SortOption = "newest" | "oldest" | "price_high" | "price_low" | "brand_az";
 
@@ -22,8 +24,8 @@ export default function Inventory() {
   const { phones } = useAppSelector((state) => state.inventory);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab") as PhoneStatus | null;
-  const activeTab: PhoneStatus =
+  const tabParam = searchParams.get("tab") as TabOption | null;
+  const activeTab: TabOption =
     tabParam && VALID_TABS.includes(tabParam) ? tabParam : "IN_STOCK";
 
   const [showSearch, setShowSearch] = useState(false);
@@ -39,7 +41,7 @@ export default function Inventory() {
     }
   }, [showSearch]);
 
-  const setActiveTab = (tab: PhoneStatus) => {
+  const setActiveTab = (tab: TabOption) => {
     setSearchParams({ tab });
   };
 
@@ -59,9 +61,12 @@ export default function Inventory() {
 
   // Filter + search + sort
   const filteredPhones = useMemo(() => {
-    let result = phones.filter((p) => p.status === activeTab);
+    let result =
+      activeTab === "ALL"
+        ? phones
+        : phones.filter((p) => p.status === activeTab);
 
-    // Text search across brand, model, color, storage, tags
+    // Text search across brand, model, color, storage, tags, imei
     if (query.trim()) {
       const q = query.toLowerCase().trim();
       result = result.filter(
@@ -70,7 +75,11 @@ export default function Inventory() {
           p.model.toLowerCase().includes(q) ||
           p.color.toLowerCase().includes(q) ||
           p.storage.toLowerCase().includes(q) ||
-          p.issueTags.some((t) => t.toLowerCase().includes(q)),
+          p.issueTags.some((t) => t.toLowerCase().includes(q)) ||
+          p.imeis?.some(
+            (imei) =>
+              imei.toLowerCase().includes(q) || imei.slice(-4).includes(q),
+          ),
       );
     }
 
@@ -123,7 +132,14 @@ export default function Inventory() {
       label = "Pledged Value";
     } else if (activeTab === "SOLD") {
       value = filteredPhones.reduce((sum, p) => sum + (p.salePrice || 0), 0);
-      label = "Gross Sales";
+    } else if (activeTab === "ALL") {
+      value = filteredPhones.reduce(
+        (sum, p) =>
+          sum +
+          (p.status === "SOLD" && p.salePrice ? p.salePrice : p.purchasePrice),
+        0,
+      );
+      label = "Total Asset Value";
     }
 
     return { count, value, label };
@@ -131,7 +147,8 @@ export default function Inventory() {
 
   const { count, value, label } = getTabMetrics();
 
-  const tabs: { value: PhoneStatus; label: string; icon: React.ReactNode }[] = [
+  const tabs: { value: TabOption; label: string; icon: React.ReactNode }[] = [
+    { value: "ALL", label: "All", icon: <Layers size={16} /> },
     { value: "IN_STOCK", label: "In Stock", icon: <Package size={16} /> },
     { value: "PENDING", label: "Pending", icon: <Smartphone size={16} /> },
     { value: "SOLD", label: "Sold", icon: <History size={16} /> },
@@ -363,6 +380,7 @@ export default function Inventory() {
         <section className="flex flex-col gap-3">
           <div className="flex justify-between items-end mb-1 px-1">
             <h2 className="text-slate-800 dark:text-slate-200 font-bold tracking-tight text-sm uppercase">
+              {activeTab === "ALL" && "All Tracker"}
               {activeTab === "IN_STOCK" && "Active Assets"}
               {activeTab === "PENDING" && "Units in Verification"}
               {activeTab === "SOLD" && "Trading History"}
@@ -408,8 +426,8 @@ export default function Inventory() {
                       {phone.imeis &&
                       phone.imeis.length > 0 &&
                       phone.imeis[0].length >= 4 ? (
-                        <span className="text-slate-700 dark:text-slate-300">
-                          xx{phone.imeis[0].slice(-4)}
+                        <span className="text-slate-700 dark:text-slate-300 tracking-widest">
+                          *** • *** • {phone.imeis[0].slice(-4)}
                         </span>
                       ) : (
                         <span className="text-slate-300 dark:text-slate-600">
@@ -420,6 +438,20 @@ export default function Inventory() {
                     {phone.issueTags.length > 0 && (
                       <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950 border border-rose-100 dark:border-rose-900 px-1.5 py-0.5 rounded ml-1">
                         {phone.issueTags.length} issues
+                      </span>
+                    )}
+                    {activeTab === "ALL" && (
+                      <span
+                        className={clsx(
+                          "text-[10px] font-bold px-1.5 py-0.5 rounded border ml-1",
+                          phone.status === "IN_STOCK"
+                            ? "text-blue-600 bg-blue-50 border-blue-100 dark:text-blue-400 dark:bg-blue-950 dark:border-blue-900"
+                            : phone.status === "PENDING"
+                              ? "text-amber-600 bg-amber-50 border-amber-100 dark:text-amber-400 dark:bg-amber-950 dark:border-amber-900"
+                              : "text-emerald-600 bg-emerald-50 border-emerald-100 dark:text-emerald-400 dark:bg-emerald-950 dark:border-emerald-900",
+                        )}
+                      >
+                        {phone.status.replace("_", " ")}
                       </span>
                     )}
                   </div>

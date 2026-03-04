@@ -300,7 +300,9 @@ export default function PhoneDetail() {
                 {phone.imeis &&
                 phone.imeis.length > 0 &&
                 phone.imeis[0].length >= 4 ? (
-                  `**${phone.imeis[0].slice(-4)}`
+                  <span className="text-slate-700 dark:text-slate-300 tracking-widest">
+                    *** • *** • {phone.imeis[0].slice(-4)}
+                  </span>
                 ) : (
                   <span className="text-slate-300 dark:text-slate-600">—</span>
                 )}
