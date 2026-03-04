@@ -301,7 +301,16 @@ export default function PhoneDetail() {
 
             <div className="p-4 flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <div className="size-8 rounded-full bg-blue-50 text-[#064a98] flex items-center justify-center">
+                <div
+                  className={clsx(
+                    "size-8 rounded-full flex items-center justify-center",
+                    phone.status === "SOLD" &&
+                      phone.salePrice &&
+                      phone.salePrice < phone.purchasePrice
+                      ? "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400"
+                      : "bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400",
+                  )}
+                >
                   <TrendingUp size={16} />
                 </div>
                 <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
@@ -312,24 +321,54 @@ export default function PhoneDetail() {
                 className={clsx(
                   "font-black text-lg",
                   phone.status === "SOLD"
-                    ? "text-emerald-600"
-                    : "text-[#064a98]",
+                    ? phone.salePrice && phone.salePrice < phone.purchasePrice
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-emerald-600 dark:text-emerald-400"
+                    : "text-[#064a98] dark:text-blue-400",
                 )}
               >
                 {marginPercentage.toFixed(1)}%
               </span>
             </div>
 
-            {phone.status === "SOLD" && phone.salePrice && (
-              <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/50 flex justify-between items-center">
-                <span className="text-emerald-700 dark:text-emerald-400 font-bold text-sm">
-                  Profit Realized
-                </span>
-                <span className="font-black text-lg text-emerald-600 dark:text-emerald-400">
-                  +{formatCurrency(phone.salePrice - phone.purchasePrice)}
-                </span>
-              </div>
-            )}
+            {phone.status === "SOLD" &&
+              phone.salePrice &&
+              (() => {
+                const net = phone.salePrice - phone.purchasePrice;
+                const isLoss = net < 0;
+                return (
+                  <div
+                    className={clsx(
+                      "p-4 flex justify-between items-center",
+                      isLoss
+                        ? "bg-rose-50/60 dark:bg-rose-950/50"
+                        : "bg-emerald-50/50 dark:bg-emerald-950/50",
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        "font-bold text-sm",
+                        isLoss
+                          ? "text-rose-700 dark:text-rose-400"
+                          : "text-emerald-700 dark:text-emerald-400",
+                      )}
+                    >
+                      {isLoss ? "Loss on Sale" : "Profit Realized"}
+                    </span>
+                    <span
+                      className={clsx(
+                        "font-black text-lg",
+                        isLoss
+                          ? "text-rose-600 dark:text-rose-400"
+                          : "text-emerald-600 dark:text-emerald-400",
+                      )}
+                    >
+                      {isLoss ? "-" : "+"}
+                      {formatCurrency(Math.abs(net))}
+                    </span>
+                  </div>
+                );
+              })()}
           </div>
         </section>
 
@@ -393,13 +432,34 @@ export default function PhoneDetail() {
             </div>
           )}
 
-          {phone.status === "SOLD" && (
-            <div className="bg-emerald-50 dark:bg-emerald-950 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800 flex items-center justify-center">
-              <p className="text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider text-sm flex items-center gap-2">
-                <CheckCircle2 size={18} /> Transaction Complete
-              </p>
-            </div>
-          )}
+          {phone.status === "SOLD" &&
+            (() => {
+              const isLoss =
+                phone.salePrice != null &&
+                phone.salePrice < phone.purchasePrice;
+              return (
+                <div
+                  className={clsx(
+                    "p-4 rounded-xl border flex items-center justify-center",
+                    isLoss
+                      ? "bg-rose-50 dark:bg-rose-950 border-rose-100 dark:border-rose-800"
+                      : "bg-emerald-50 dark:bg-emerald-950 border-emerald-100 dark:border-emerald-800",
+                  )}
+                >
+                  <p
+                    className={clsx(
+                      "font-bold uppercase tracking-wider text-sm flex items-center gap-2",
+                      isLoss
+                        ? "text-rose-700 dark:text-rose-400"
+                        : "text-emerald-700 dark:text-emerald-400",
+                    )}
+                  >
+                    <CheckCircle2 size={18} />
+                    {isLoss ? "Sold at a Loss" : "Transaction Complete"}
+                  </p>
+                </div>
+              );
+            })()}
         </section>
       </main>
 
