@@ -37,7 +37,7 @@ export default function Inventory() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as TabOption | null;
   const activeTab: TabOption =
-    tabParam && VALID_TABS.includes(tabParam) ? tabParam : "IN_STOCK";
+    tabParam && VALID_TABS.includes(tabParam) ? tabParam : "ALL";
 
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
@@ -358,7 +358,7 @@ export default function Inventory() {
                 className={clsx(
                   "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[12px] transition-all duration-200 uppercase tracking-wider text-[10px]",
                   activeTab === tab.value
-                    ? "bg-white dark:bg-slate-700 text-[#064a98] dark:text-blue-400 shadow-sm font-bold"
+                    ? "bg-primary-500 text-white shadow-sm font-bold"
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium",
                 )}
               >
@@ -426,154 +426,159 @@ export default function Inventory() {
             </h2>
           </div>
 
-          {filteredPhones.length === 0 ? (
-            <div className="text-center flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed">
-              <Package
-                size={40}
-                strokeWidth={1}
-                className="text-slate-300 dark:text-slate-600 mb-3"
-              />
-              <p className="font-bold text-slate-700 dark:text-slate-300">
-                {query || filterBrand ? "No matches" : "No units found"}
-              </p>
-              <p className="text-sm mt-1 text-slate-500 dark:text-slate-400 font-medium">
-                {query || filterBrand
-                  ? "Try adjusting your search or filters."
-                  : `There are no ${activeTab.toLowerCase().replace("_", " ")} devices.`}
-              </p>
-            </div>
-          ) : (
-            filteredPhones.map((phone) => (
-              <Link
-                key={phone.id}
-                to={`/inventory/${phone.id}`}
-                className={clsx(
-                  "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border border-slate-100 dark:border-slate-800 block hover:border-primary-500/20 dark:hover:border-primary-500/30 active:scale-[0.98] transition-all group",
-                  phone.status === "SOLD" && "opacity-90",
-                )}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1 pr-4">
-                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                      {phone.brand} {phone.model}
-                    </h3>
-                    <div className="flex items-center gap-1 text-[12px] text-slate-400 font-mono mt-1.5">
-                      <Fingerprint size={12} />
-                      <span>
-                        IMEI:{" "}
-                        {phone.imeis &&
-                        phone.imeis.length > 0 &&
-                        phone.imeis[0].length >= 4
-                          ? `•••• ${phone.imeis[0].slice(-4)}`
-                          : "—"}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium text-slate-500 mt-1">
-                      <Cpu size={14} />
-                      <span>
-                        {phone.ram !== "N/A" ? `${phone.ram} / ` : ""}
-                        {phone.storage} / {phone.color}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    {phone.status === "SOLD" && phone.salePrice ? (
-                      <div
-                        className={clsx(
-                          "flex items-center gap-1 font-extrabold",
-                          phone.salePrice - phone.purchasePrice >= 0
-                            ? "text-emerald-500"
-                            : "text-rose-500",
-                        )}
-                      >
-                        {phone.salePrice - phone.purchasePrice >= 0 ? (
-                          <TrendingUp size={14} />
-                        ) : (
-                          <ArrowDown size={14} />
-                        )}
-                        <span className="text-lg leading-none">
-                          {formatCurrency(phone.salePrice)}
+          <div
+            key={activeTab}
+            className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300"
+          >
+            {filteredPhones.length === 0 ? (
+              <div className="text-center flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed">
+                <Package
+                  size={40}
+                  strokeWidth={1}
+                  className="text-slate-300 dark:text-slate-600 mb-3"
+                />
+                <p className="font-bold text-slate-700 dark:text-slate-300">
+                  {query || filterBrand ? "No matches" : "No units found"}
+                </p>
+                <p className="text-sm mt-1 text-slate-500 dark:text-slate-400 font-medium">
+                  {query || filterBrand
+                    ? "Try adjusting your search or filters."
+                    : `There are no ${activeTab.toLowerCase().replace("_", " ")} devices.`}
+                </p>
+              </div>
+            ) : (
+              filteredPhones.map((phone) => (
+                <Link
+                  key={phone.id}
+                  to={`/inventory/${phone.id}`}
+                  className={clsx(
+                    "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border border-slate-100 dark:border-slate-800 block hover:border-primary-500/20 dark:hover:border-primary-500/30 active:scale-[0.98] transition-all group",
+                    phone.status === "SOLD" && "opacity-90",
+                  )}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1 pr-4">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                        {phone.brand} {phone.model}
+                      </h3>
+                      <div className="flex items-center gap-1 text-[12px] text-slate-400 font-mono mt-1.5">
+                        <Fingerprint size={12} />
+                        <span>
+                          IMEI:{" "}
+                          {phone.imeis &&
+                          phone.imeis.length > 0 &&
+                          phone.imeis[0].length >= 4
+                            ? `•••• ${phone.imeis[0].slice(-4)}`
+                            : "—"}
                         </span>
                       </div>
-                    ) : (
-                      <span className="text-lg font-extrabold text-primary-500 leading-none">
-                        {formatCurrency(phone.purchasePrice)}
-                      </span>
-                    )}
+                      <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium text-slate-500 mt-1">
+                        <Cpu size={14} />
+                        <span>
+                          {phone.ram !== "N/A" ? `${phone.ram} / ` : ""}
+                          {phone.storage} / {phone.color}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      {phone.status === "SOLD" && phone.salePrice ? (
+                        <div
+                          className={clsx(
+                            "flex items-center gap-1 font-extrabold",
+                            phone.salePrice - phone.purchasePrice >= 0
+                              ? "text-emerald-500"
+                              : "text-rose-500",
+                          )}
+                        >
+                          {phone.salePrice - phone.purchasePrice >= 0 ? (
+                            <TrendingUp size={14} />
+                          ) : (
+                            <ArrowDown size={14} />
+                          )}
+                          <span className="text-lg leading-none">
+                            {formatCurrency(phone.salePrice)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-none">
+                          {formatCurrency(phone.purchasePrice)}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-between mt-4">
-                  <div className="flex items-center gap-2">
-                    <Clock size={11} className="text-slate-400" />
-                    <p className="text-[10px] uppercase font-bold text-slate-400">
-                      {getRelativeDate(phone.createdAt)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {/* ONLY SHOW ISSUES BADGE IF ISSUES EXIST */}
-                    {phone.issueTags.length > 0 && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
-                        {phone.issueTags.length}{" "}
-                        {phone.issueTags.length === 1 ? "Issue" : "Issues"}
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex items-center gap-2">
+                      <Clock size={11} className="text-slate-400" />
+                      <p className="text-[10px] uppercase font-bold text-slate-400">
+                        {getRelativeDate(phone.createdAt)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {/* ONLY SHOW ISSUES BADGE IF ISSUES EXIST */}
+                      {phone.issueTags.length > 0 && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                          {phone.issueTags.length}{" "}
+                          {phone.issueTags.length === 1 ? "Issue" : "Issues"}
+                        </span>
+                      )}
 
-                    {/* STATUS BADGE PLACED AT THE END */}
-                    {activeTab === "ALL" && (
-                      <span
-                        className={clsx(
-                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
-                          phone.status === "IN_STOCK"
-                            ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
-                            : phone.status === "PENDING"
-                              ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
-                              : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
-                        )}
-                      >
+                      {/* STATUS BADGE PLACED AT THE END */}
+                      {activeTab === "ALL" && (
                         <span
                           className={clsx(
-                            "size-1.5 rounded-full",
+                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
                             phone.status === "IN_STOCK"
-                              ? "bg-emerald-500"
+                              ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
                               : phone.status === "PENDING"
-                                ? "bg-amber-500"
-                                : "bg-slate-400",
+                                ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
+                                : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
                           )}
-                        ></span>
-                        {phone.status.replace("_", " ")}
-                      </span>
-                    )}
+                        >
+                          <span
+                            className={clsx(
+                              "size-1.5 rounded-full",
+                              phone.status === "IN_STOCK"
+                                ? "bg-emerald-500"
+                                : phone.status === "PENDING"
+                                  ? "bg-amber-500"
+                                  : "bg-slate-400",
+                            )}
+                          ></span>
+                          {phone.status.replace("_", " ")}
+                        </span>
+                      )}
 
-                    {activeTab !== "ALL" && (
-                      <span
-                        className={clsx(
-                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
-                          activeTab === "IN_STOCK"
-                            ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
-                            : activeTab === "PENDING"
-                              ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
-                              : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
-                        )}
-                      >
+                      {activeTab !== "ALL" && (
                         <span
                           className={clsx(
-                            "size-1.5 rounded-full",
+                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
                             activeTab === "IN_STOCK"
-                              ? "bg-emerald-500"
+                              ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
                               : activeTab === "PENDING"
-                                ? "bg-amber-500"
-                                : "bg-slate-400",
+                                ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
+                                : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
                           )}
-                        ></span>
-                        {activeTab.replace("_", " ")}
-                      </span>
-                    )}
+                        >
+                          <span
+                            className={clsx(
+                              "size-1.5 rounded-full",
+                              activeTab === "IN_STOCK"
+                                ? "bg-emerald-500"
+                                : activeTab === "PENDING"
+                                  ? "bg-amber-500"
+                                  : "bg-slate-400",
+                            )}
+                          ></span>
+                          {activeTab.replace("_", " ")}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))
-          )}
+                </Link>
+              ))
+            )}
+          </div>
         </section>
       </main>
     </div>
