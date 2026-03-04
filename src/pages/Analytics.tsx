@@ -41,6 +41,9 @@ import clsx from "clsx";
 import { TrendingUp, Clock, Package, Calendar } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
+import { verifyAndFixSupabaseSync } from "../utils/syncVerifier";
+import { toast } from "sonner";
+import { CloudCog } from "lucide-react";
 
 export default function Analytics() {
   const [period, setPeriod] = useState<TimePeriod>("monthly");
@@ -254,15 +257,47 @@ export default function Analytics() {
     { value: "annually", label: "Annually" },
   ];
 
+  const handleSyncDoctor = async () => {
+    toast.loading("Running Sync Doctor (Cloud Diagnostics)...", {
+      id: "sync-doc",
+    });
+    try {
+      const report = await verifyAndFixSupabaseSync();
+      if (report.errors.length > 0) {
+        console.error("Sync Doctor Errors:", report.errors);
+        toast.error(
+          `Doctor finished with ${report.errors.length} errors. See console.`,
+          { id: "sync-doc" },
+        );
+      } else {
+        toast.success(
+          `Cloud Synced! Uploaded ${report.phonesUpdated} drifting phones, ${report.phonesInserted} missing phones.`,
+          { id: "sync-doc", duration: 6000 },
+        );
+      }
+    } catch (err: any) {
+      toast.error(`Doctor failed: ${err.message || err}`, { id: "sync-doc" });
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-        <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
+        <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
           Analytics
         </h1>
-        <button className="size-10 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
-          <Calendar size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSyncDoctor}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all border border-blue-200/50 dark:border-blue-800/50 shadow-sm"
+          >
+            <CloudCog size={13} strokeWidth={2.5} />
+            Doctor
+          </button>
+          <button className="size-10 rounded-full flex items-center justify-center hover:bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors border border-transparent dark:border-slate-700">
+            <Calendar size={18} />
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 pb-12 space-y-4 pt-4">
