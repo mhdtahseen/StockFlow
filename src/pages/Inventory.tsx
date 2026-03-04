@@ -13,7 +13,12 @@ import {
   SlidersHorizontal,
   ArrowUpDown,
   Layers,
+  Fingerprint,
+  Cpu,
+  ArrowDown,
+  TrendingUp,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 export type TabOption = PhoneStatus | "ALL";
 const VALID_TABS: TabOption[] = ["ALL", "IN_STOCK", "PENDING", "SOLD"];
@@ -408,77 +413,130 @@ export default function Inventory() {
               <Link
                 key={phone.id}
                 to={`/inventory/${phone.id}`}
-                className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex justify-between items-center hover:border-[#064a98]/20 dark:hover:border-blue-500/30 active:scale-[0.98] transition-all group"
+                className={clsx(
+                  "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border border-slate-100 dark:border-slate-800 block hover:border-[#064a98]/20 dark:hover:border-blue-500/30 active:scale-[0.98] transition-all group",
+                  phone.status === "SOLD" && "opacity-90",
+                )}
               >
-                <div className="flex-1 min-w-0 pr-3">
-                  <h3 className="font-black text-slate-900 dark:text-slate-100 tracking-tight text-base truncate pr-2">
-                    {phone.brand} {phone.model}
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-700">
-                      {phone.storage}
-                    </span>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-700 truncate max-w-[80px]">
-                      {phone.color}
-                    </span>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono font-bold px-1 py-0.5 ml-1 bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 rounded border">
-                      IMEI:{" "}
-                      {phone.imeis &&
-                      phone.imeis.length > 0 &&
-                      phone.imeis[0].length >= 4 ? (
-                        <span className="text-slate-700 dark:text-slate-300 tracking-widest">
-                          *** • *** • {phone.imeis[0].slice(-4)}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300 dark:text-slate-600">
-                          —
-                        </span>
-                      )}
-                    </span>
-                    {phone.issueTags.length > 0 && (
-                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950 border border-rose-100 dark:border-rose-900 px-1.5 py-0.5 rounded ml-1">
-                        {phone.issueTags.length} issues
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1 pr-4">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                      {phone.brand} {phone.model} - {phone.color}
+                    </h3>
+                    <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono mt-1.5">
+                      <Fingerprint size={12} />
+                      <span>
+                        IMEI:{" "}
+                        {phone.imeis &&
+                        phone.imeis.length > 0 &&
+                        phone.imeis[0].length >= 4
+                          ? `•••• ${phone.imeis[0].slice(-4)}`
+                          : "—"}
                       </span>
-                    )}
-                    {activeTab === "ALL" && (
-                      <span
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-slate-500 mt-1">
+                      <Cpu size={14} />
+                      <span>
+                        {phone.ram !== "N/A" ? `${phone.ram} / ` : ""}
+                        {phone.storage} / {phone.color}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    {phone.status === "SOLD" && phone.salePrice ? (
+                      <div
                         className={clsx(
-                          "text-[10px] font-bold px-1.5 py-0.5 rounded border ml-1",
-                          phone.status === "IN_STOCK"
-                            ? "text-blue-600 bg-blue-50 border-blue-100 dark:text-blue-400 dark:bg-blue-950 dark:border-blue-900"
-                            : phone.status === "PENDING"
-                              ? "text-amber-600 bg-amber-50 border-amber-100 dark:text-amber-400 dark:bg-amber-950 dark:border-amber-900"
-                              : "text-emerald-600 bg-emerald-50 border-emerald-100 dark:text-emerald-400 dark:bg-emerald-950 dark:border-emerald-900",
+                          "flex items-center gap-1 font-extrabold",
+                          phone.salePrice - phone.purchasePrice >= 0
+                            ? "text-emerald-500"
+                            : "text-rose-500",
                         )}
                       >
-                        {phone.status.replace("_", " ")}
+                        {phone.salePrice - phone.purchasePrice >= 0 ? (
+                          <TrendingUp size={14} />
+                        ) : (
+                          <ArrowDown size={14} />
+                        )}
+                        <span className="text-lg leading-none">
+                          {formatCurrency(phone.salePrice)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-lg font-extrabold text-[#064a98] dark:text-blue-400 leading-none">
+                        {formatCurrency(phone.purchasePrice)}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right flex flex-col items-end justify-center">
-                    <p className="font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-                      {formatCurrency(phone.salePrice || phone.purchasePrice)}
-                    </p>
-                    {phone.status === "SOLD" && phone.salePrice ? (
-                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold mt-1 px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded inline-block">
-                        +{formatCurrency(phone.salePrice - phone.purchasePrice)}{" "}
-                        profit
-                      </p>
-                    ) : (
-                      <p className="text-[9px] text-slate-500 dark:text-slate-400 font-bold mt-1 uppercase tracking-wider px-1.5 py-0.5 border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded">
-                        {phone.status === "PENDING"
-                          ? "Negotiated"
-                          : "Cost Basis"}
-                      </p>
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-[10px] text-slate-400">
+                    Added{" "}
+                    {formatDistanceToNow(new Date(phone.createdAt), {
+                      addSuffix: true,
+                    })}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    {activeTab === "ALL" && (
+                      <span
+                        className={clsx(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1",
+                          phone.status === "IN_STOCK"
+                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                            : phone.status === "PENDING"
+                              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-500",
+                        )}
+                      >
+                        <span
+                          className={clsx(
+                            "size-1 rounded-full",
+                            phone.status === "IN_STOCK"
+                              ? "bg-emerald-500"
+                              : phone.status === "PENDING"
+                                ? "bg-amber-500"
+                                : "bg-slate-400",
+                          )}
+                        ></span>
+                        {phone.status.replace("_", " ")}
+                      </span>
                     )}
+                    {activeTab !== "ALL" && (
+                      <span
+                        className={clsx(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1",
+                          activeTab === "IN_STOCK"
+                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                            : activeTab === "PENDING"
+                              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-500",
+                        )}
+                      >
+                        <span
+                          className={clsx(
+                            "size-1 rounded-full",
+                            activeTab === "IN_STOCK"
+                              ? "bg-emerald-500"
+                              : activeTab === "PENDING"
+                                ? "bg-amber-500"
+                                : "bg-slate-400",
+                          )}
+                        ></span>
+                        {activeTab.replace("_", " ")}
+                      </span>
+                    )}
+
+                    <span
+                      className={clsx(
+                        "px-2 py-0.5 rounded text-[10px] font-bold",
+                        phone.issueTags.length > 0
+                          ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-500",
+                      )}
+                    >
+                      [{phone.issueTags.length}] ISSUES
+                    </span>
                   </div>
-                  <ChevronRight
-                    size={18}
-                    className="text-slate-300 dark:text-slate-600 group-hover:text-[#064a98] dark:group-hover:text-blue-400 transition-colors"
-                  />
                 </div>
               </Link>
             ))
