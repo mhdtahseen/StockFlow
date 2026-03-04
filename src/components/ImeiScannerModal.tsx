@@ -60,7 +60,6 @@ export default function ImeiScannerModal({
     null,
   );
 
-  const [mode, setMode] = useState<ScanMode>("barcode");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [flashOn, setFlashOn] = useState(false);
@@ -127,10 +126,11 @@ export default function ImeiScannerModal({
     }
   }, []);
 
-  // ─── Barcode mode ──────────────────────────────────────────────────────────
+  // ─── Dual Scanner (Optical & Text) ────────────────────────────────────────
 
-  const startBarcodeScanner = useCallback(
+  const startDualScanner = useCallback(
     async (stream: MediaStream, cancelled: { v: boolean }) => {
+      // 1. Initialize Barcode Reader
       const reader = new BrowserMultiFormatReader();
       readerRef.current = reader;
 
@@ -143,41 +143,43 @@ export default function ImeiScannerModal({
             onScan(cleaned);
             stopEverything();
             onClose();
-          } else {
-            setError(
-              `Scanned "${text}" — not a valid 15-digit IMEI. Try again.`,
-            );
           }
         }
       });
-      setIsLoading(false);
-    },
-    [onScan, onClose, stopEverything],
-  );
 
-  // ─── OCR mode ─────────────────────────────────────────────────────────────
+      // 2. Initialize OCR Engine concurrently
+      try {
+        const worker = await createWorker("eng", 1, {
+          workerPath:
+            "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
+          corePath:
+            "https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd.wasm.js",
+          logger: () => {},
+        });
 
-  const startOcrScanner = useCallback(
-    async (cancelled: { v: boolean }) => {
-      // Init Tesseract worker
-      const worker = await createWorker("eng", 1, {
-        workerPath:
-          "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
-        corePath:
-          "https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd.wasm.js",
-        logger: () => {},
-      });
-      if (cancelled.v) {
-        await worker.terminate();
-        return;
+        if (cancelled.v) {
+          await worker.terminate();
+          return;
+        }
+
+        ocrWorkerRef.current = worker;
+        await worker.setParameters({ tessedit_char_whitelist: "0123456789" });
+      } catch (e) {
+        console.error("OCR initialization failed", e);
+        // Continue anyway; barcode scanner is still running
       }
-      ocrWorkerRef.current = worker;
-      await worker.setParameters({ tessedit_char_whitelist: "0123456789" });
+
       setIsLoading(false);
 
-      // Capture a frame every 1.2s and run OCR
+      // 3. OCR Analysis Loop
       captureIntervalRef.current = setInterval(async () => {
-        if (cancelled.v || !videoRef.current || !canvasRef.current) return;
+        if (
+          cancelled.v ||
+          !videoRef.current ||
+          !canvasRef.current ||
+          !ocrWorkerRef.current
+        )
+          return;
         if (ocrScanning) return;
 
         const video = videoRef.current;
@@ -199,12 +201,18 @@ export default function ImeiScannerModal({
 
         try {
           setOcrScanning(true);
-          const { data } = await worker.recognize(canvas);
+          const { data } = await ocrWorkerRef.current.recognize(canvas);
           if (cancelled.v) return;
 
           const found = extractImeiFromText(data.text);
           if (found) {
             setOcrSuggestion(found);
+            // Auto-accept if it's a completely valid format
+            if (isValidImeiFormat(found)) {
+              onScan(found);
+              stopEverything();
+              onClose();
+            }
           }
         } catch {
           // ignore OCR errors silently
@@ -214,10 +222,10 @@ export default function ImeiScannerModal({
       }, 1200);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ocrScanning],
+    [onScan, onClose, ocrScanning, stopEverything],
   );
 
-  // ─── Main effect: start/stop based on isOpen & mode ──────────────────────
+  // ─── Main effect: start/stop based on isOpen ───────────────────────────────
 
   useEffect(() => {
     if (!isOpen) {
@@ -235,11 +243,7 @@ export default function ImeiScannerModal({
       const stream = await startStream();
       if (!stream || cancelled.v) return;
 
-      if (mode === "barcode") {
-        await startBarcodeScanner(stream, cancelled);
-      } else {
-        await startOcrScanner(cancelled);
-      }
+      await startDualScanner(stream, cancelled);
     })();
 
     return () => {
@@ -247,7 +251,7 @@ export default function ImeiScannerModal({
       stopEverything();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, mode]);
+  }, [isOpen]);
 
   // ─── Flash toggle ──────────────────────────────────────────────────────────
 
@@ -293,7 +297,7 @@ export default function ImeiScannerModal({
               className="text-[#064a98] dark:text-blue-400"
             />
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-              {mode === "barcode" ? "Scan IMEI Barcode" : "Read IMEI Numbers"}
+              Scan IMEI
             </h3>
           </div>
           <div className="flex items-center gap-2">
@@ -320,32 +324,6 @@ export default function ImeiScannerModal({
           </div>
         </div>
 
-        {/* Mode toggle pills */}
-        <div className="flex gap-2 px-4 pt-3 pb-1">
-          <button
-            type="button"
-            onClick={() => setMode("barcode")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
-              mode === "barcode"
-                ? "bg-[#064a98] text-white shadow"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-            }`}
-          >
-            <ScanBarcode size={14} /> Barcode
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("ocr")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
-              mode === "ocr"
-                ? "bg-[#064a98] text-white shadow"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-            }`}
-          >
-            <Hash size={14} /> Read Numbers
-          </button>
-        </div>
-
         {/* Camera viewport */}
         <div className="relative aspect-[4/3] bg-black mx-4 my-3 rounded-2xl overflow-hidden">
           <video
@@ -361,30 +339,18 @@ export default function ImeiScannerModal({
           {/* Scan guide overlay */}
           {!isLoading && !error && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div
-                className={`border-2 rounded-xl relative ${
-                  mode === "barcode"
-                    ? "w-[80%] h-16 border-white/60"
-                    : "w-[90%] h-14 border-emerald-400/80"
-                }`}
-              >
-                {mode === "barcode" ? (
-                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-emerald-400/80 animate-pulse" />
-                ) : (
-                  <>
-                    {/* OCR scanning line animation */}
-                    <div className="absolute inset-x-0 h-0.5 bg-emerald-400 animate-bounce top-1/2 -translate-y-1/2" />
-                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-white/70 whitespace-nowrap">
-                      Align IMEI digits inside the box
-                    </span>
-                  </>
-                )}
+              <div className="border-2 rounded-xl relative w-[90%] h-14 border-emerald-400/80">
+                {/* OCR scanning line animation */}
+                <div className="absolute inset-x-0 h-0.5 bg-emerald-400 animate-bounce top-1/2 -translate-y-1/2" />
+                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-white/70 whitespace-nowrap">
+                  Align IMEI barcode or digits inside the box
+                </span>
               </div>
             </div>
           )}
 
           {/* OCR spinning indicator */}
-          {mode === "ocr" && ocrScanning && !isLoading && (
+          {ocrScanning && !isLoading && (
             <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1">
               <RefreshCw size={12} className="text-white animate-spin" />
             </div>
@@ -395,7 +361,7 @@ export default function ImeiScannerModal({
             <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center gap-3">
               <Loader2 size={32} className="text-white animate-spin" />
               <p className="text-white/70 text-sm font-semibold">
-                {mode === "ocr" ? "Loading OCR engine…" : "Starting camera…"}
+                Starting scanner engine…
               </p>
             </div>
           )}
@@ -418,12 +384,12 @@ export default function ImeiScannerModal({
         </div>
 
         {/* OCR detected number banner */}
-        {mode === "ocr" && ocrSuggestion && (
+        {ocrSuggestion && (
           <div className="mx-4 mb-3 bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 flex items-center gap-3">
             <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                IMEI Detected
+                Text Detected (Verify)
               </p>
               <p className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm tracking-widest truncate">
                 {ocrSuggestion}
@@ -442,9 +408,7 @@ export default function ImeiScannerModal({
         {/* Footer hint */}
         <div className="px-5 pb-4 text-center">
           <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
-            {mode === "barcode"
-              ? "Point at the barcode on the phone box or SIM tray"
-              : "Point camera at the printed IMEI digits — tap Use to confirm"}
+            Scanning for barcodes and printed numbers...
           </p>
         </div>
       </div>
