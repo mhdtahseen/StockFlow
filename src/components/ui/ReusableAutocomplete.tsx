@@ -1,0 +1,182 @@
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { Plus } from "lucide-react";
+import clsx from "clsx";
+
+export type AutocompleteItem = {
+  id: string;
+  label: string;
+  categoryLabel?: string;
+  aliases?: string[];
+};
+
+export interface ReusableAutocompleteProps {
+  data: AutocompleteItem[];
+  placeholder?: string;
+  value: string;
+  onChange: (val: string) => void;
+  onSelect?: (val: string) => void;
+  icon?: React.ReactNode;
+}
+
+export default function ReusableAutocomplete({
+  data,
+  placeholder = "Search...",
+  value,
+  onChange,
+  onSelect,
+  icon,
+}: ReusableAutocompleteProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredItems = useMemo(() => {
+    if (!value.trim()) return [];
+    const lowerVal = value.toLowerCase();
+    return data
+      .filter((item) => {
+        if (item.label.toLowerCase().includes(lowerVal)) return true;
+        if (
+          item.aliases &&
+          item.aliases.some((alias) => alias.toLowerCase().includes(lowerVal))
+        )
+          return true;
+        return false;
+      })
+      .slice(0, 15); // Show reasonable number to prevent massive list
+  }, [value, data]);
+
+  // Open dropdown when typing
+  useEffect(() => {
+    if (value.trim() && filteredItems.length > 0) {
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
+  }, [value, filteredItems.length]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen && value.trim()) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        setIsOpen(true);
+        return;
+      }
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((prev) =>
+        prev < filteredItems.length - 1 ? prev + 1 : prev,
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev > -1 ? prev - 1 : prev));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (
+        isOpen &&
+        highlightedIndex >= 0 &&
+        highlightedIndex < filteredItems.length
+      ) {
+        const selected = filteredItems[highlightedIndex].label;
+        onChange(selected);
+        if (onSelect) onSelect(selected);
+        setIsOpen(false);
+        setHighlightedIndex(-1);
+      } else if (value.trim()) {
+        // Fallback for custom entries if Enter is pressed and none selected
+        onChange(value.trim()); // keeps the input but invokes select for array builds
+        if (onSelect) onSelect(value.trim());
+        setIsOpen(false);
+        setHighlightedIndex(-1);
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <div className="flex relative items-center">
+        {icon && (
+          <div className="absolute left-3 flex items-center justify-center text-slate-400 dark:text-slate-500">
+            {icon}
+          </div>
+        )}
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setHighlightedIndex(-1);
+          }}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            if (value.trim() && filteredItems.length > 0) setIsOpen(true);
+          }}
+          className={clsx(
+            "w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#064a98] dark:focus:border-blue-500 focus:ring-1 focus:ring-[#064a98]/20 dark:focus:ring-blue-500/20 outline-none py-3 text-sm font-semibold text-slate-900 dark:text-slate-100 transition-all placeholder:font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500",
+            icon ? "pl-10 pr-4" : "px-4",
+          )}
+          placeholder={placeholder}
+          autoComplete="off"
+        />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-[99] w-full mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-xl shadow-black/10 dark:shadow-black/40 border border-slate-100 dark:border-slate-800 overflow-hidden max-h-64 overflow-y-auto">
+          {filteredItems.map((item, index) => {
+            const isHighlighted = index === highlightedIndex;
+            const showCategory =
+              index === 0 ||
+              item.categoryLabel !== filteredItems[index - 1].categoryLabel;
+
+            return (
+              <React.Fragment key={item.id}>
+                {showCategory && item.categoryLabel && (
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50/80 dark:bg-slate-800/80 sticky top-0 z-10 backdrop-blur-sm shadow-sm">
+                    {item.categoryLabel}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // prevent loss of focus on input
+                    onChange(item.label);
+                    if (onSelect) onSelect(item.label);
+                    setIsOpen(false);
+                    setHighlightedIndex(-1);
+                  }}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  className={clsx(
+                    "w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors flex items-center justify-between",
+                    isHighlighted
+                      ? "bg-[#064a98]/10 dark:bg-blue-500/20 text-[#064a98] dark:text-blue-400"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800",
+                  )}
+                >
+                  <span>{item.label}</span>
+                  {isHighlighted && <Plus size={14} className="opacity-50" />}
+                </button>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

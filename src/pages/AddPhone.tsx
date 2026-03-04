@@ -19,6 +19,8 @@ import {
   type ColorOption,
 } from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
+import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
+import { issuesFlatList } from "../data/issueCatalog";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
 import CurrencyInput from "../components/ui/CurrencyInput";
@@ -510,19 +512,32 @@ export default function AddPhone() {
               <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
                 Custom Issue
               </label>
-              <div className="flex gap-2 relative">
-                <input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={handleAddCustomTag}
-                  className="w-full flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#064a98] dark:focus:border-blue-500 focus:ring-1 focus:ring-[#064a98]/20 dark:focus:ring-blue-500/20 outline-none pl-4 pr-16 py-3 text-sm font-semibold text-slate-900 dark:text-slate-100 transition-all placeholder:font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  placeholder="Type new issue…"
-                />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <ReusableAutocomplete
+                    data={issuesFlatList}
+                    value={newTag}
+                    onChange={setNewTag}
+                    onSelect={(val) => {
+                      const t = val.trim();
+                      if (t && !selectedTags.includes(t)) {
+                        setSelectedTags((prev) => [...prev, t]);
+                      }
+                      setNewTag("");
+                    }}
+                    placeholder="Search catalog or type custom issue..."
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={handleAddCustomTag}
-                  className="absolute right-2 top-2 bottom-2 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 px-3 rounded-lg text-xs font-bold transition-colors"
+                  onClick={(e) => {
+                    const t = newTag.trim();
+                    if (t && !selectedTags.includes(t)) {
+                      setSelectedTags((prev) => [...prev, t]);
+                    }
+                    setNewTag("");
+                  }}
+                  className="bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 px-4 rounded-xl text-sm font-bold transition-colors shadow-sm"
                 >
                   Add
                 </button>
