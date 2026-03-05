@@ -72,7 +72,7 @@ export default function PhoneDetail() {
 
   if (!phone) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">
+      <div className="flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">
         <Package size={48} strokeWidth={1} className="text-slate-300 mb-4" />
         <p className="font-bold text-slate-700 dark:text-slate-300">
           Device not found
@@ -242,7 +242,7 @@ export default function PhoneDetail() {
   const status = statusConfig[phone.status];
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 pb-6 transition-colors duration-300">
       <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
         <div className="flex items-center gap-3">
           <button

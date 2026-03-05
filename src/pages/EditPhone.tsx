@@ -81,7 +81,7 @@ export default function EditPhone() {
   // ── Early returns for guarded states ───────────────────────────────────────
   if (!phone) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">
+      <div className="flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">
         <p className="font-bold text-slate-700 dark:text-slate-300">
           Device not found
         </p>
@@ -97,7 +97,7 @@ export default function EditPhone() {
 
   if (phone.status === "SOLD") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">
+      <div className="flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">
         <p className="font-bold text-slate-700 dark:text-slate-300">
           Cannot edit a sold device.
         </p>
