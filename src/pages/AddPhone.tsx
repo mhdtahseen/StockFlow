@@ -381,9 +381,9 @@ export default function AddPhone() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300 relative">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300 relative">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3 w-full">
           <button
             type="button"
@@ -405,7 +405,7 @@ export default function AddPhone() {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-lg mx-auto p-4 pb-20 overflow-y-auto z-10">
+      <main className="w-full max-w-lg mx-auto p-4 pb-12 z-10">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* ── IMEI ────────────────────────────────────────────────────── */}
           <ImeiSection imeis={imeis} onChange={setImeis} />
@@ -719,22 +719,19 @@ export default function AddPhone() {
                 </span>
               )}
             </div>
+            <div className="pt-6 pb-20">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="w-full bg-[#064a98] hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+              >
+                <Smartphone size={20} />
+                Save &amp; Add Device
+              </button>
+            </div>
           </div>
         </form>
       </main>
-
-      {/* Sticky Save Button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 p-4 pb-24 z-50">
-        <div className="max-w-lg mx-auto">
-          <button
-            onClick={handleSubmit}
-            className="w-full bg-[#064a98] hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
-          >
-            <Smartphone size={20} />
-            Save &amp; Add Device
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

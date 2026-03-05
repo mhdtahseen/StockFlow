@@ -203,7 +203,7 @@ export default function Inventory() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 pb-20 relative transition-colors duration-300">
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 flex-shrink-0 pt-[env(safe-area-inset-top,0px)]">
         {/* Title row / Search row */}
         <div className="px-4 py-3 flex items-center justify-between gap-3">
           {showSearch ? (

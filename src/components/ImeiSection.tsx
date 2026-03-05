@@ -142,7 +142,8 @@ export default function ImeiSection({ imeis, onChange }: ImeiSectionProps) {
                   {/* Input + validation icon */}
                   <div className="relative flex-1">
                     <input
-                      type="text"
+                      type="tel"
+                      pattern="[0-9]*"
                       inputMode="numeric"
                       maxLength={15}
                       value={entry.value}

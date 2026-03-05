@@ -256,7 +256,7 @@ export default function Analytics() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
         <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
           Analytics
         </h1>
