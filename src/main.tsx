@@ -12,8 +12,27 @@ import { AuthProvider } from "./context/AuthContext";
 import App from "./App";
 import "./index.css";
 
-// Register the PWA service worker
-registerSW({ immediate: true });
+// Register the PWA service worker with aggressive update checks
+registerSW({
+  immediate: true,
+  onRegistered(r) {
+    if (r) {
+      // Check for updates every time the app comes back to the foreground (highly effective for iOS home screen PWAs)
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          r.update();
+        }
+      });
+      // Also poll for updates periodically (e.g., every 1 hour) over long sessions
+      setInterval(
+        () => {
+          r.update();
+        },
+        60 * 60 * 1000,
+      );
+    }
+  },
+});
 
 // Listen for the service worker taking control. The 'autoUpdate' strategy
 // will automatically install and claim clients, but we need to reload the

@@ -12,6 +12,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
       },
       manifest: {
         name: "StockFlow - Smart Inventory",
