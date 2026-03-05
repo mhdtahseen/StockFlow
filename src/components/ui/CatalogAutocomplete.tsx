@@ -178,7 +178,7 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
   const showDropdown = open && filtered.length > 0 && !disabled;
 
   return (
-    <div ref={containerRef} className="relative group scroll-mt-20">
+    <div ref={containerRef} className="relative group scroll-mt-30">
       {/* Label */}
       <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
         {label}
