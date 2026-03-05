@@ -64,24 +64,24 @@ HEADERS = {
     "Connection":  "keep-alive",
 }
 
-# GSMArena maker IDs for India brands
+# ── Brand pages (correct GSMArena URL format) ─────────────────────────────────
 GSMARENA_BRANDS = {
-    "Samsung": "9",
-    "Apple": "48",
-    "Xiaomi": "80",
-    "Oppo": "82",
-    "Vivo": "99",
-    "Realme": "118",
-    "OnePlus": "87",
-    "Motorola": "13",
-    "Nokia": "61",
-    "Nothing": "163",
-    "Google": "107",
-    "Honor": "121",
-    "Infinix": "119",
-    "Tecno": "120",
-    "POCO": "123",
-    "Itel": "175",
+    "Samsung":  "samsung-phones-9.php",
+    "Apple":    "apple-phones-48.php",
+    "Xiaomi":   "xiaomi-phones-80.php",
+    "Oppo":     "oppo-phones-82.php",
+    "Vivo":     "vivo-phones-99.php",
+    "Realme":   "realme-phones-118.php",
+    "OnePlus":  "oneplus-phones-87.php",
+    "Motorola": "motorola-phones-13.php",
+    "Nokia":    "nokia-phones-61.php",
+    "Nothing":  "nothing-phones-163.php",
+    "Google":   "google-phones-107.php",
+    "Honor":    "honor-phones-121.php",
+    "Infinix":  "infinix-phones-119.php",
+    "Tecno":    "tecno-phones-120.php",
+    "POCO":     "poco-phones-123.php",
+    "Itel":     "itel-phones-175.php",
 }
 # ── Color name → hex map ──────────────────────────────────────────────────────
 COLOR_HEX = {
@@ -257,7 +257,7 @@ def scrape_specs(url: str) -> dict:
 
     return specs
 
-def scrape_new_launches() -> list[dict]:
+# def scrape_new_launches() -> list[dict]:
     """Scrape GSMArena per-brand pages for recently released India phones."""
     log.info("Fetching new launches from GSMArena (per brand)…")
     all_devices = []
@@ -315,6 +315,81 @@ def scrape_new_launches() -> list[dict]:
 
     log.info(f"Total: {len(all_devices)} unique devices across all brands")
     return all_devices
+def scrape_new_launches() -> list[dict]:
+    """Scrape GSMArena brand pages for recently released India phones."""
+    log.info("Fetching new launches from GSMArena (per brand)…")
+    all_devices = []
+    seen = set()
+
+    for brand, slug in GSMARENA_BRANDS.items():
+        log.info(f"  Scraping {brand}…")
+        url = f"https://www.gsmarena.com/{slug}"
+        r = get(url)
+        if not r:
+            log.warning(f"    Failed to fetch {brand} — skipping")
+            continue
+
+        soup  = BeautifulSoup(r.text, "html.parser")
+
+        # GSMArena brand pages: devices are <li> inside .section-body > ul
+        # Each <li> has an <a> with an <img> (alt = full name) and <strong> (model only)
+        items = soup.select(".section-body ul li, ul.phones-list li, #list-devices li")
+
+        # Fallback — grab all <li> that contain an <a> with a phone slug href
+        if not items:
+            items = [
+                li for li in soup.find_all("li")
+                if li.find("a", href=re.compile(r"[\w-]+-\d+\.php"))
+            ]
+
+        count = 0
+        for item in items:
+            link = item.find("a", href=re.compile(r"[\w-]+-\d+\.php"))
+            if not link:
+                continue
+
+            href = link.get("href", "")
+
+            # Skip non-phone pages (watches, tablets, buds)
+            skip_keywords = ["watch", "tab ", "tablet", "buds", "earphone", "band"]
+            if any(k in href.lower() for k in skip_keywords):
+                continue
+
+            # Get model name from <strong> tag (most reliable)
+            strong = link.find("strong")
+            if strong:
+                model = clean(strong.text)
+            else:
+                # Fall back to img alt, strip brand prefix
+                img = link.find("img")
+                full_name = img.get("alt", "") if img else clean(link.text)
+                if full_name.lower().startswith(brand.lower()):
+                    model = full_name[len(brand):].strip()
+                else:
+                    parts = full_name.split(" ", 1)
+                    model = parts[1].strip() if len(parts) > 1 else full_name
+
+            if not model or len(model) < 2:
+                continue
+
+            key = f"{brand}::{model}"
+            if key in seen:
+                continue
+            seen.add(key)
+
+            all_devices.append({
+                "brand": brand,
+                "model": model,
+                "url":   f"https://www.gsmarena.com/{href}",
+            })
+            count += 1
+
+        log.info(f"    → {count} devices found")
+        time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
+
+    log.info(f"Total: {len(all_devices)} unique devices across all brands")
+    return all_devices
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 def run():
     log.info("=" * 60)
