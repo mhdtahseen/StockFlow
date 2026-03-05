@@ -266,7 +266,7 @@ export default function PhoneDetail() {
         )}
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-12 max-w-lg mx-auto w-full flex flex-col gap-5">
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-12 max-w-lg mx-auto w-full space-y-5">
         {/* Device Identity Card */}
         <section className="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
           {phone.status === "SOLD" && (
@@ -802,6 +802,7 @@ export default function PhoneDetail() {
                   value={repairNote}
                   onChange={setRepairNote}
                   placeholder="e.g. Screen replacement, Battery swap…"
+                  autoFocus
                 />
               </div>
 
@@ -813,7 +814,6 @@ export default function PhoneDetail() {
                 <CurrencyInput
                   value={repairAmount}
                   onChange={setRepairAmount}
-                  autoFocus
                   className="rounded-2xl border-amber-200 dark:border-amber-800 focus:border-amber-400"
                 />
               </div>

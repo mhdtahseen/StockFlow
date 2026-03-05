@@ -18,6 +18,7 @@ export interface ReusableAutocompleteProps {
   onChange: (val: string) => void;
   onSelect?: (val: string) => void;
   icon?: React.ReactNode;
+  autoFocus?: boolean;
 }
 
 export default function ReusableAutocomplete({
@@ -27,6 +28,7 @@ export default function ReusableAutocomplete({
   onChange,
   onSelect,
   icon,
+  autoFocus = false,
 }: ReusableAutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -122,6 +124,7 @@ export default function ReusableAutocomplete({
         <input
           type="text"
           value={value}
+          autoFocus={autoFocus}
           onChange={(e) => {
             onChange(e.target.value);
             setHighlightedIndex(-1);

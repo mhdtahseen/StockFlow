@@ -383,7 +383,7 @@ export default function Inventory() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24 z-10 w-full max-w-lg mx-auto flex flex-col gap-5">
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24 z-10 w-full max-w-lg mx-auto space-y-5">
         {/* Active search/filter indicator */}
         {(query || filterBrand) && (
           <div className="flex items-center gap-2 flex-wrap">
