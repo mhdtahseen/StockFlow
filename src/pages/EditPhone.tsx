@@ -19,6 +19,8 @@ import {
   type ColorOption,
 } from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
+import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
+import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
 import CurrencyInput from "../components/ui/CurrencyInput";
@@ -36,6 +38,8 @@ import {
   Palette,
   Search,
   HardDrive,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -116,8 +120,39 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const masterData = useAppSelector((state) => state.masterData);
+  const phones = useAppSelector((state) => state.inventory.phones);
 
-  // ── Form state (pre-populated from existing phone) ─────────────────────────
+  const topIssues = useMemo(() => {
+    // Collect all tags from inventory
+    const tagCounts: Record<string, number> = {};
+    phones.forEach((p) => {
+      p.issueTags.forEach((tag) => {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      });
+    });
+
+    // Sort by descending frequency
+    const sortedTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag]) => tag);
+
+    if (sortedTags.length >= 5) {
+      return sortedTags.slice(0, 5);
+    }
+
+    // Fallback if not enough history
+    const fallback = [
+      "Cracked / Shattered Screen",
+      "Battery Draining Fast",
+      "Scuff Marks",
+      "Deep Scratch on Screen",
+      "Body Discolouration / Yellowing",
+    ];
+
+    // Merge history + fallback, distinct, limit 5
+    return [...new Set([...sortedTags, ...fallback])].slice(0, 5);
+  }, [phones]);
+
   const {
     getBrandOptions,
     getModelOptions,
@@ -137,13 +172,16 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
 
   const [selectedTags, setSelectedTags] = useState<string[]>(phone.issueTags);
   const [newTag, setNewTag] = useState("");
+  const [isIssuesExpanded, setIsIssuesExpanded] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState(false);
 
-  // ── IMEI state (will be pre-populated from Supabase in future) ───────────
-  const [imeis, setImeis] = useState<ImeiEntry[]>([
-    { value: "", status: "UNVERIFIED" },
-  ]);
+  // ── IMEI state (populated from Supabase) ───────────
+  const [imeis, setImeis] = useState<ImeiEntry[]>(
+    phone.imeis && phone.imeis.length > 0
+      ? phone.imeis.map((i) => ({ value: i, status: "UNVERIFIED" }))
+      : [{ value: "", status: "UNVERIFIED" }],
+  );
 
   // ─── Derived options (memoized, catalog-only) ──────────────────────────────
 
@@ -207,6 +245,14 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
 
     // Block save if any filled IMEI is invalid
     const filledImeis = imeis.filter((e) => e.value.length > 0);
+
+    if (filledImeis.length === 0) {
+      toast.error("IMEI Required", {
+        description: "Please enter or scan at least one IMEI number.",
+      });
+      return;
+    }
+
     const hasInvalidImei = filledImeis.some(
       (e) => validateImei(e.value) !== null,
     );
@@ -249,6 +295,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
       ram: ram || "N/A",
       storage,
       color,
+      imeis: filledImeis.map((e) => e.value).slice(0, 2),
       purchasePrice: parseFloat(price),
       issueTags: selectedTags,
     };
@@ -490,75 +537,131 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {[...new Set([...masterData.issueTags, ...selectedTags])].map(
-                (tag) => {
-                  const isSelected = selectedTags.includes(tag);
-                  const isSevere =
-                    tag.toLowerCase().includes("crack") ||
-                    tag.toLowerCase().includes("dead") ||
-                    tag.toLowerCase().includes("broken");
-                  const isWarning =
-                    tag.toLowerCase().includes("fail") ||
-                    tag.toLowerCase().includes("battery") ||
-                    tag.toLowerCase().includes("scratch");
+              {(() => {
+                const hasManySelected = selectedTags.length > 3;
+                let chipsToRender: string[] = [];
 
-                  let baseStyle =
-                    "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600";
-                  if (isSelected) {
-                    if (isSevere)
-                      baseStyle =
-                        "bg-rose-50 dark:bg-rose-950 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 font-bold";
-                    else if (isWarning)
-                      baseStyle =
-                        "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-bold";
-                    else
-                      baseStyle =
-                        "bg-[#064a98]/10 dark:bg-blue-500/10 border-[#064a98]/30 dark:border-blue-500/30 text-[#064a98] dark:text-blue-400 font-bold";
+                if (isIssuesExpanded) {
+                  chipsToRender = [...new Set([...topIssues, ...selectedTags])];
+                } else {
+                  if (hasManySelected) {
+                    chipsToRender = selectedTags.slice(-3); // Show 3 latest
+                  } else {
+                    chipsToRender = [
+                      ...new Set([...topIssues, ...selectedTags]),
+                    ];
                   }
+                }
 
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      className={clsx(
-                        "group flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-xs font-semibold transition-all active:scale-95",
-                        baseStyle,
-                      )}
-                    >
-                      <span>{tag}</span>
-                      {isSelected ? (
-                        <Check
-                          size={14}
-                          strokeWidth={3}
-                          className="opacity-80"
-                        />
-                      ) : (
-                        <Plus size={14} className="opacity-40" />
-                      )}
-                    </button>
-                  );
-                },
-              )}
+                const hiddenCount =
+                  hasManySelected && !isIssuesExpanded
+                    ? selectedTags.length - 3
+                    : 0;
+
+                return (
+                  <>
+                    {chipsToRender.map((tag) => {
+                      const isSelected = selectedTags.includes(tag);
+                      // Find severity from catalog, default to 1 if custom
+                      const catalogItem = issuesFlatList.find(
+                        (i) => i.label === tag || i.aliases?.includes(tag),
+                      );
+                      const severity = catalogItem?.severity || 1;
+                      const severityColors = severityColorMap[severity];
+
+                      let baseStyle =
+                        "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600";
+
+                      let inlineStyle = {};
+
+                      if (isSelected) {
+                        baseStyle = "font-bold";
+                        inlineStyle = {
+                          backgroundColor: severityColors.bg,
+                          color: severityColors.text,
+                          borderColor: severityColors.text + "40", // 25% opacity for border
+                        };
+                      }
+
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          style={inlineStyle}
+                          className={clsx(
+                            "group flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-xs font-semibold transition-all active:scale-95",
+                            baseStyle,
+                          )}
+                        >
+                          <span>{tag}</span>
+                          {isSelected ? (
+                            <Check
+                              size={14}
+                              strokeWidth={3}
+                              className="opacity-80"
+                            />
+                          ) : (
+                            <Plus size={14} className="opacity-40" />
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {hasManySelected && (
+                      <button
+                        type="button"
+                        onClick={() => setIsIssuesExpanded(!isIssuesExpanded)}
+                        className="group flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold transition-all active:scale-95 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        {!isIssuesExpanded ? (
+                          <>
+                            <span>+{hiddenCount} More</span>
+                            <ChevronDown size={14} className="opacity-60" />
+                          </>
+                        ) : (
+                          <>
+                            <span>Show Less</span>
+                            <ChevronUp size={14} className="opacity-60" />
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <div className="pt-3 border-t border-slate-50 dark:border-slate-800 mt-2">
               <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
                 Custom Issue
               </label>
-              <div className="flex gap-2 relative">
-                <input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={handleAddCustomTag}
-                  className="w-full flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#064a98] dark:focus:border-blue-500 focus:ring-1 focus:ring-[#064a98]/20 dark:focus:ring-blue-500/20 outline-none pl-4 pr-16 py-3 text-sm font-semibold text-slate-900 dark:text-slate-100 transition-all placeholder:font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  placeholder="Type new issue…"
-                />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <ReusableAutocomplete
+                    data={issuesFlatList}
+                    value={newTag}
+                    onChange={setNewTag}
+                    onSelect={(val) => {
+                      const t = val.trim();
+                      if (t && !selectedTags.includes(t)) {
+                        setSelectedTags((prev) => [...prev, t]);
+                      }
+                      setNewTag("");
+                    }}
+                    placeholder="Search catalog or type custom issue..."
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={handleAddCustomTag}
-                  className="absolute right-2 top-2 bottom-2 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 px-3 rounded-lg text-xs font-bold transition-colors"
+                  onClick={(e) => {
+                    const t = newTag.trim();
+                    if (t && !selectedTags.includes(t)) {
+                      setSelectedTags((prev) => [...prev, t]);
+                    }
+                    setNewTag("");
+                  }}
+                  className="bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 px-4 rounded-xl text-sm font-bold transition-colors shadow-sm"
                 >
                   Add
                 </button>
