@@ -203,7 +203,17 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
           disabled={disabled}
           value={query}
           onChange={handleInputChange}
-          onFocus={() => !disabled && setOpen(true)}
+          onFocus={() => {
+            if (!disabled) {
+              setOpen(true);
+              setTimeout(() => {
+                containerRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }, 250); // slight delay allowing keyboard to deploy
+            }
+          }}
           onKeyDown={handleKeyDown}
           placeholder={disabled ? "—" : placeholder}
           aria-autocomplete="list"
