@@ -112,7 +112,7 @@ export default function ReusableAutocomplete({
   };
 
   return (
-    <div className="relative w-full" ref={containerRef}>
+    <div className="relative w-full scroll-mt-20" ref={containerRef}>
       <div className="flex relative items-center">
         {icon && (
           <div className="absolute left-3 flex items-center justify-center text-slate-400 dark:text-slate-500">
