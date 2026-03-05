@@ -32,6 +32,11 @@ _Note: RLS (Row Level Security) is mapped out in the database to prevent unautho
 - [ ] Check for any unresolved TypeScript `any` types that can be strictly defined.
 - [ ] End-to-End test of the "Invite Associate" flow via the sent email link to ensure the `tenant_id` perfectly bridges to the new user.
 
+### 6. Payment Settlement Mode tracking
+
+- [ ] Add `paymentMethod` ("CASH" | "UPI" | "BANK_TRANSFER") globally to the `LedgerEntry` type and Postgres database.
+- [ ] Connect Payment Method selection UI flows to adding phones, selling phones, investing capital, and withdrawing capital.
+
 ## 🚀 Release v2 Roadmap
 
 ### 1. Advanced Offline & PWA Features
