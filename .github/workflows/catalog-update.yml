@@ -32,7 +32,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: dev # always run against dev branch
+          ref: scrapper-test # always run against scrapper-test branch
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # ── 2. Python setup ──────────────────────────────────────────────────
