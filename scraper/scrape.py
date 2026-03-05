@@ -41,8 +41,10 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-DELAY_MIN   = 1.8   # seconds — be polite to GSMArena
-DELAY_MAX   = 3.5
+# seconds — be polite to GSMArena
+DELAY_MIN = 4.0
+DELAY_MAX = 8.0
+
 MAX_RETRIES = 3
 
 # India market brands — covers ~97% of Indian market
@@ -135,12 +137,22 @@ def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
         try:
             time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
             r = session.get(url, timeout=20)
+
+            # 429 — back off hard before retrying
+            if r.status_code == 429:
+                wait = 60 * (attempt + 1)  # 60s, 120s, 180s
+                log.warning(f"  Rate limited (429), backing off {wait}s…")
+                time.sleep(wait)
+                continue
+
             r.raise_for_status()
             return r
+
         except requests.RequestException as e:
-            wait = 5 * (attempt + 1)
+            wait = 10 * (attempt + 1)
             log.warning(f"  Request failed ({e}), retry {attempt+1}/{retries} in {wait}s")
             time.sleep(wait)
+
     log.error(f"  Giving up on {url}")
     return None
 
@@ -149,21 +161,31 @@ def clean(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
 
 def parse_storage(s: str) -> list[str]:
+    """Extract storage values only — excludes RAM-range values (1-24GB)."""
     found = re.findall(r"([\d.]+)\s*(GB|TB|MB)", s, re.I)
     opts = set()
     for num, unit in found:
         n, u = float(num), unit.upper()
         if u == "TB":
             opts.add(f"{int(n)}TB")
-        elif n >= 1:
-            opts.add(f"{int(n)}GB")
+        elif u == "GB":
+            # RAM is typically 1–24GB, storage is 32GB+
+            if n >= 32:
+                opts.add(f"{int(n)}GB")
+        elif u == "MB" and n >= 512:
+            opts.add("512MB")
     return sorted(opts, key=lambda x: int(x[:-2]) * (1000 if x.endswith("TB") else 1))
 
 def parse_ram(s: str) -> list[str]:
+    """Extract RAM values only — values between 1GB and 24GB."""
     found = re.findall(r"(\d+)\s*GB", s, re.I)
-    opts = {f"{v}GB" for v in map(int, found) if 1 <= int(v) <= 24}
+    opts = set()
+    for v in map(int, found):
+        if 1 <= v <= 24:
+            opts.add(f"{v}GB")
     return sorted(opts, key=lambda x: int(x[:-2]))
 
+    
 def parse_colors(s: str) -> list[dict]:
     seen, result = set(), []
     for raw in re.split(r"[,/]", s):
