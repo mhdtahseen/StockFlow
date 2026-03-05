@@ -266,7 +266,7 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
             "absolute z-[200] mt-1.5 w-full rounded-xl border shadow-lg overflow-auto",
             "bg-white dark:bg-slate-900",
             "border-slate-100 dark:border-slate-700",
-            "max-h-56",
+            "max-h-40",
           )}
         >
           {filtered.map((item, idx) => {

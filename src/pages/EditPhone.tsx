@@ -394,7 +394,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-lg mx-auto p-4 pb-10 overflow-y-auto z-10">
+      <main className="flex-1 w-full max-w-lg mx-auto p-4 pb-20 overflow-y-auto z-10">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* ── IMEI ────────────────────────────────────────────────────── */}
           <ImeiSection imeis={imeis} onChange={setImeis} />
