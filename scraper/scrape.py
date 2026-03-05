@@ -6,11 +6,11 @@ Runs every Friday via GitHub Actions.
 
 Logic:
   1. Load all existing (brand, model) from catalog_models_v2
-  2. Scrape GSMArena for recently released India phones
-  3. For each device:
-     a. Complete data in DB → skip
-     b. In DB but missing fields → patch only missing fields
-     c. Not in DB → full scrape + insert
+  2. Scrape GSMArena brand pages for all India-market phones
+  3. For each device — scrape GSMArena for ground truth, then:
+     a. DB matches GSMArena exactly → skip
+     b. DB missing or has fewer variants → merge + patch
+     c. Not in DB at all → full insert
   4. Upsert to Supabase via push_to_supabase.py
 """
 
@@ -41,18 +41,9 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-# seconds — be polite to GSMArena
-DELAY_MIN = 4.0
-DELAY_MAX = 8.0
-
+DELAY_MIN   = 4.0
+DELAY_MAX   = 8.0
 MAX_RETRIES = 3
-
-# India market brands — covers ~97% of Indian market
-INDIA_BRANDS = {
-    "samsung", "apple", "xiaomi", "redmi", "poco", "vivo", "oppo",
-    "realme", "oneplus", "motorola", "nokia", "itel", "tecno", "infinix",
-    "micromax", "lava", "honor", "google", "nothing", "lenovo", "asus",
-}
 
 HEADERS = {
     "User-Agent": (
@@ -63,10 +54,10 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-IN,en;q=0.9",
     "Accept-Encoding": "gzip, deflate",
-    "Connection":  "keep-alive",
+    "Connection":      "keep-alive",
 }
 
-# ── Brand pages (correct GSMArena URL format) ─────────────────────────────────
+# ── Brand pages ───────────────────────────────────────────────────────────────
 GSMARENA_BRANDS = {
     "Samsung":  "samsung-phones-9.php",
     "Apple":    "apple-phones-48.php",
@@ -85,38 +76,39 @@ GSMARENA_BRANDS = {
     "POCO":     "poco-phones-123.php",
     "Itel":     "itel-phones-175.php",
 }
+
 # ── Color name → hex map ──────────────────────────────────────────────────────
 COLOR_HEX = {
-    "black": "#1A1A1C",       "midnight black": "#1A1A1C",
-    "jet black": "#1C1B1E",   "onyx black": "#2E2E30",
-    "space black": "#1B1B1B", "carbon black": "#2A2A2A",
-    "white": "#F8F8F8",       "cloud white": "#F0F0EE",
-    "pearl white": "#F5F5F0", "glacier white": "#F2F3F5",
-    "blue": "#3A6A9A",        "sky blue": "#A0B8D0",
-    "navy": "#283448",        "navy blue": "#283448",
+    "black": "#1A1A1C",        "midnight black": "#1A1A1C",
+    "jet black": "#1C1B1E",    "onyx black": "#2E2E30",
+    "space black": "#1B1B1B",  "carbon black": "#2A2A2A",
+    "white": "#F8F8F8",        "cloud white": "#F0F0EE",
+    "pearl white": "#F5F5F0",  "glacier white": "#F2F3F5",
+    "blue": "#3A6A9A",         "sky blue": "#A0B8D0",
+    "navy": "#283448",         "navy blue": "#283448",
     "midnight blue": "#1E2A40","icy blue": "#B8CCD8",
-    "ocean blue": "#2A5878",  "cobalt blue": "#2A4A8A",
-    "stellar blue": "#4C6A9A","glacier blue": "#5A8AB0",
-    "green": "#3A7A5A",       "mint": "#A8CCC0",
-    "alpine green": "#505E4C","emerald green": "#2A7A5A",
-    "aurora green": "#3A8A7A","forest green": "#2D4A38",
-    "sage": "#A9B689",        "olive green": "#7E9F88",
-    "gold": "#C8A870",        "rose gold": "#E8C0A8",
-    "silver": "#C8C8C8",      "titanium": "#8A8A8C",
-    "graphite": "#4A4C50",    "grey": "#9A9A9C",
-    "gray": "#9A9A9C",        "space grey": "#535150",
-    "red": "#A02020",         "product red": "#BF0013",
-    "coral red": "#C84848",   "burgundy": "#6A2030",
-    "purple": "#7058A0",      "lavender": "#C0B0D8",
-    "violet": "#9070A8",      "bora purple": "#7058A0",
-    "deep purple": "#594F63", "pink": "#E8C0C8",
-    "rose": "#D4A0A8",        "coral": "#E08070",
-    "teal": "#B0D4D2",        "cyan": "#5AB8C8",
-    "aqua": "#5AB8C8",        "orange": "#D87040",
-    "amber": "#D8C870",       "yellow": "#D8C870",
-    "beige": "#E8E0C8",       "cream": "#EEE8D8",
-    "brown": "#7A5A48",       "bronze": "#8A6248",
-    "copper": "#B87848",      "peach": "#E8C0A8",
+    "ocean blue": "#2A5878",   "cobalt blue": "#2A4A8A",
+    "stellar blue": "#4C6A9A", "glacier blue": "#5A8AB0",
+    "green": "#3A7A5A",        "mint": "#A8CCC0",
+    "alpine green": "#505E4C", "emerald green": "#2A7A5A",
+    "aurora green": "#3A8A7A", "forest green": "#2D4A38",
+    "sage": "#A9B689",         "olive green": "#7E9F88",
+    "gold": "#C8A870",         "rose gold": "#E8C0A8",
+    "silver": "#C8C8C8",       "titanium": "#8A8A8C",
+    "graphite": "#4A4C50",     "grey": "#9A9A9C",
+    "gray": "#9A9A9C",         "space grey": "#535150",
+    "red": "#A02020",          "product red": "#BF0013",
+    "coral red": "#C84848",    "burgundy": "#6A2030",
+    "purple": "#7058A0",       "lavender": "#C0B0D8",
+    "violet": "#9070A8",       "bora purple": "#7058A0",
+    "deep purple": "#594F63",  "pink": "#E8C0C8",
+    "rose": "#D4A0A8",         "coral": "#E08070",
+    "teal": "#B0D4D2",         "cyan": "#5AB8C8",
+    "aqua": "#5AB8C8",         "orange": "#D87040",
+    "amber": "#D8C870",        "yellow": "#D8C870",
+    "beige": "#E8E0C8",        "cream": "#EEE8D8",
+    "brown": "#7A5A48",        "bronze": "#8A6248",
+    "copper": "#B87848",       "peach": "#E8C0A8",
 }
 
 def color_to_hex(name: str) -> str:
@@ -128,7 +120,7 @@ def color_to_hex(name: str) -> str:
             return val
     return "#888888"
 
-# ── HTTP helpers ──────────────────────────────────────────────────────────────
+# ── HTTP ──────────────────────────────────────────────────────────────────────
 session = requests.Session()
 session.headers.update(HEADERS)
 
@@ -138,9 +130,8 @@ def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
             time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
             r = session.get(url, timeout=20)
 
-            # 429 — back off hard before retrying
             if r.status_code == 429:
-                wait = 60 * (attempt + 1)  # 60s, 120s, 180s
+                wait = 60 * (attempt + 1)
                 log.warning(f"  Rate limited (429), backing off {wait}s…")
                 time.sleep(wait)
                 continue
@@ -160,32 +151,43 @@ def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
 def clean(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
 
+def to_mb(s: str) -> int:
+    """Convert storage string to MB for sorting. e.g. '128GB'→131072, '1TB'→1048576"""
+    s = s.strip().upper()
+    if s.endswith("TB"):
+        return int(s[:-2]) * 1024 * 1024
+    if s.endswith("GB"):
+        return int(s[:-2]) * 1024
+    if s.endswith("MB"):
+        return int(s[:-2])
+    return 0
+
 def parse_storage(s: str) -> list[str]:
-    """Extract storage values only — excludes RAM-range values (1-24GB)."""
-    found = re.findall(r"([\d.]+)\s*(GB|TB|MB)", s, re.I)
+    """
+    Extract storage values from a GSMArena Internal field.
+    e.g. '64GB 6GB RAM, 128GB 6GB RAM, 128GB 8GB RAM, 256GB 8GB RAM UFS 2.2'
+    Storage is always 32GB+ or TB. RAM (1-24GB) is excluded.
+    """
+    found = re.findall(r"([\d.]+)\s*(GB|TB)", s, re.I)
     opts = set()
     for num, unit in found:
         n, u = float(num), unit.upper()
         if u == "TB":
             opts.add(f"{int(n)}TB")
-        elif u == "GB":
-            # RAM is typically 1–24GB, storage is 32GB+
-            if n >= 32:
-                opts.add(f"{int(n)}GB")
-        elif u == "MB" and n >= 512:
-            opts.add("512MB")
-    return sorted(opts, key=lambda x: int(x[:-2]) * (1000 if x.endswith("TB") else 1))
+        elif u == "GB" and n >= 32:
+            opts.add(f"{int(n)}GB")
+    return sorted(opts, key=to_mb)
 
 def parse_ram(s: str) -> list[str]:
-    """Extract RAM values only — values between 1GB and 24GB."""
+    """
+    Extract RAM values from a GSMArena Internal field.
+    e.g. '64GB 6GB RAM, 128GB 6GB RAM, 128GB 8GB RAM, 256GB 8GB RAM'
+    RAM is always 1–24GB.
+    """
     found = re.findall(r"(\d+)\s*GB", s, re.I)
-    opts = set()
-    for v in map(int, found):
-        if 1 <= v <= 24:
-            opts.add(f"{v}GB")
+    opts = {f"{v}GB" for v in map(int, found) if 1 <= v <= 24}
     return sorted(opts, key=lambda x: int(x[:-2]))
 
-    
 def parse_colors(s: str) -> list[dict]:
     seen, result = set(), []
     for raw in re.split(r"[,/]", s):
@@ -198,50 +200,60 @@ def parse_colors(s: str) -> list[dict]:
         result.append({"label": label, "hex": color_to_hex(label)})
     return result
 
-def is_complete(row: dict) -> bool:
-    """Returns True if the DB row already has all fields populated."""
+# ── Completion logic ──────────────────────────────────────────────────────────
+def is_complete(db_row: dict, scraped: dict) -> bool:
+    """True only if DB already contains everything GSMArena has."""
+    db_ram     = set(db_row.get("ram", []))
+    db_storage = set(db_row.get("storage", []))
+    db_colors  = {c["label"].lower() for c in db_row.get("colors", [])}
+
+    scraped_ram     = set(scraped.get("ram", []))
+    scraped_storage = set(scraped.get("storage", []))
+    scraped_colors  = {c["label"].lower() for c in scraped.get("colors", [])}
+
     return (
-        bool(row.get("ram"))
-        and bool(row.get("storage"))
-        and bool(row.get("colors"))
+        scraped_ram.issubset(db_ram)
+        and scraped_storage.issubset(db_storage)
+        and scraped_colors.issubset(db_colors)
     )
 
-def missing_fields(row: dict) -> list[str]:
-    missing = []
-    if not row.get("ram"):     missing.append("ram")
-    if not row.get("storage"): missing.append("storage")
-    if not row.get("colors"):  missing.append("colors")
-    return missing
+def diff_fields(db_row: dict, scraped: dict) -> dict:
+    """
+    Returns fields where GSMArena has more data than DB.
+    Always merges — never discards existing DB data.
+    """
+    diff = {}
+
+    # RAM
+    db_ram      = set(db_row.get("ram", []))
+    scraped_ram = set(scraped.get("ram", []))
+    if scraped_ram - db_ram:
+        diff["ram"] = sorted(
+            db_ram | scraped_ram,
+            key=lambda x: int(x.replace("GB", ""))
+        )
+
+    # Storage
+    db_storage      = set(db_row.get("storage", []))
+    scraped_storage = set(scraped.get("storage", []))
+    if scraped_storage - db_storage:
+        diff["storage"] = sorted(db_storage | scraped_storage, key=to_mb)
+
+    # Colors — merge by label, keep existing hex values
+    db_colors_map      = {c["label"].lower(): c for c in db_row.get("colors", [])}
+    scraped_colors_map = {c["label"].lower(): c for c in scraped.get("colors", [])}
+    new_labels         = set(scraped_colors_map.keys()) - set(db_colors_map.keys())
+    if new_labels:
+        merged = list(db_row.get("colors", []))
+        for lbl in new_labels:
+            merged.append(scraped_colors_map[lbl])
+        diff["colors"] = merged
+
+    return diff
 
 # ── GSMArena scraping ─────────────────────────────────────────────────────────
-def search_device(brand: str, model: str) -> tuple[str | None, str | None]:
-    """Search GSMArena → return (url, matched_name)"""
-    query = f"{brand} {model}"
-    url   = f"https://www.gsmarena.com/search.php3?sQuickSearch={quote_plus(query)}"
-    r = get(url)
-    if not r:
-        return None, None
-
-    soup = BeautifulSoup(r.text, "html.parser")
-    for item in soup.select(".makers ul li")[:4]:
-        link = item.find("a")
-        if not link:
-            continue
-        span = link.find("span")
-        name = clean(span.text if span else link.text)
-        href = link.get("href", "")
-
-        brand_l = brand.lower()
-        name_l  = name.lower()
-        model_words = [w for w in model.lower().split() if len(w) > 2]
-
-        if brand_l in name_l and any(w in name_l for w in model_words):
-            return f"https://www.gsmarena.com/{href}", name
-
-    return None, None
-
 def scrape_specs(url: str) -> dict:
-    """Scrape a GSMArena device page → return partial spec dict."""
+    """Scrape a GSMArena device page → ram, storage, colors."""
     r = get(url)
     if not r:
         return {}
@@ -257,16 +269,23 @@ def scrape_specs(url: str) -> dict:
         ttl = clean(ttl_el.text).lower()
         nfo = clean(nfo_el.text)
 
+        # Dedicated RAM row
         if "ram" in ttl and not specs["ram"]:
             specs["ram"] = parse_ram(nfo)
 
-        elif ("internal" in ttl or ("storage" in ttl and "card" not in ttl)) and not specs["storage"]:
-            specs["storage"] = parse_storage(nfo)
+        # Internal storage row — contains BOTH ram and storage
+        # e.g. "8GB RAM, 128GB storage" or "6GB/128GB, 8GB/256GB"
+        elif "internal" in ttl or ("storage" in ttl and "card" not in ttl):
+            if not specs["storage"]:
+                specs["storage"] = parse_storage(nfo)
+            if not specs["ram"]:
+                specs["ram"] = parse_ram(nfo)
 
+        # Colors
         elif ("color" in ttl or "colour" in ttl) and not specs["colors"]:
             specs["colors"] = parse_colors(nfo)
 
-    # Fallback: try "Models" row for RAM + storage variants
+    # Fallback: Models row lists all variants e.g. "SM-A546E 6GB/128GB, SM-A546E 8GB/256GB"
     for ttl_el in soup.select("td.ttl"):
         if "models" in clean(ttl_el.text).lower():
             nfo_el = ttl_el.find_next_sibling("td", class_="nfo")
@@ -279,67 +298,9 @@ def scrape_specs(url: str) -> dict:
 
     return specs
 
-# def scrape_new_launches() -> list[dict]:
-    """Scrape GSMArena per-brand pages for recently released India phones."""
-    log.info("Fetching new launches from GSMArena (per brand)…")
-    all_devices = []
-    seen = set()
-
-    for brand, maker_id in GSMARENA_BRANDS.items():
-        log.info(f"  Scraping {brand}…")
-        url = (
-            f"https://www.gsmarena.com/search.php3"
-            f"?sAvailabilities=1&sMakers={maker_id}"
-            f"&YearMade=2024&sSorting=1"
-        )
-        r = get(url)
-        if not r:
-            log.warning(f"    Failed to fetch {brand} — skipping")
-            continue
-
-        soup  = BeautifulSoup(r.text, "html.parser")
-        items = soup.select(".makers ul li")
-        count = 0
-
-        for item in items:
-            link = item.find("a")
-            if not link:
-                continue
-            span = link.find("span")
-            name = clean(span.text if span else link.text)
-            href = link.get("href", "")
-
-            # Strip brand prefix to get model name
-            # "Samsung Galaxy S25 Ultra" → "Galaxy S25 Ultra"
-            if name.lower().startswith(brand.lower()):
-                model = name[len(brand):].strip()
-            else:
-                parts = name.split(" ", 1)
-                model = parts[1].strip() if len(parts) > 1 else name
-
-            if not model:
-                continue
-
-            key = f"{brand}::{model}"
-            if key in seen:
-                continue
-            seen.add(key)
-
-            all_devices.append({
-                "brand": brand,
-                "model": model,
-                "url":   f"https://www.gsmarena.com/{href}",
-            })
-            count += 1
-
-        log.info(f"    → {count} devices found")
-        time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
-
-    log.info(f"Total: {len(all_devices)} unique devices across all brands")
-    return all_devices
 def scrape_new_launches() -> list[dict]:
-    """Scrape GSMArena brand pages for recently released India phones."""
-    log.info("Fetching new launches from GSMArena (per brand)…")
+    """Scrape GSMArena brand pages → full device list for India brands."""
+    log.info("Fetching device list from GSMArena (per brand)…")
     all_devices = []
     seen = set()
 
@@ -352,12 +313,8 @@ def scrape_new_launches() -> list[dict]:
             continue
 
         soup  = BeautifulSoup(r.text, "html.parser")
-
-        # GSMArena brand pages: devices are <li> inside .section-body > ul
-        # Each <li> has an <a> with an <img> (alt = full name) and <strong> (model only)
         items = soup.select(".section-body ul li, ul.phones-list li, #list-devices li")
 
-        # Fallback — grab all <li> that contain an <a> with a phone slug href
         if not items:
             items = [
                 li for li in soup.find_all("li")
@@ -372,18 +329,15 @@ def scrape_new_launches() -> list[dict]:
 
             href = link.get("href", "")
 
-            # Skip non-phone pages (watches, tablets, buds)
             skip_keywords = ["watch", "tab ", "tablet", "buds", "earphone", "band"]
             if any(k in href.lower() for k in skip_keywords):
                 continue
 
-            # Get model name from <strong> tag (most reliable)
             strong = link.find("strong")
             if strong:
                 model = clean(strong.text)
             else:
-                # Fall back to img alt, strip brand prefix
-                img = link.find("img")
+                img       = link.find("img")
                 full_name = img.get("alt", "") if img else clean(link.text)
                 if full_name.lower().startswith(brand.lower()):
                     model = full_name[len(brand):].strip()
@@ -422,108 +376,83 @@ def run():
     # 1. Load existing catalog from Supabase
     log.info("Loading existing catalog from Supabase…")
     existing = get_existing_catalog()
-    log.info(f"  {len(existing)} models already in catalog_models_v2")
+    log.info(f"  {len(existing)} models in catalog_models_v2")
 
-    # 2. Scrape new/recent launches from GSMArena
+    # 2. Scrape all brand pages
     launches = scrape_new_launches()
 
-    # 3. Categorise each device
-    to_insert  = []   # brand new devices
-    to_patch   = []   # in DB but missing some fields
-    skipped    = 0
+    upserts       = []
+    skipped       = 0
+    new_count     = 0
+    patched_count = 0
+    total         = len(launches)
 
-    for device in launches:
-        key = f"{device['brand']}::{device['model']}"
+    log.info(f"\nProcessing {total} devices…")
+
+    for i, device in enumerate(launches, 1):
+        key          = f"{device['brand']}::{device['model']}"
         existing_row = existing.get(key)
+        url          = device.get("url")
 
-        if existing_row and is_complete(existing_row):
-            skipped += 1
+        log.info(f"  [{i}/{total}] {device['brand']} {device['model']}")
+
+        # Always scrape GSMArena for ground truth
+        specs = scrape_specs(url)
+
+        if not specs.get("ram") and not specs.get("storage"):
+            log.warning(f"    No specs found — skipping")
             continue
 
         if existing_row:
-            missing = missing_fields(existing_row)
-            log.info(f"  PATCH  {device['brand']} {device['model']} — missing: {missing}")
-            to_patch.append({**device, "existing": existing_row, "missing": missing})
+            changes = diff_fields(existing_row, specs)
+
+            if not changes:
+                log.info(f"    ✓ Complete — skipping")
+                skipped += 1
+                continue
+
+            log.info(f"    ↑ Patching: {list(changes.keys())}")
+            for field, val in changes.items():
+                log.info(f"      {field}: {existing_row.get(field)} → {val}")
+
+            upserts.append({
+                "brand":        device["brand"],
+                "model":        device["model"],
+                "ram":          changes.get("ram",     existing_row.get("ram", [])),
+                "storage":      changes.get("storage", existing_row.get("storage", [])),
+                "colors":       changes.get("colors",  existing_row.get("colors", [])),
+                "gsmarena_url": specs.get("gsmarena_url", url),
+            })
+            patched_count += 1
+
         else:
-            log.info(f"  NEW    {device['brand']} {device['model']}")
-            to_insert.append(device)
+            log.info(f"    + New device — RAM: {specs.get('ram')} | Storage: {specs.get('storage')} | Colors: {len(specs.get('colors', []))}")
+            upserts.append({
+                "brand":        device["brand"],
+                "model":        device["model"],
+                "ram":          specs.get("ram", []),
+                "storage":      specs.get("storage", []),
+                "colors":       specs.get("colors", []),
+                "gsmarena_url": specs.get("gsmarena_url", url),
+            })
+            new_count += 1
 
-    log.info(f"\nSummary: {len(to_insert)} new | {len(to_patch)} to patch | {skipped} complete (skipped)")
+    # Push to Supabase
+    log.info(f"\n{'=' * 60}")
+    log.info(f"Summary:")
+    log.info(f"  New devices:        {new_count}")
+    log.info(f"  Patched:            {patched_count}")
+    log.info(f"  Already complete:   {skipped}")
+    log.info(f"  Total to push:      {len(upserts)}")
 
-    if not to_insert and not to_patch:
-        log.info("Nothing to do — catalog is fully up to date ✓")
-        return
-
-    # 4. Scrape specs for new devices
-    upserts = []
-
-    log.info(f"\nScraping specs for {len(to_insert)} new devices…")
-    for i, device in enumerate(to_insert, 1):
-        log.info(f"  [{i}/{len(to_insert)}] {device['brand']} {device['model']}")
-
-        # Try direct URL first, fall back to search
-        url = device.get("url")
-        if not url:
-            url, _ = search_device(device["brand"], device["model"])
-        if not url:
-            log.warning(f"    Could not find GSMArena page — skipping")
-            continue
-
-        specs = scrape_specs(url)
-        if not specs.get("ram") and not specs.get("storage"):
-            log.warning(f"    No useful specs found — skipping")
-            continue
-
-        upserts.append({
-            "brand":        device["brand"],
-            "model":        device["model"],
-            "ram":          specs.get("ram", []),
-            "storage":      specs.get("storage", []),
-            "colors":       specs.get("colors", []),
-            "gsmarena_url": specs.get("gsmarena_url", url),
-        })
-        log.info(f"    RAM: {specs.get('ram')} | Storage: {specs.get('storage')} | Colors: {len(specs.get('colors', []))}")
-
-    # 5. Patch incomplete devices — only update missing fields
-    log.info(f"\nPatching {len(to_patch)} incomplete devices…")
-    for i, device in enumerate(to_patch, 1):
-        log.info(f"  [{i}/{len(to_patch)}] {device['brand']} {device['model']}")
-
-        url = device.get("url")
-        if not url:
-            url, _ = search_device(device["brand"], device["model"])
-        if not url:
-            log.warning(f"    Could not find GSMArena page — skipping")
-            continue
-
-        specs = scrape_specs(url)
-        existing_row = device["existing"]
-        missing      = device["missing"]
-
-        # Build a patch that only fills in what's missing
-        patch = {
-            "brand":        device["brand"],
-            "model":        device["model"],
-            "ram":          existing_row.get("ram")     or specs.get("ram", []),
-            "storage":      existing_row.get("storage") or specs.get("storage", []),
-            "colors":       existing_row.get("colors")  or specs.get("colors", []),
-            "gsmarena_url": specs.get("gsmarena_url", url),
-        }
-        upserts.append(patch)
-        log.info(f"    Patched: {missing}")
-
-    # 6. Push everything to Supabase
     if upserts:
-        log.info(f"\nPushing {len(upserts)} records to Supabase…")
+        log.info(f"\nPushing to Supabase…")
         pushed, failed = upsert_devices(upserts)
         log.info(f"  ✓ Pushed: {pushed} | ✗ Failed: {failed}")
     else:
-        log.info("No records to push.")
+        log.info("\nNothing to push — catalog is fully up to date ✓")
 
     log.info("\nDone ✓")
-    log.info(f"  New devices added:      {len(to_insert)}")
-    log.info(f"  Incomplete devices patched: {len(to_patch)}")
-    log.info(f"  Already complete (skipped): {skipped}")
 
 if __name__ == "__main__":
     run()
