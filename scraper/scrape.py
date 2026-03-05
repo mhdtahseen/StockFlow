@@ -64,14 +64,25 @@ HEADERS = {
     "Connection":  "keep-alive",
 }
 
-# GSMArena search URL — filters: phones only, announced 2022+, India-relevant
-GSMARENA_NEW = (
-    "https://www.gsmarena.com/search.php3"
-    "?sQuickSearch=&chk1020-1=selected&chk1020-2=selected"
-    "&fDisplayInchesMin=4&fDisplayInchesMax=7.5"
-    "&YearMade=2022&sSorting=1"
-)
-
+# GSMArena maker IDs for India brands
+GSMARENA_BRANDS = {
+    "Samsung": "9",
+    "Apple": "48",
+    "Xiaomi": "80",
+    "Oppo": "82",
+    "Vivo": "99",
+    "Realme": "118",
+    "OnePlus": "87",
+    "Motorola": "13",
+    "Nokia": "61",
+    "Nothing": "163",
+    "Google": "107",
+    "Honor": "121",
+    "Infinix": "119",
+    "Tecno": "120",
+    "POCO": "123",
+    "Itel": "175",
+}
 # ── Color name → hex map ──────────────────────────────────────────────────────
 COLOR_HEX = {
     "black": "#1A1A1C",       "midnight black": "#1A1A1C",
@@ -247,20 +258,26 @@ def scrape_specs(url: str) -> dict:
     return specs
 
 def scrape_new_launches() -> list[dict]:
-    """Scrape GSMArena for recently released India-market phones."""
-    log.info("Fetching new launches from GSMArena…")
-    devices = []
+    """Scrape GSMArena per-brand pages for recently released India phones."""
+    log.info("Fetching new launches from GSMArena (per brand)…")
+    all_devices = []
+    seen = set()
 
-    for page in range(1, 4):  # check 3 pages of results
-        url = GSMARENA_NEW + (f"&fDisplayInchesMin=4&iPage={page}" if page > 1 else "")
+    for brand, maker_id in GSMARENA_BRANDS.items():
+        log.info(f"  Scraping {brand}…")
+        url = (
+            f"https://www.gsmarena.com/search.php3"
+            f"?sAvailabilities=1&sMakers={maker_id}"
+            f"&YearMade=2024&sSorting=1"
+        )
         r = get(url)
         if not r:
-            break
+            log.warning(f"    Failed to fetch {brand} — skipping")
+            continue
 
-        soup = BeautifulSoup(r.text, "html.parser")
+        soup  = BeautifulSoup(r.text, "html.parser")
         items = soup.select(".makers ul li")
-        if not items:
-            break
+        count = 0
 
         for item in items:
             link = item.find("a")
@@ -270,35 +287,34 @@ def scrape_new_launches() -> list[dict]:
             name = clean(span.text if span else link.text)
             href = link.get("href", "")
 
-            # Split "Samsung Galaxy S25 Ultra" → brand="Samsung" model="Galaxy S25 Ultra"
-            parts = name.split(" ", 1)
-            if len(parts) < 2:
+            # Strip brand prefix to get model name
+            # "Samsung Galaxy S25 Ultra" → "Galaxy S25 Ultra"
+            if name.lower().startswith(brand.lower()):
+                model = name[len(brand):].strip()
+            else:
+                parts = name.split(" ", 1)
+                model = parts[1].strip() if len(parts) > 1 else name
+
+            if not model:
                 continue
 
-            brand = parts[0].strip()
-            model = parts[1].strip()
-
-            if brand.lower() not in INDIA_BRANDS:
+            key = f"{brand}::{model}"
+            if key in seen:
                 continue
+            seen.add(key)
 
-            devices.append({
+            all_devices.append({
                 "brand": brand,
                 "model": model,
                 "url":   f"https://www.gsmarena.com/{href}",
             })
+            count += 1
 
-    # Deduplicate
-    seen = set()
-    unique = []
-    for d in devices:
-        key = f"{d['brand']}::{d['model']}"
-        if key not in seen:
-            seen.add(key)
-            unique.append(d)
+        log.info(f"    → {count} devices found")
+        time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
 
-    log.info(f"Found {len(unique)} unique India-market devices on GSMArena")
-    return unique
-
+    log.info(f"Total: {len(all_devices)} unique devices across all brands")
+    return all_devices
 # ── Main ──────────────────────────────────────────────────────────────────────
 def run():
     log.info("=" * 60)
