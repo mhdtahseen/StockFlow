@@ -146,7 +146,7 @@ export default function ReusableAutocomplete({
       </div>
 
       {isOpen && (
-        <div className="absolute z-[99] w-full mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-xl shadow-black/10 dark:shadow-black/40 border border-slate-100 dark:border-slate-800 overflow-hidden max-h-40 overflow-y-auto">
+        <div className="absolute z-[99] w-full mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-xl shadow-black/10 dark:shadow-black/40 border border-slate-100 dark:border-slate-800 overflow-hidden max-h-48 overflow-y-auto">
           {filteredItems.map((item, index) => {
             const isHighlighted = index === highlightedIndex;
             const showCategory =
