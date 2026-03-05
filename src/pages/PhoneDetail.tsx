@@ -298,10 +298,12 @@ export default function PhoneDetail() {
               <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 font-mono mt-0.5">
                 IMEI:{" "}
                 {phone.imeis &&
-                phone.imeis.length > 0 &&
-                phone.imeis[0].length >= 4 ? (
+                phone.imeis.filter((i) => i.length >= 4).length > 0 ? (
                   <span className="text-slate-700 dark:text-slate-300 tracking-widest">
-                    *** • *** • {phone.imeis[0].slice(-4)}
+                    {phone.imeis
+                      .filter((i) => i.length >= 4)
+                      .map((i) => `*** • ${i.slice(-4)}`)
+                      .join(" / ")}
                   </span>
                 ) : (
                   <span className="text-slate-300 dark:text-slate-600">—</span>

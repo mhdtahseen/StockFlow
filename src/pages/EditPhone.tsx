@@ -394,8 +394,11 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-lg mx-auto p-4 overflow-y-auto z-10">
+      <main className="flex-1 w-full max-w-lg mx-auto p-4 pb-32 overflow-y-auto z-10">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ── IMEI ────────────────────────────────────────────────────── */}
+          <ImeiSection imeis={imeis} onChange={setImeis} />
+
           {/* ── Device Details ───────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -668,10 +671,6 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
               </div>
             </div>
           </div>
-
-          {/* ── IMEI ────────────────────────────────────────────────────── */}
-          <ImeiSection imeis={imeis} onChange={setImeis} />
-
           {/* ── Financials ───────────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4 mb-8">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">

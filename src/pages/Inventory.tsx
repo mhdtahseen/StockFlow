@@ -504,9 +504,11 @@ export default function Inventory() {
                         <span>
                           IMEI:{" "}
                           {phone.imeis &&
-                          phone.imeis.length > 0 &&
-                          phone.imeis[0].length >= 4
-                            ? `•••• ${phone.imeis[0].slice(-4)}`
+                          phone.imeis.filter((i) => i.length >= 4).length > 0
+                            ? phone.imeis
+                                .filter((i) => i.length >= 4)
+                                .map((i) => `•••• ${i.slice(-4)}`)
+                                .join(" / ")
                             : "—"}
                         </span>
                       </div>
