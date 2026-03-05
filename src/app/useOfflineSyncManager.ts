@@ -145,6 +145,7 @@ export function useOfflineSyncManager() {
             storage: p.storage,
             ram: p.ram,
             color: p.color,
+            imeis: p.imeis || [],
             purchasePrice: Number(p.purchase_price),
             salePrice: p.sale_price ? Number(p.sale_price) : undefined,
             status: p.status as any,
