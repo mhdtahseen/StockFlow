@@ -10,7 +10,7 @@ Logic:
   3. For each device — scrape GSMArena for ground truth, then:
      a. DB matches GSMArena exactly → skip
      b. DB missing or has fewer variants → merge + patch
-     c. Not in DB at all → full insert
+     c. Not in DB at all → check 91mobiles, then insert if confirmed India
   4. Upsert to Supabase via push_to_supabase.py
 """
 
@@ -132,7 +132,7 @@ def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
 
             if r.status_code == 429:
                 wait = 60 * (attempt + 1)
-                log.warning(f"  Rate limited (429), backing off {wait}s…")
+                log.warning(f"  Rate limited (429), backing off {wait}s...")
                 time.sleep(wait)
                 continue
 
@@ -147,12 +147,53 @@ def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
     log.error(f"  Giving up on {url}")
     return None
 
+# ── 91mobiles India verification ──────────────────────────────────────────────
+def slugify(text: str) -> str:
+    """'Samsung Galaxy S25 Ultra' -> 'samsung-galaxy-s25-ultra'"""
+    text = text.lower().strip()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_]+", "-", text)
+    text = re.sub(r"-+", "-", text)
+    return text.strip("-")
+
+def is_available_india(brand: str, model: str) -> bool:
+    """
+    Check 91mobiles to confirm device is available in India.
+    Uses HEAD request — fast, downloads nothing.
+
+    Returns:
+      True  -> page exists (200)      = confirmed India market
+      True  -> network error / 429    = assume India (avoid false negatives)
+      False -> page not found (404)   = not listed in India
+    """
+    slug = slugify(f"{brand} {model}")
+    url  = f"https://www.91mobiles.com/{slug}-price-in-india"
+
+    try:
+        time.sleep(random.uniform(0.5, 1.2))
+        r = session.head(url, timeout=10, allow_redirects=True)
+
+        if r.status_code == 200:
+            log.debug(f"    91mobiles confirmed: {brand} {model}")
+            return True
+
+        if r.status_code == 404:
+            log.info(f"    91mobiles: not listed — {brand} {model}")
+            return False
+
+        # 429, 503 etc — assume India to avoid false negatives
+        log.debug(f"    91mobiles returned {r.status_code} for {brand} {model} — assuming India")
+        return True
+
+    except requests.RequestException as e:
+        log.debug(f"    91mobiles check failed ({e}) — assuming India")
+        return True
+
 # ── Parsers ───────────────────────────────────────────────────────────────────
 def clean(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
 
 def to_mb(s: str) -> int:
-    """Convert storage string to MB for sorting. e.g. '128GB'→131072, '1TB'→1048576"""
     s = s.strip().upper()
     if s.endswith("TB"):
         return int(s[:-2]) * 1024 * 1024
@@ -163,11 +204,6 @@ def to_mb(s: str) -> int:
     return 0
 
 def parse_storage(s: str) -> list[str]:
-    """
-    Extract storage values from a GSMArena Internal field.
-    e.g. '64GB 6GB RAM, 128GB 6GB RAM, 128GB 8GB RAM, 256GB 8GB RAM UFS 2.2'
-    Storage is always 32GB+ or TB. RAM (1-24GB) is excluded.
-    """
     found = re.findall(r"([\d.]+)\s*(GB|TB)", s, re.I)
     opts = set()
     for num, unit in found:
@@ -179,11 +215,6 @@ def parse_storage(s: str) -> list[str]:
     return sorted(opts, key=to_mb)
 
 def parse_ram(s: str) -> list[str]:
-    """
-    Extract RAM values from a GSMArena Internal field.
-    e.g. '64GB 6GB RAM, 128GB 6GB RAM, 128GB 8GB RAM, 256GB 8GB RAM'
-    RAM is always 1–24GB.
-    """
     found = re.findall(r"(\d+)\s*GB", s, re.I)
     opts = {f"{v}GB" for v in map(int, found) if 1 <= v <= 24}
     return sorted(opts, key=lambda x: int(x[:-2]))
@@ -202,15 +233,12 @@ def parse_colors(s: str) -> list[dict]:
 
 # ── Completion logic ──────────────────────────────────────────────────────────
 def is_complete(db_row: dict, scraped: dict) -> bool:
-    """True only if DB already contains everything GSMArena has."""
     db_ram     = set(db_row.get("ram", []))
     db_storage = set(db_row.get("storage", []))
     db_colors  = {c["label"].lower() for c in db_row.get("colors", [])}
-
     scraped_ram     = set(scraped.get("ram", []))
     scraped_storage = set(scraped.get("storage", []))
     scraped_colors  = {c["label"].lower() for c in scraped.get("colors", [])}
-
     return (
         scraped_ram.issubset(db_ram)
         and scraped_storage.issubset(db_storage)
@@ -218,13 +246,8 @@ def is_complete(db_row: dict, scraped: dict) -> bool:
     )
 
 def diff_fields(db_row: dict, scraped: dict) -> dict:
-    """
-    Returns fields where GSMArena has more data than DB.
-    Always merges — never discards existing DB data.
-    """
     diff = {}
 
-    # RAM
     db_ram      = set(db_row.get("ram", []))
     scraped_ram = set(scraped.get("ram", []))
     if scraped_ram - db_ram:
@@ -233,13 +256,11 @@ def diff_fields(db_row: dict, scraped: dict) -> dict:
             key=lambda x: int(x.replace("GB", ""))
         )
 
-    # Storage
     db_storage      = set(db_row.get("storage", []))
     scraped_storage = set(scraped.get("storage", []))
     if scraped_storage - db_storage:
         diff["storage"] = sorted(db_storage | scraped_storage, key=to_mb)
 
-    # Colors — merge by label, keep existing hex values
     db_colors_map      = {c["label"].lower(): c for c in db_row.get("colors", [])}
     scraped_colors_map = {c["label"].lower(): c for c in scraped.get("colors", [])}
     new_labels         = set(scraped_colors_map.keys()) - set(db_colors_map.keys())
@@ -253,7 +274,6 @@ def diff_fields(db_row: dict, scraped: dict) -> dict:
 
 # ── GSMArena scraping ─────────────────────────────────────────────────────────
 def scrape_specs(url: str) -> dict:
-    """Scrape a GSMArena device page → ram, storage, colors."""
     r = get(url)
     if not r:
         return {}
@@ -269,23 +289,18 @@ def scrape_specs(url: str) -> dict:
         ttl = clean(ttl_el.text).lower()
         nfo = clean(nfo_el.text)
 
-        # Dedicated RAM row
         if "ram" in ttl and not specs["ram"]:
             specs["ram"] = parse_ram(nfo)
 
-        # Internal storage row — contains BOTH ram and storage
-        # e.g. "8GB RAM, 128GB storage" or "6GB/128GB, 8GB/256GB"
         elif "internal" in ttl or ("storage" in ttl and "card" not in ttl):
             if not specs["storage"]:
                 specs["storage"] = parse_storage(nfo)
             if not specs["ram"]:
                 specs["ram"] = parse_ram(nfo)
 
-        # Colors
         elif ("color" in ttl or "colour" in ttl) and not specs["colors"]:
             specs["colors"] = parse_colors(nfo)
 
-    # Fallback: Models row lists all variants e.g. "SM-A546E 6GB/128GB, SM-A546E 8GB/256GB"
     for ttl_el in soup.select("td.ttl"):
         if "models" in clean(ttl_el.text).lower():
             nfo_el = ttl_el.find_next_sibling("td", class_="nfo")
@@ -299,13 +314,12 @@ def scrape_specs(url: str) -> dict:
     return specs
 
 def scrape_new_launches() -> list[dict]:
-    """Scrape GSMArena brand pages → full device list for India brands."""
-    log.info("Fetching device list from GSMArena (per brand)…")
+    log.info("Fetching device list from GSMArena (per brand)...")
     all_devices = []
     seen = set()
 
     for brand, slug in GSMARENA_BRANDS.items():
-        log.info(f"  Scraping {brand}…")
+        log.info(f"  Scraping {brand}...")
         url = f"https://www.gsmarena.com/{slug}"
         r = get(url)
         if not r:
@@ -329,8 +343,19 @@ def scrape_new_launches() -> list[dict]:
 
             href = link.get("href", "")
 
-            skip_keywords = ["watch", "tab ", "tablet", "buds", "earphone", "band"]
-            if any(k in href.lower() for k in skip_keywords):
+            skip_href = [
+                "watch", "tab_", "tablet", "buds", "earphone", "band",
+                "pad_", "_pad", "router", "gravity", "smart_tv", "tv_",
+                "hub_", "_hub", "speaker", "display", "monitor",
+            ]
+            if any(k in href.lower() for k in skip_href):
+                continue
+
+            device_id_match = re.search(r"-(\d+)\.php$", href)
+            if not device_id_match:
+                continue
+            device_id = int(device_id_match.group(1))
+            if device_id < 5000:
                 continue
 
             strong = link.find("strong")
@@ -348,6 +373,15 @@ def scrape_new_launches() -> list[dict]:
             if not model or len(model) < 2:
                 continue
 
+            model_lower = model.lower()
+            skip_model = [
+                "tab ", "tablet", "watch", "band", "buds", "earphone",
+                "pad", "router", "gravity", "tv", "speaker", "hub",
+                "display", "monitor", "charger", "cable",
+            ]
+            if any(k in model_lower for k in skip_model):
+                continue
+
             key = f"{brand}::{model}"
             if key in seen:
                 continue
@@ -360,7 +394,7 @@ def scrape_new_launches() -> list[dict]:
             })
             count += 1
 
-        log.info(f"    → {count} devices found")
+        log.info(f"    -> {count} devices found")
         time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
 
     log.info(f"Total: {len(all_devices)} unique devices across all brands")
@@ -373,21 +407,20 @@ def run():
     log.info(f"Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     log.info("=" * 60)
 
-    # 1. Load existing catalog from Supabase
-    log.info("Loading existing catalog from Supabase…")
+    log.info("Loading existing catalog from Supabase...")
     existing = get_existing_catalog()
     log.info(f"  {len(existing)} models in catalog_models_v2")
 
-    # 2. Scrape all brand pages
     launches = scrape_new_launches()
 
     upserts       = []
     skipped       = 0
     new_count     = 0
     patched_count = 0
+    india_skipped = 0
     total         = len(launches)
 
-    log.info(f"\nProcessing {total} devices…")
+    log.info(f"\nProcessing {total} devices...")
 
     for i, device in enumerate(launches, 1):
         key          = f"{device['brand']}::{device['model']}"
@@ -396,24 +429,24 @@ def run():
 
         log.info(f"  [{i}/{total}] {device['brand']} {device['model']}")
 
-        # Always scrape GSMArena for ground truth
-        specs = scrape_specs(url)
-
-        if not specs.get("ram") and not specs.get("storage"):
-            log.warning(f"    No specs found — skipping")
-            continue
-
+        # ── Existing devices: scrape + patch, no 91mobiles check needed ──
         if existing_row:
+            specs = scrape_specs(url)
+
+            if not specs.get("ram") and not specs.get("storage"):
+                log.warning(f"    No specs found — skipping")
+                continue
+
             changes = diff_fields(existing_row, specs)
 
             if not changes:
-                log.info(f"    ✓ Complete — skipping")
+                log.info(f"    Complete — skipping")
                 skipped += 1
                 continue
 
-            log.info(f"    ↑ Patching: {list(changes.keys())}")
+            log.info(f"    Patching: {list(changes.keys())}")
             for field, val in changes.items():
-                log.info(f"      {field}: {existing_row.get(field)} → {val}")
+                log.info(f"      {field}: {existing_row.get(field)} -> {val}")
 
             upserts.append({
                 "brand":        device["brand"],
@@ -425,8 +458,20 @@ def run():
             })
             patched_count += 1
 
+        # ── New devices: verify on 91mobiles before inserting ──
         else:
-            log.info(f"    + New device — RAM: {specs.get('ram')} | Storage: {specs.get('storage')} | Colors: {len(specs.get('colors', []))}")
+            if not is_available_india(device["brand"], device["model"]):
+                log.info(f"    Not found on 91mobiles — skipping")
+                india_skipped += 1
+                continue
+
+            specs = scrape_specs(url)
+
+            if not specs.get("ram") and not specs.get("storage"):
+                log.warning(f"    No specs found — skipping")
+                continue
+
+            log.info(f"    + New — RAM: {specs.get('ram')} | Storage: {specs.get('storage')} | Colors: {len(specs.get('colors', []))}")
             upserts.append({
                 "brand":        device["brand"],
                 "model":        device["model"],
@@ -437,22 +482,22 @@ def run():
             })
             new_count += 1
 
-    # Push to Supabase
     log.info(f"\n{'=' * 60}")
     log.info(f"Summary:")
-    log.info(f"  New devices:        {new_count}")
-    log.info(f"  Patched:            {patched_count}")
-    log.info(f"  Already complete:   {skipped}")
-    log.info(f"  Total to push:      {len(upserts)}")
+    log.info(f"  New devices added:     {new_count}")
+    log.info(f"  Patched:               {patched_count}")
+    log.info(f"  Already complete:      {skipped}")
+    log.info(f"  Filtered (not India):  {india_skipped}")
+    log.info(f"  Total to push:         {len(upserts)}")
 
     if upserts:
-        log.info(f"\nPushing to Supabase…")
+        log.info(f"\nPushing to Supabase...")
         pushed, failed = upsert_devices(upserts)
-        log.info(f"  ✓ Pushed: {pushed} | ✗ Failed: {failed}")
+        log.info(f"  Pushed: {pushed} | Failed: {failed}")
     else:
-        log.info("\nNothing to push — catalog is fully up to date ✓")
+        log.info("\nNothing to push — catalog is fully up to date")
 
-    log.info("\nDone ✓")
+    log.info("\nDone")
 
 if __name__ == "__main__":
     run()
