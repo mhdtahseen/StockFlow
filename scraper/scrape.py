@@ -44,14 +44,25 @@ log = logging.getLogger(__name__)
 DELAY_MIN    = 4.0
 DELAY_MAX    = 8.0
 MAX_RETRIES  = 3
-BATCH_SIZE   = 50   # Push to Supabase every N devices
+BATCH_SIZE   = 10   # Push to Supabase every N devices
+
+# If this many consecutive devices return no specs, assume IP ban and stop
+MAX_CONSECUTIVE_FAILURES = 5
+# How long to pause and retry once when a ban is first detected (seconds)
+BAN_COOLDOWN = 600  # 10 minutes
+
+# Rotate User-Agents so we don't always look like the same bot
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+]
 
 HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/122.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": USER_AGENTS[0],  # rotated per-request in get()
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-IN,en;q=0.9",
     "Accept-Encoding": "gzip, deflate",
@@ -149,11 +160,12 @@ session.headers.update(HEADERS)
 def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
     for attempt in range(retries):
         try:
+            # Rotate User-Agent on every request
+            session.headers.update({"User-Agent": random.choice(USER_AGENTS)})
             time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
             r = session.get(url, timeout=20)
 
             if r.status_code == 429:
-                # Fix 1: reduced backoff — 30s, 60s, 90s instead of minutes
                 wait = 30 * (attempt + 1)
                 log.warning(f"  Rate limited (429), backing off {wait}s...")
                 time.sleep(wait)
@@ -446,12 +458,14 @@ def run():
 
     launches = scrape_new_launches()
 
-    upserts       = []
-    skipped       = 0
-    new_count     = 0
-    patched_count = 0
-    india_skipped = 0
-    total         = len(launches)
+    upserts            = []
+    skipped            = 0
+    new_count          = 0
+    patched_count      = 0
+    india_skipped      = 0
+    total              = len(launches)
+    consecutive_fails  = 0   # tracks back-to-back "no specs" results
+    ban_cooldown_used  = False  # only attempt one cooldown per run
 
     log.info(f"\nProcessing {total} devices...")
 
@@ -467,9 +481,27 @@ def run():
             specs = scrape_specs(url)
 
             if not specs.get("ram") and not specs.get("storage"):
-                log.warning(f"    No specs found — skipping")
+                consecutive_fails += 1
+                log.warning(f"    No specs found — skipping (consecutive failures: {consecutive_fails})")
+
+                # ── Ban detection ──
+                if consecutive_fails >= MAX_CONSECUTIVE_FAILURES:
+                    if not ban_cooldown_used:
+                        log.error(f"  {MAX_CONSECUTIVE_FAILURES} consecutive failures — likely IP banned.")
+                        log.error(f"  Cooling down for {BAN_COOLDOWN // 60} minutes then retrying once...")
+                        time.sleep(BAN_COOLDOWN)
+                        ban_cooldown_used = True
+                        consecutive_fails = 0  # reset and try again
+                        specs = scrape_specs(url)
+                        if not specs.get("ram") and not specs.get("storage"):
+                            log.error("  Still no specs after cooldown — IP ban confirmed. Stopping early.")
+                            break
+                    else:
+                        log.error("  IP ban persists after cooldown. Stopping early to save progress.")
+                        break
                 continue
 
+            consecutive_fails = 0  # reset on success
             changes = diff_fields(existing_row, specs)
 
             if not changes:
@@ -501,9 +533,27 @@ def run():
             specs = scrape_specs(url)
 
             if not specs.get("ram") and not specs.get("storage"):
-                log.warning(f"    No specs found — skipping")
+                consecutive_fails += 1
+                log.warning(f"    No specs found — skipping (consecutive failures: {consecutive_fails})")
+
+                # ── Ban detection ──
+                if consecutive_fails >= MAX_CONSECUTIVE_FAILURES:
+                    if not ban_cooldown_used:
+                        log.error(f"  {MAX_CONSECUTIVE_FAILURES} consecutive failures — likely IP banned.")
+                        log.error(f"  Cooling down for {BAN_COOLDOWN // 60} minutes then retrying once...")
+                        time.sleep(BAN_COOLDOWN)
+                        ban_cooldown_used = True
+                        consecutive_fails = 0
+                        specs = scrape_specs(url)
+                        if not specs.get("ram") and not specs.get("storage"):
+                            log.error("  Still no specs after cooldown — IP ban confirmed. Stopping early.")
+                            break
+                    else:
+                        log.error("  IP ban persists after cooldown. Stopping early to save progress.")
+                        break
                 continue
 
+            consecutive_fails = 0  # reset on success
             log.info(f"    + New — RAM: {specs.get('ram')} | Storage: {specs.get('storage')} | Colors: {len(specs.get('colors', []))}")
             upserts.append({
                 "brand":        device["brand"],
@@ -515,7 +565,7 @@ def run():
             })
             new_count += 1
 
-        # Fix 2: batch push every BATCH_SIZE devices — no data loss on cancellation
+        # Batch push every BATCH_SIZE devices — no data loss on cancellation
         if len(upserts) >= BATCH_SIZE:
             upserts = flush_batch(upserts)
 
