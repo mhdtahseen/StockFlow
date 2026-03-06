@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 # ── Config ────────────────────────────────────────────────────────────────────
 DELAY_MIN   = 4.0
 DELAY_MAX   = 8.0
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 
 HEADERS = {
     "User-Agent": (
@@ -131,7 +131,7 @@ def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
             r = session.get(url, timeout=20)
 
             if r.status_code == 429:
-                wait = 60 * (attempt + 1)
+                wait = 200 * (attempt + 1)
                 log.warning(f"  Rate limited (429), backing off {wait}s...")
                 time.sleep(wait)
                 continue
