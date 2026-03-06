@@ -131,7 +131,7 @@ def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
             r = session.get(url, timeout=20)
 
             if r.status_code == 429:
-                wait = 200 * (attempt + 1)
+                wait = 500 * (attempt + 1)
                 log.warning(f"  Rate limited (429), backing off {wait}s...")
                 time.sleep(wait)
                 continue
