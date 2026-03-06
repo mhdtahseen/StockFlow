@@ -84,6 +84,7 @@ def upsert_devices(devices: list[dict]) -> tuple[int, int]:
                 **HEADERS,
                 "Prefer": "resolution=merge-duplicates,return=minimal",
             },
+            params={"on_conflict": "brand,model"},  # tells PostgREST which constraint to use
             json=batch,
             timeout=30,
         )
