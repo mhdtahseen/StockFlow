@@ -11,7 +11,7 @@ Logic:
      a. DB matches GSMArena exactly → skip
      b. DB missing or has fewer variants → merge + patch
      c. Not in DB at all → check 91mobiles, then insert if confirmed India
-  4. Upsert to Supabase via push_to_supabase.py
+  4. Upsert to Supabase in batches of 50 (no data loss on cancellation)
 """
 
 import os
@@ -41,9 +41,10 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-DELAY_MIN   = 4.0
-DELAY_MAX   = 8.0
-MAX_RETRIES = 5
+DELAY_MIN    = 4.0
+DELAY_MAX    = 8.0
+MAX_RETRIES  = 3
+BATCH_SIZE   = 50   # Push to Supabase every N devices
 
 HEADERS = {
     "User-Agent": (
@@ -76,6 +77,27 @@ GSMARENA_BRANDS = {
     "POCO":     "poco-phones-123.php",
     "Itel":     "itel-phones-175.php",
 }
+
+# ── Skip filters ──────────────────────────────────────────────────────────────
+# href-based: matched against GSMArena URL slug
+SKIP_HREF = [
+    "watch", "tab_", "tablet", "buds", "earphone", "band",
+    "pad_", "_pad", "router", "gravity", "smart_tv", "tv_",
+    "hub_", "_hub", "speaker", "display", "monitor",
+    # OnePlus non-phones
+    "nitro_", "orbit_", "astro_", "android_", "virtue_", "blade_",
+]
+
+# model-name-based: matched against parsed model string
+SKIP_MODEL = [
+    "tab ", "tablet", "watch", "band", "buds", "earphone",
+    "pad", "router", "gravity", "tv", "speaker", "hub",
+    "display", "monitor", "charger", "cable",
+    # OnePlus non-phones
+    "nitro ", "orbit ", "astro ", "virtue ", "blade",
+    # Nokia non-phones
+    "venue", "xps",
+]
 
 # ── Color name → hex map ──────────────────────────────────────────────────────
 COLOR_HEX = {
@@ -131,7 +153,8 @@ def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
             r = session.get(url, timeout=20)
 
             if r.status_code == 429:
-                wait = 500 * (attempt + 1)
+                # Fix 1: reduced backoff — 30s, 60s, 90s instead of minutes
+                wait = 30 * (attempt + 1)
                 log.warning(f"  Rate limited (429), backing off {wait}s...")
                 time.sleep(wait)
                 continue
@@ -343,21 +366,18 @@ def scrape_new_launches() -> list[dict]:
 
             href = link.get("href", "")
 
-            skip_href = [
-                "watch", "tab_", "tablet", "buds", "earphone", "band",
-                "pad_", "_pad", "router", "gravity", "smart_tv", "tv_",
-                "hub_", "_hub", "speaker", "display", "monitor",
-            ]
-            if any(k in href.lower() for k in skip_href):
+            # ── Layer 1: skip by href slug ──
+            if any(k in href.lower() for k in SKIP_HREF):
                 continue
 
+            # ── Only accept valid slugs with numeric ID ──
             device_id_match = re.search(r"-(\d+)\.php$", href)
             if not device_id_match:
                 continue
-            device_id = int(device_id_match.group(1))
-            if device_id < 5000:
+            if int(device_id_match.group(1)) < 5000:
                 continue
 
+            # ── Get model name ──
             strong = link.find("strong")
             if strong:
                 model = clean(strong.text)
@@ -373,13 +393,8 @@ def scrape_new_launches() -> list[dict]:
             if not model or len(model) < 2:
                 continue
 
-            model_lower = model.lower()
-            skip_model = [
-                "tab ", "tablet", "watch", "band", "buds", "earphone",
-                "pad", "router", "gravity", "tv", "speaker", "hub",
-                "display", "monitor", "charger", "cable",
-            ]
-            if any(k in model_lower for k in skip_model):
+            # ── Layer 2: skip by model name ──
+            if any(k in model.lower() for k in SKIP_MODEL):
                 continue
 
             key = f"{brand}::{model}"
@@ -400,8 +415,26 @@ def scrape_new_launches() -> list[dict]:
     log.info(f"Total: {len(all_devices)} unique devices across all brands")
     return all_devices
 
+# ── Batch push helper ─────────────────────────────────────────────────────────
+total_pushed = 0
+total_failed = 0
+
+def flush_batch(upserts: list) -> list:
+    """Push current batch to Supabase, return empty list."""
+    global total_pushed, total_failed
+    if not upserts:
+        return []
+    log.info(f"  Pushing batch of {len(upserts)}...")
+    pushed, failed = upsert_devices(upserts)
+    total_pushed += pushed
+    total_failed += failed
+    log.info(f"    Pushed: {pushed} | Failed: {failed} | Total so far: {total_pushed}")
+    return []
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 def run():
+    global total_pushed, total_failed
+
     log.info("=" * 60)
     log.info("StockFlow Catalog Updater — starting")
     log.info(f"Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -482,20 +515,22 @@ def run():
             })
             new_count += 1
 
+        # Fix 2: batch push every BATCH_SIZE devices — no data loss on cancellation
+        if len(upserts) >= BATCH_SIZE:
+            upserts = flush_batch(upserts)
+
+    # Push any remaining
+    if upserts:
+        upserts = flush_batch(upserts)
+
     log.info(f"\n{'=' * 60}")
     log.info(f"Summary:")
     log.info(f"  New devices added:     {new_count}")
     log.info(f"  Patched:               {patched_count}")
     log.info(f"  Already complete:      {skipped}")
     log.info(f"  Filtered (not India):  {india_skipped}")
-    log.info(f"  Total to push:         {len(upserts)}")
-
-    if upserts:
-        log.info(f"\nPushing to Supabase...")
-        pushed, failed = upsert_devices(upserts)
-        log.info(f"  Pushed: {pushed} | Failed: {failed}")
-    else:
-        log.info("\nNothing to push — catalog is fully up to date")
+    log.info(f"  Total pushed:          {total_pushed}")
+    log.info(f"  Total failed:          {total_failed}")
 
     log.info("\nDone")
 
