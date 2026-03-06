@@ -8,10 +8,9 @@ Logic:
   1. Load all existing (brand, model) from catalog_models_v2
   2. Scrape GSMArena brand pages for all India-market phones
   3. For each device — scrape GSMArena for ground truth, then:
-     a. Verify India availability via Flipkart/Amazon fallback
-     b. DB matches GSMArena exactly → skip
-     c. DB missing or has fewer variants → merge + patch
-     d. Not in DB at all → full insert
+     a. DB matches GSMArena exactly → skip
+     b. DB missing or has fewer variants → merge + patch
+     c. Not in DB at all → full insert
   4. Upsert to Supabase via push_to_supabase.py
 """
 
@@ -22,8 +21,6 @@ import json
 import time
 import random
 import logging
-import asyncio
-import aiohttp
 import requests
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -47,7 +44,6 @@ log = logging.getLogger(__name__)
 DELAY_MIN   = 4.0
 DELAY_MAX   = 8.0
 MAX_RETRIES = 3
-CONCURRENCY = 6  # For async India checks
 
 HEADERS = {
     "User-Agent": (
@@ -60,12 +56,6 @@ HEADERS = {
     "Accept-Encoding": "gzip, deflate",
     "Connection":      "keep-alive",
 }
-
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Safari/605.1.15",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.0",
-]
 
 # ── Brand pages ───────────────────────────────────────────────────────────────
 GSMARENA_BRANDS = {
@@ -130,7 +120,7 @@ def color_to_hex(name: str) -> str:
             return val
     return "#888888"
 
-# ── HTTP (Sync) ───────────────────────────────────────────────────────────────
+# ── HTTP ──────────────────────────────────────────────────────────────────────
 session = requests.Session()
 session.headers.update(HEADERS)
 
@@ -156,129 +146,6 @@ def get(url: str, retries=MAX_RETRIES) -> requests.Response | None:
 
     log.error(f"  Giving up on {url}")
     return None
-
-# ── India Detection (Async) ───────────────────────────────────────────────────
-async def fetch_async(session: aiohttp.ClientSession, url: str, retries=MAX_RETRIES) -> str | None:
-    """Async fetch with retry logic for marketplace checks."""
-    for attempt in range(retries):
-        try:
-            await asyncio.sleep(random.uniform(1.0, 2.0))  # Shorter delay for async batch
-            async with session.get(url, timeout=15) as r:
-                if r.status == 429:
-                    wait = 30 * (attempt + 1)
-                    log.warning(f"    Async rate limited, backing off {wait}s…")
-                    await asyncio.sleep(wait)
-                    continue
-                if r.status != 200:
-                    return None
-                return await r.text()
-        except Exception as e:
-            await asyncio.sleep(5 * (attempt + 1))
-    return None
-
-async def check_flipkart_async(session: aiohttp.ClientSession, brand: str, model: str) -> bool:
-    """Check Flipkart for device availability."""
-    q = quote_plus(f"{brand} {model}")
-    url = f"https://www.flipkart.com/search?q={q}"
-    
-    html = await fetch_async(session, url)
-    if not html:
-        return False
-    
-    soup = BeautifulSoup(html, "html.parser")
-    # Check for product links or search results
-    has_product = bool(
-        soup.select_one("a[href*='/p/']") or 
-        soup.select_one("[data-id]") or
-        soup.select_one("._1AtVbE")  # Flipkart result container
-    )
-    return has_product
-
-async def check_amazon_async(session: aiohttp.ClientSession, brand: str, model: str) -> bool:
-    """Check Amazon India for device availability."""
-    q = quote_plus(f"{brand} {model}")
-    url = f"https://www.amazon.in/s?k={q}"
-    
-    html = await fetch_async(session, url)
-    if not html:
-        return False
-    
-    soup = BeautifulSoup(html, "html.parser")
-    has_product = bool(
-        soup.select_one("[data-component-type='s-search-result']") or
-        soup.select_one(".s-result-item") or
-        soup.select_one("[data-asin]")  # Amazon ASIN indicates product
-    )
-    return has_product
-
-async def detect_india_market(session: aiohttp.ClientSession, brand: str, model: str, gsmarena_html: str) -> bool:
-    """
-    Multi-layer India detection:
-    1. Check GSMArena page for ₹/INR indicators (fast)
-    2. Check Flipkart (async)
-    3. Check Amazon India (async fallback)
-    """
-    # Layer 1: GSMArena page indicators
-    if "₹" in gsmarena_html or "INR" in gsmarena_html or "India" in gsmarena_html:
-        log.debug(f"    India detected via GSMArena indicators")
-        return True
-    
-    # Layer 2: Flipkart check
-    try:
-        if await check_flipkart_async(session, brand, model):
-            log.debug(f"    India detected via Flipkart")
-            return True
-    except Exception as e:
-        log.debug(f"    Flipkart check failed: {e}")
-    
-    # Layer 3: Amazon fallback
-    try:
-        if await check_amazon_async(session, brand, model):
-            log.debug(f"    India detected via Amazon")
-            return True
-    except Exception as e:
-        log.debug(f"    Amazon check failed: {e}")
-    
-    return False
-
-async def batch_detect_india(devices_with_html: list[dict]) -> list[str]:
-    """
-    Batch process India detection for multiple devices concurrently.
-    Returns list of keys that are confirmed India market.
-    """
-    india_keys = []
-    semaphore = asyncio.Semaphore(CONCURRENCY)
-    
-    async def check_one(device: dict):
-        async with semaphore:
-            key = f"{device['brand']}::{device['model']}"
-            is_india = await detect_india_market(
-                aiohttp_session, 
-                device['brand'], 
-                device['model'], 
-                device.get('html', '')
-            )
-            return key if is_india else None
-    
-    connector = aiohttp.TCPConnector(limit=20, limit_per_host=10)
-    timeout = aiohttp.ClientTimeout(total=30)
-    
-    async with aiohttp.ClientSession(
-        connector=connector,
-        timeout=timeout,
-        headers={"User-Agent": random.choice(USER_AGENTS)}
-    ) as aiohttp_session:
-        
-        tasks = [check_one(d) for d in devices_with_html]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        for result in results:
-            if isinstance(result, str):
-                india_keys.append(result)
-            elif isinstance(result, Exception):
-                log.warning(f"    India detection error: {result}")
-    
-    return india_keys
 
 # ── Parsers ───────────────────────────────────────────────────────────────────
 def clean(text: str) -> str:
@@ -385,14 +252,11 @@ def diff_fields(db_row: dict, scraped: dict) -> dict:
     return diff
 
 # ── GSMArena scraping ─────────────────────────────────────────────────────────
-def scrape_specs(url: str) -> tuple[dict, str]:
-    """
-    Scrape a GSMArena device page → (specs dict, raw_html).
-    Returns empty dict and None if failed.
-    """
+def scrape_specs(url: str) -> dict:
+    """Scrape a GSMArena device page → ram, storage, colors."""
     r = get(url)
     if not r:
-        return {}, None
+        return {}
 
     soup  = BeautifulSoup(r.text, "html.parser")
     specs = {"ram": [], "storage": [], "colors": [], "gsmarena_url": url}
@@ -410,6 +274,7 @@ def scrape_specs(url: str) -> tuple[dict, str]:
             specs["ram"] = parse_ram(nfo)
 
         # Internal storage row — contains BOTH ram and storage
+        # e.g. "8GB RAM, 128GB storage" or "6GB/128GB, 8GB/256GB"
         elif "internal" in ttl or ("storage" in ttl and "card" not in ttl):
             if not specs["storage"]:
                 specs["storage"] = parse_storage(nfo)
@@ -420,7 +285,7 @@ def scrape_specs(url: str) -> tuple[dict, str]:
         elif ("color" in ttl or "colour" in ttl) and not specs["colors"]:
             specs["colors"] = parse_colors(nfo)
 
-    # Fallback: Models row lists all variants
+    # Fallback: Models row lists all variants e.g. "SM-A546E 6GB/128GB, SM-A546E 8GB/256GB"
     for ttl_el in soup.select("td.ttl"):
         if "models" in clean(ttl_el.text).lower():
             nfo_el = ttl_el.find_next_sibling("td", class_="nfo")
@@ -431,7 +296,7 @@ def scrape_specs(url: str) -> tuple[dict, str]:
                 if not specs["storage"]:
                     specs["storage"] = parse_storage(text)
 
-    return specs, r.text
+    return specs
 
 def scrape_new_launches() -> list[dict]:
     """Scrape GSMArena brand pages → full device list for India brands."""
@@ -516,64 +381,37 @@ def run():
     # 2. Scrape all brand pages
     launches = scrape_new_launches()
 
-    # 3. First pass: Scrape all GSMArena specs (sync, respectful delays)
-    log.info(f"\nScraping GSMArena specs for {len(launches)} devices…")
-    devices_with_specs = []
-    
-    for i, device in enumerate(launches, 1):
-        log.info(f"  [{i}/{len(launches)}] {device['brand']} {device['model']}")
-        
-        specs, html = scrape_specs(device['url'])
-        
-        if not specs.get("ram") and not specs.get("storage"):
-            log.warning(f"    No specs found — skipping")
-            continue
-            
-        devices_with_specs.append({
-            **device,
-            "specs": specs,
-            "html": html or ""
-        })
-
-    log.info(f"\nSpecs scraped for {len(devices_with_specs)} devices")
-
-    # 4. Second pass: Batch India detection (async, concurrent)
-    log.info(f"\nVerifying India market availability for {len(devices_with_specs)} devices…")
-    india_keys = asyncio.run(batch_detect_india(devices_with_specs))
-    india_set = set(india_keys)
-    
-    log.info(f"  → {len(india_set)} devices confirmed India market")
-    log.info(f"  → {len(devices_with_specs) - len(india_set)} devices filtered out (non-India)")
-
-    # 5. Process upserts (sync, with merge logic)
     upserts       = []
     skipped       = 0
     new_count     = 0
     patched_count = 0
-    non_india     = 0
+    total         = len(launches)
 
-    log.info(f"\nProcessing devices for database update…")
+    log.info(f"\nProcessing {total} devices…")
 
-    for device in devices_with_specs:
-        key = f"{device['brand']}::{device['model']}"
-        
-        # Skip non-India devices
-        if key not in india_set:
-            non_india += 1
-            continue
-            
+    for i, device in enumerate(launches, 1):
+        key          = f"{device['brand']}::{device['model']}"
         existing_row = existing.get(key)
-        specs = device['specs']
+        url          = device.get("url")
+
+        log.info(f"  [{i}/{total}] {device['brand']} {device['model']}")
+
+        # Always scrape GSMArena for ground truth
+        specs = scrape_specs(url)
+
+        if not specs.get("ram") and not specs.get("storage"):
+            log.warning(f"    No specs found — skipping")
+            continue
 
         if existing_row:
             changes = diff_fields(existing_row, specs)
 
             if not changes:
-                log.info(f"  ✓ {key} — Complete, no changes")
+                log.info(f"    ✓ Complete — skipping")
                 skipped += 1
                 continue
 
-            log.info(f"  ↑ {key} — Patching: {list(changes.keys())}")
+            log.info(f"    ↑ Patching: {list(changes.keys())}")
             for field, val in changes.items():
                 log.info(f"      {field}: {existing_row.get(field)} → {val}")
 
@@ -583,32 +421,28 @@ def run():
                 "ram":          changes.get("ram",     existing_row.get("ram", [])),
                 "storage":      changes.get("storage", existing_row.get("storage", [])),
                 "colors":       changes.get("colors",  existing_row.get("colors", [])),
-                "gsmarena_url": specs.get("gsmarena_url", device["url"]),
+                "gsmarena_url": specs.get("gsmarena_url", url),
             })
             patched_count += 1
 
         else:
-            log.info(f"  + {key} — New device | RAM: {specs.get('ram')} | Storage: {specs.get('storage')} | Colors: {len(specs.get('colors', []))}")
+            log.info(f"    + New device — RAM: {specs.get('ram')} | Storage: {specs.get('storage')} | Colors: {len(specs.get('colors', []))}")
             upserts.append({
                 "brand":        device["brand"],
                 "model":        device["model"],
                 "ram":          specs.get("ram", []),
                 "storage":      specs.get("storage", []),
                 "colors":       specs.get("colors", []),
-                "gsmarena_url": specs.get("gsmarena_url", device["url"]),
+                "gsmarena_url": specs.get("gsmarena_url", url),
             })
             new_count += 1
 
-    # 6. Push to Supabase
+    # Push to Supabase
     log.info(f"\n{'=' * 60}")
     log.info(f"Summary:")
-    log.info(f"  Total discovered:   {len(launches)}")
-    log.info(f"  With specs:         {len(devices_with_specs)}")
-    log.info(f"  India market:       {len(india_set)}")
     log.info(f"  New devices:        {new_count}")
     log.info(f"  Patched:            {patched_count}")
     log.info(f"  Already complete:   {skipped}")
-    log.info(f"  Non-India filtered: {len(devices_with_specs) - len(india_set)}")
     log.info(f"  Total to push:      {len(upserts)}")
 
     if upserts:
