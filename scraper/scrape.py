@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 DELAY_MIN    = 4.0
 DELAY_MAX    = 8.0
 MAX_RETRIES  = 3
-BATCH_SIZE   = 10   # Push to Supabase every N devices
+BATCH_SIZE   = 50   # Push to Supabase every N devices
 
 # If this many consecutive devices return no specs, assume IP ban and stop
 MAX_CONSECUTIVE_FAILURES = 5
@@ -75,18 +75,18 @@ GSMARENA_BRANDS = {
     "Apple":    "apple-phones-48.php",
     "Xiaomi":   "xiaomi-phones-80.php",
     "Oppo":     "oppo-phones-82.php",
-    "Vivo":     "vivo-phones-99.php",
+    "Vivo":     "vivo-phones-98.php",       # was 99 (wrong) -> 98
     "Realme":   "realme-phones-118.php",
-    "OnePlus":  "oneplus-phones-87.php",
-    "Motorola": "motorola-phones-13.php",
-    "Nokia":    "nokia-phones-61.php",
-    "Nothing":  "nothing-phones-163.php",
+    "OnePlus":  "oneplus-phones-95.php",    # was 87 (wrong) -> 95
+    "Motorola": "motorola-phones-4.php",    # was 13 (wrong) -> 4
+    "Nokia":    "nokia-phones-1.php",       # was 61 (wrong) -> 1
+    "Nothing":  "nothing-phones-128.php",   # was 163 (wrong) -> 128
     "Google":   "google-phones-107.php",
     "Honor":    "honor-phones-121.php",
     "Infinix":  "infinix-phones-119.php",
     "Tecno":    "tecno-phones-120.php",
     "POCO":     "poco-phones-123.php",
-    "Itel":     "itel-phones-175.php",
+    "Itel":     "itel-phones-131.php",      # was 175 (wrong) -> 131
 }
 
 # ── Skip filters ──────────────────────────────────────────────────────────────
@@ -97,6 +97,8 @@ SKIP_HREF = [
     "hub_", "_hub", "speaker", "display", "monitor",
     # OnePlus non-phones
     "nitro_", "orbit_", "astro_", "android_", "virtue_", "blade_",
+    #China
+    "(china)", "(cn)", " china",
 ]
 
 # model-name-based: matched against parsed model string
