@@ -97,8 +97,6 @@ SKIP_HREF = [
     "hub_", "_hub", "speaker", "display", "monitor",
     # OnePlus non-phones
     "nitro_", "orbit_", "astro_", "android_", "virtue_", "blade_",
-    #China
-    "(china)", "(cn)", " china",
 ]
 
 # model-name-based: matched against parsed model string
@@ -350,80 +348,159 @@ def scrape_specs(url: str) -> dict:
 
     return specs
 
+# ── Pagination config ────────────────────────────────────────────────────────
+# First run: scrape up to MAX_PAGES to backfill the DB.
+# Subsequent runs: only page 1 is needed (new phones always appear there).
+# Set via env var SCRAPE_MAX_PAGES — defaults to 1 for normal weekly runs.
+MAX_PAGES    = int(os.environ.get("SCRAPE_MAX_PAGES", "1"))
+MIN_YEAR     = 2018   # skip any device announced before this year
+
+def _announced_year(img_title: str) -> int | None:
+    """
+    Extract announcement year from GSMArena img title attribute.
+    e.g. "... Announced Jan 2024. Features ..."  -> 2024
+    """
+    m = re.search(r"Announced\s+\w+\s+(\d{4})", img_title)
+    if m:
+        return int(m.group(1))
+    # fallback: any 4-digit year between 2000-2030
+    m = re.search(r"\b(20[0-2]\d)\b", img_title)
+    return int(m.group(1)) if m else None
+
+def _brand_id(slug: str) -> str:
+    """Extract numeric brand ID from slug. e.g. 'samsung-phones-9.php' -> '9'"""
+    m = re.search(r"-(\d+)\.php$", slug)
+    return m.group(1) if m else ""
+
+def _page_url(slug: str, page: int) -> str:
+    """
+    Build GSMArena paginated URL.
+    Page 1: samsung-phones-9.php
+    Page N: samsung-phones-f-9-0-pN.php
+    """
+    if page == 1:
+        return f"https://www.gsmarena.com/{slug}"
+    brand_id = _brand_id(slug)
+    base = slug.replace(f"-{brand_id}.php", "")
+    return f"https://www.gsmarena.com/{base}-f-{brand_id}-0-p{page}.php"
+
+def _parse_items(soup: BeautifulSoup, brand: str, seen: set) -> tuple[list[dict], bool]:
+    """
+    Parse all device <li> items from a brand page soup.
+    Returns (devices, hit_year_cutoff).
+    hit_year_cutoff=True means we found a pre-2018 device → stop paginating.
+    """
+    items = soup.select(".section-body ul li, ul.phones-list li, #list-devices li")
+    if not items:
+        items = [
+            li for li in soup.find_all("li")
+            if li.find("a", href=re.compile(r"[\w-]+-\d+\.php"))
+        ]
+
+    devices = []
+    hit_year_cutoff = False
+
+    for item in items:
+        link = item.find("a", href=re.compile(r"[\w-]+-\d+\.php"))
+        if not link:
+            continue
+
+        href = link.get("href", "")
+
+        # ── Layer 1: skip by href slug ──
+        if any(k in href.lower() for k in SKIP_HREF):
+            continue
+
+        # ── Only accept valid slugs with numeric ID ──
+        device_id_match = re.search(r"-(\d+)\.php$", href)
+        if not device_id_match:
+            continue
+        if int(device_id_match.group(1)) < 5000:
+            continue
+
+        # ── Year filter — read from img title attribute ──
+        img = link.find("img")
+        title_text = img.get("title", "") if img else ""
+        year = _announced_year(title_text)
+        if year and year < MIN_YEAR:
+            log.debug(f"    Skipping {href} — announced {year} (before {MIN_YEAR})")
+            hit_year_cutoff = True
+            continue  # don't break — page may have mixed years
+
+        # ── Get model name ──
+        strong = link.find("strong")
+        if strong:
+            model = clean(strong.text)
+        else:
+            full_name = img.get("alt", "") if img else clean(link.text)
+            if full_name.lower().startswith(brand.lower()):
+                model = full_name[len(brand):].strip()
+            else:
+                parts = full_name.split(" ", 1)
+                model = parts[1].strip() if len(parts) > 1 else full_name
+
+        if not model or len(model) < 2:
+            continue
+
+        # ── Layer 2: skip by model name ──
+        if any(k in model.lower() for k in SKIP_MODEL):
+            continue
+
+        key = f"{brand}::{model}"
+        if key in seen:
+            continue
+        seen.add(key)
+
+        devices.append({
+            "brand": brand,
+            "model": model,
+            "url":   f"https://www.gsmarena.com/{href}",
+        })
+
+    return devices, hit_year_cutoff
+
 def scrape_new_launches() -> list[dict]:
-    log.info("Fetching device list from GSMArena (per brand)...")
+    log.info(f"Fetching device list from GSMArena (per brand, up to {MAX_PAGES} page(s))...")
     all_devices = []
     seen = set()
 
     for brand, slug in GSMARENA_BRANDS.items():
         log.info(f"  Scraping {brand}...")
-        url = f"https://www.gsmarena.com/{slug}"
-        r = get(url)
-        if not r:
-            log.warning(f"    Failed to fetch {brand} — skipping")
-            continue
+        brand_count = 0
 
-        soup  = BeautifulSoup(r.text, "html.parser")
-        items = soup.select(".section-body ul li, ul.phones-list li, #list-devices li")
+        for page in range(1, MAX_PAGES + 1):
+            url = _page_url(slug, page)
+            r = get(url)
+            if not r:
+                log.warning(f"    Page {page}: failed to fetch — stopping brand")
+                break
 
-        if not items:
-            items = [
-                li for li in soup.find_all("li")
-                if li.find("a", href=re.compile(r"[\w-]+-\d+\.php"))
-            ]
+            # Empty page or redirect back to page 1 = no more pages
+            if page > 1 and r.url == _page_url(slug, 1):
+                log.debug(f"    Page {page}: redirected to page 1 — no more pages")
+                break
 
-        count = 0
-        for item in items:
-            link = item.find("a", href=re.compile(r"[\w-]+-\d+\.php"))
-            if not link:
-                continue
+            soup = BeautifulSoup(r.text, "html.parser")
+            devices, hit_cutoff = _parse_items(soup, brand, seen)
+            all_devices.extend(devices)
+            brand_count += len(devices)
 
-            href = link.get("href", "")
+            log.info(f"    Page {page}: {len(devices)} devices{'  [pre-2018 found, stopping]' if hit_cutoff and page == MAX_PAGES else ''}")
 
-            # ── Layer 1: skip by href slug ──
-            if any(k in href.lower() for k in SKIP_HREF):
-                continue
+            # Stop paginating if no devices on this page (end of list)
+            if not devices and not hit_cutoff:
+                log.debug(f"    Page {page}: empty — no more pages")
+                break
 
-            # ── Only accept valid slugs with numeric ID ──
-            device_id_match = re.search(r"-(\d+)\.php$", href)
-            if not device_id_match:
-                continue
-            if int(device_id_match.group(1)) < 5000:
-                continue
+            # Stop if all devices on this page were pre-2018 (we've gone far enough back)
+            if hit_cutoff and not devices:
+                log.info(f"    Reached pre-2018 devices — stopping pagination")
+                break
 
-            # ── Get model name ──
-            strong = link.find("strong")
-            if strong:
-                model = clean(strong.text)
-            else:
-                img       = link.find("img")
-                full_name = img.get("alt", "") if img else clean(link.text)
-                if full_name.lower().startswith(brand.lower()):
-                    model = full_name[len(brand):].strip()
-                else:
-                    parts = full_name.split(" ", 1)
-                    model = parts[1].strip() if len(parts) > 1 else full_name
+            if page < MAX_PAGES:
+                time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
 
-            if not model or len(model) < 2:
-                continue
-
-            # ── Layer 2: skip by model name ──
-            if any(k in model.lower() for k in SKIP_MODEL):
-                continue
-
-            key = f"{brand}::{model}"
-            if key in seen:
-                continue
-            seen.add(key)
-
-            all_devices.append({
-                "brand": brand,
-                "model": model,
-                "url":   f"https://www.gsmarena.com/{href}",
-            })
-            count += 1
-
-        log.info(f"    -> {count} devices found")
+        log.info(f"    -> {brand_count} devices total for {brand}")
         time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
 
     log.info(f"Total: {len(all_devices)} unique devices across all brands")
