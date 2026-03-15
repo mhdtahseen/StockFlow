@@ -6,12 +6,18 @@
 # Required GitHub Secrets  (Settings → Secrets → Actions):
 #   SUPABASE_URL          → https://your-project-id.supabase.co
 #   SUPABASE_SERVICE_KEY  → service_role key (NOT the anon key)
+#
+# ONE-TIME BACKFILL:
+#   Trigger manually → set max_pages = "5"
+#   This scrapes up to 5 pages per brand to populate the DB fully.
+#   After that, leave max_pages at "1" for all future runs.
 
 name: 📱 Weekly Device Catalog Update
 
 on:
   schedule:
     - cron: "30 20 * * 4" # Thursday 20:30 UTC = Friday 02:00 IST
+
   workflow_dispatch: # Manual trigger from GitHub UI
     inputs:
       force_rescrape:
@@ -20,6 +26,13 @@ on:
         default: "false"
         type: choice
         options: ["true", "false"]
+
+      max_pages:
+        description: "Pages to scrape per brand (1 = normal weekly, 5 = one-time backfill)"
+        required: false
+        default: "1"
+        type: choice
+        options: ["1", "2", "3", "4", "5"]
 
 jobs:
   update-catalog:
@@ -53,6 +66,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           FORCE_RESCRAPE: ${{ github.event.inputs.force_rescrape || 'false' }}
+          SCRAPE_MAX_PAGES: ${{ github.event.inputs.max_pages || '1' }}
         run: |
           cd scraper
           python scrape.py 2>&1 | tee ../scraper_run.log
@@ -75,6 +89,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Run:** \`${{ github.run_id }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Pages scraped per brand:** \`${{ github.event.inputs.max_pages || '1' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Log tail" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
