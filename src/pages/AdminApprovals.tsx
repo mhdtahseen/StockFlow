@@ -41,18 +41,36 @@ export default function AdminApprovals() {
     fetchRequests()
   }, [])
 
+  const [isProcessing, setIsProcessing] = useState<string | null>(null)
+
   const handleApprove = async (id: string, email: string) => {
-    const { error } = await supabase.from('tenant_requests').update({ status: 'approved' }).eq('id', id)
-    if (error) {
-      toast.error("Failed to approve")
-      return
+    setIsProcessing(id)
+    try {
+      const { data, error } = await supabase.functions.invoke('approve-tenant', {
+        body: { requestId: id }
+      })
+
+      if (error) {
+        toast.error("Approval failed", { description: error.message })
+        return
+      }
+
+      toast.success("Approved & Invited!", { 
+        description: `Organization created and invitation sent to ${email}.` 
+      })
+      fetchRequests()
+    } catch (err: any) {
+      toast.error("Error", { description: err.message })
+    } finally {
+      setIsProcessing(null)
     }
-    toast.success("Approved!", { description: `Approval recorded. Please ensure your backend/Edge Function invites ${email}.` })
-    fetchRequests()
   }
 
   const handleReject = async (id: string) => {
+    setIsProcessing(id)
     const { error } = await supabase.from('tenant_requests').update({ status: 'rejected' }).eq('id', id)
+    setIsProcessing(null)
+    
     if (error) {
       toast.error("Failed to reject")
       return
@@ -100,15 +118,21 @@ export default function AdminApprovals() {
                   <>
                     <button 
                       onClick={() => handleReject(req.id)}
-                      className="px-4 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 hover:dark:bg-rose-900/40 rounded-lg text-sm font-semibold transition-colors"
+                      disabled={isProcessing === req.id}
+                      className="px-4 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 hover:dark:bg-rose-900/40 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
                     >
-                      Reject
+                      {isProcessing === req.id ? <Loader2 className="animate-spin h-4 w-4" /> : "Reject"}
                     </button>
                     <button 
                       onClick={() => handleApprove(req.id, req.email)}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm flex items-center gap-2"
+                      disabled={isProcessing === req.id}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50"
                     >
-                      <CheckCircle size={16} /> Approve
+                      {isProcessing === req.id ? <Loader2 className="animate-spin h-4 w-4" /> : (
+                        <>
+                          <CheckCircle size={16} /> Approve
+                        </>
+                      )}
                     </button>
                   </>
                 ) : req.status === 'approved' ? (
