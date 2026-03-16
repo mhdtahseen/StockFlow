@@ -72,7 +72,10 @@ export default function Dashboard() {
           .select("role")
           .eq("id", session.user.id)
           .single();
-        if (data?.role === "admin") setIsAdmin(true);
+        // Allow both admin and super-admin to manage the team
+        if (data?.role === "admin" || data?.role === "super-admin") {
+          setIsAdmin(true);
+        }
       }
     }
     checkRole();
