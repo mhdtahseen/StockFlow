@@ -7,7 +7,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -27,36 +26,57 @@ serve(async (req) => {
       .eq('id', requestId)
       .single()
 
-    if (fetchError || !tenantReq) {
-      throw new Error('Tenant request not found')
-    }
+    if (fetchError || !tenantReq) throw new Error('Tenant request not found')
 
-    if (tenantReq.status !== 'pending') {
-      throw new Error('Request already processed')
-    }
-
-    // 2. Create the tenant
+    // 2. Resolve Tenant
     const slug = tenantReq.org_name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')
-    const { data: tenant, error: tenantError } = await supabaseClient
+    const { data: existingTenant } = await supabaseClient
       .from('tenants')
-      .insert({
-        name: tenantReq.org_name,
-        slug: slug,
-        plan: 'free',
-        is_active: true
-      })
-      .select()
-      .single()
+      .select('id')
+      .or(`slug.eq.${slug},name.eq.${tenantReq.org_name}`)
+      .maybeSingle()
 
-    if (tenantError) throw tenantError
+    let tenantId = existingTenant?.id;
+    if (!tenantId) {
+      const { data: newTenant, error: tenantError } = await supabaseClient
+        .from('tenants')
+        .insert({
+          name: tenantReq.org_name,
+          slug: slug,
+          plan: 'free',
+          is_active: true
+        })
+        .select()
+        .single()
+
+      if (tenantError) throw tenantError
+      tenantId = newTenant.id
+    }
+
+    // Fix 2: Strip trailing slash from SITE_URL
+    let siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '')
+
+    if (!siteUrl) {
+      const origin = req.headers.get('origin')
+      // Don't use supabase generic origins for redirection
+      if (origin && !origin.includes('supabase.co')) {
+        siteUrl = origin.replace(/\/$/, '')
+      } else {
+        siteUrl = 'http://localhost:5173'
+      }
+    }
+
+    const redirectTo = `${siteUrl}/verified`
+    console.log(`Sending invitation. Site URL: ${siteUrl}, Redirect Target: ${redirectTo}`)
 
     // 3. Invite the user
     const { data: authUser, error: inviteError } = await supabaseClient.auth.admin.inviteUserByEmail(
       tenantReq.email,
       {
+        redirectTo: redirectTo,
         data: {
           full_name: tenantReq.full_name,
-          tenant_id: tenant.id,
+          tenant_id: tenantId,
           role: 'admin'
         }
       }
@@ -64,32 +84,26 @@ serve(async (req) => {
 
     if (inviteError) throw inviteError
 
-    // 4. Create the profile (optional if you have a trigger, but safe to do here)
-    const { error: profileError } = await supabaseClient
+    // 4. Create/Upsert the profile
+    await supabaseClient
       .from('profiles')
-      .insert({
+      .upsert({
         id: authUser.user.id,
-        tenant_id: tenant.id,
+        tenant_id: tenantId,
         email: tenantReq.email,
         full_name: tenantReq.full_name,
         role: 'admin',
         is_active: true
       })
 
-    if (profileError) {
-      console.error('Profile creation error (might be handled by trigger):', profileError)
-    }
-
     // 5. Update request status
-    const { error: updateError } = await supabaseClient
+    await supabaseClient
       .from('tenant_requests')
       .update({ status: 'approved' })
       .eq('id', requestId)
 
-    if (updateError) throw updateError
-
     return new Response(
-      JSON.stringify({ success: true, tenantId: tenant.id }),
+      JSON.stringify({ success: true, tenantId, redirectTo }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
@@ -97,6 +111,7 @@ serve(async (req) => {
     )
 
   } catch (error: any) {
+    console.error('Error:', error.message)
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
