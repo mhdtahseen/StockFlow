@@ -1,0 +1,132 @@
+import React, { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
+import { CheckCircle, Clock, Loader2, XCircle } from "lucide-react"
+
+type TenantRequest = {
+  id: string
+  org_name: string
+  full_name: string
+  email: string
+  status: "pending" | "approved" | "rejected"
+  created_at: string
+}
+
+export default function AdminApprovals() {
+  const [requests, setRequests] = useState<TenantRequest[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const fetchRequests = async () => {
+    setIsLoading(true)
+    const { data, error } = await supabase
+      .from("tenant_requests")
+      .select("*")
+      .order("created_at", { ascending: false })
+    
+    if (error) {
+      // If table doesn't exist, this will error. We should gracefully handle it.
+      if (error.code === '42P01') {
+        toast.error("Database table missing", { description: "Please run the tenant_requests SQL migration." })
+      } else {
+        toast.error("Failed to fetch requests")
+      }
+      setRequests([])
+    } else {
+      setRequests(data as TenantRequest[])
+    }
+    setIsLoading(false)
+  }
+
+  useEffect(() => {
+    fetchRequests()
+  }, [])
+
+  const handleApprove = async (id: string, email: string) => {
+    const { error } = await supabase.from('tenant_requests').update({ status: 'approved' }).eq('id', id)
+    if (error) {
+      toast.error("Failed to approve")
+      return
+    }
+    toast.success("Approved!", { description: `Approval recorded. Please ensure your backend/Edge Function invites ${email}.` })
+    fetchRequests()
+  }
+
+  const handleReject = async (id: string) => {
+    const { error } = await supabase.from('tenant_requests').update({ status: 'rejected' }).eq('id', id)
+    if (error) {
+      toast.error("Failed to reject")
+      return
+    }
+    toast.success("Rejected request")
+    fetchRequests()
+  }
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto w-full">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          Tenant Approvals
+        </h1>
+        <p className="text-sm text-slate-500">
+          Review organizations requesting access to StockFlow.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center p-12">
+          <Loader2 className="animate-spin text-blue-600 h-8 w-8" />
+        </div>
+      ) : requests.length === 0 ? (
+        <div className="text-center py-12 p-6 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+          <p className="text-slate-500 font-medium">No pending requests.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {requests.map((req) => (
+            <div key={req.id} className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">{req.org_name}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  {req.full_name} • <span className="text-blue-600 dark:text-blue-400">{req.email}</span>
+                </p>
+                <div className="mt-2 text-xs flex items-center gap-1.5 text-slate-400">
+                  <Clock size={12} />
+                  {new Date(req.created_at).toLocaleString()}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {req.status === 'pending' ? (
+                  <>
+                    <button 
+                      onClick={() => handleReject(req.id)}
+                      className="px-4 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 hover:dark:bg-rose-900/40 rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      Reject
+                    </button>
+                    <button 
+                      onClick={() => handleApprove(req.id, req.email)}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm flex items-center gap-2"
+                    >
+                      <CheckCircle size={16} /> Approve
+                    </button>
+                  </>
+                ) : req.status === 'approved' ? (
+                  <span className="flex flex-col items-end">
+                    <span className="px-3 py-1 flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-bold ring-1 ring-inset ring-emerald-600/20">
+                      <CheckCircle size={12} /> Approved
+                    </span>
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 flex items-center gap-1.5 bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 rounded-full text-xs font-bold ring-1 ring-inset ring-rose-600/20">
+                    <XCircle size={12} /> Rejected
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

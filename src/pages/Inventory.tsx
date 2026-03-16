@@ -33,6 +33,7 @@ type SortOption = "newest" | "oldest" | "price_high" | "price_low" | "brand_az";
 
 export default function Inventory() {
   const { phones } = useAppSelector((state) => state.inventory);
+  const ledgerEntries = useAppSelector((state) => state.ledger.entries);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as TabOption | null;
@@ -163,10 +164,23 @@ export default function Inventory() {
   }, [phones]);
 
   const realizedProfit = useMemo(() => {
+    const repairByPhone: Record<string, number> = {};
+    ledgerEntries.forEach((e) => {
+      if (e.type === "REPAIR_COST" && e.referenceId) {
+        repairByPhone[e.referenceId] =
+          (repairByPhone[e.referenceId] || 0) + e.amount;
+      }
+    });
+
     return phones
       .filter((p) => p.status === "SOLD")
-      .reduce((sum, p) => sum + ((p.salePrice || 0) - p.purchasePrice), 0);
-  }, [phones]);
+      .reduce(
+        (sum, p) =>
+          sum +
+          ((p.salePrice || 0) - (p.purchasePrice + (repairByPhone[p.id] || 0))),
+        0,
+      );
+  }, [phones, ledgerEntries]);
 
   const getRelativeDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -499,7 +513,7 @@ export default function Inventory() {
                       <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
                         {phone.brand} {phone.model}
                       </h3>
-                      <div className="flex items-center gap-1 text-[12px] text-slate-400 font-mono mt-1.5">
+                      <div className="flex items-center gap-1 text-[12px] text-slate-500 font-mono mt-1.5">
                         <Fingerprint size={12} />
                         <span>
                           IMEI:{" "}
@@ -525,12 +539,30 @@ export default function Inventory() {
                         <div
                           className={clsx(
                             "flex items-center gap-1 font-extrabold",
-                            phone.salePrice - phone.purchasePrice >= 0
+                            phone.salePrice -
+                              (phone.purchasePrice +
+                                ledgerEntries
+                                  .filter(
+                                    (e) =>
+                                      e.type === "REPAIR_COST" &&
+                                      e.referenceId === phone.id,
+                                  )
+                                  .reduce((sum, e) => sum + e.amount, 0)) >=
+                              0
                               ? "text-emerald-500"
                               : "text-rose-500",
                           )}
                         >
-                          {phone.salePrice - phone.purchasePrice >= 0 ? (
+                          {phone.salePrice -
+                            (phone.purchasePrice +
+                              ledgerEntries
+                                .filter(
+                                  (e) =>
+                                    e.type === "REPAIR_COST" &&
+                                    e.referenceId === phone.id,
+                                )
+                                .reduce((sum, e) => sum + e.amount, 0)) >=
+                          0 ? (
                             <TrendingUp size={14} />
                           ) : (
                             <ArrowDown size={14} />

@@ -25,6 +25,7 @@ import {
   Trash2,
   Pencil,
   X,
+  TrendingDown,
 } from "lucide-react";
 import clsx from "clsx";
 import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
@@ -275,10 +276,10 @@ export default function PhoneDetail() {
             </div>
           )}
 
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-start gap-3 mb-4 relative z-10">
             <div
               className={clsx(
-                "size-12 rounded-full flex items-center justify-center shrink-0",
+                "size-12 rounded-full flex items-center justify-center shrink-0 mt-0.5",
                 phone.status === "SOLD"
                   ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400"
                   : phone.status === "IN_STOCK"
@@ -288,8 +289,8 @@ export default function PhoneDetail() {
             >
               <Smartphone size={22} />
             </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+            <div className="flex-1 pr-12">
+              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
                 {phone.brand} {phone.model}
               </h2>
               <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
@@ -508,30 +509,36 @@ export default function PhoneDetail() {
                 <div
                   className={clsx(
                     "size-8 rounded-full flex items-center justify-center",
-                    phone.status === "SOLD" &&
-                      phone.salePrice &&
-                      phone.salePrice < phone.purchasePrice
+                    phone.status === "SOLD" && marginPercentage < 0
                       ? "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400"
-                      : "bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400",
+                      : "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
                   )}
                 >
-                  <TrendingUp size={16} />
+                  {marginPercentage < 0 ? (
+                    <TrendingDown size={16} />
+                  ) : (
+                    <TrendingUp size={16} />
+                  )}
                 </div>
                 <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
-                  {phone.status === "SOLD" ? "Actual Margin" : "Est. Margin"}
+                  {phone.status === "SOLD"
+                    ? marginPercentage < 0
+                      ? "Actual Loss Margin"
+                      : "Actual Profit Margin"
+                    : "Est. Profit Margin"}
                 </span>
               </div>
               <span
                 className={clsx(
                   "font-black text-lg",
                   phone.status === "SOLD"
-                    ? phone.salePrice && phone.salePrice < phone.purchasePrice
+                    ? marginPercentage < 0
                       ? "text-rose-600 dark:text-rose-400"
                       : "text-emerald-600 dark:text-emerald-400"
                     : "text-[#064a98] dark:text-blue-400",
                 )}
               >
-                {marginPercentage.toFixed(1)}%
+                {Math.abs(marginPercentage).toFixed(1)}%
               </span>
             </div>
 
@@ -558,24 +565,27 @@ export default function PhoneDetail() {
                           : "text-emerald-700 dark:text-emerald-400",
                       )}
                     >
-                      {isLoss ? "Loss on Sale" : "Profit Realized"}
+                      {isLoss ? "Loss" : "Profit"}
                     </span>
-                    <span
-                      className={clsx(
-                        "font-black text-lg",
-                        isLoss
-                          ? "text-rose-600 dark:text-rose-400"
-                          : "text-emerald-600 dark:text-emerald-400",
-                      )}
-                    >
-                      {isLoss ? "-" : "+"}
-                      {formatCurrency(Math.abs(net))}
-                    </span>
-                    {totalRepairCost > 0 && (
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium w-full text-right -mt-1 pr-0.5">
-                        incl. ₹{totalRepairCost.toLocaleString("en-IN")} repairs
+                    <div className="flex flex-col items-end">
+                      <span
+                        className={clsx(
+                          "font-black text-lg leading-tight",
+                          isLoss
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-emerald-600 dark:text-emerald-400",
+                        )}
+                      >
+                        {isLoss ? "-" : "+"}
+                        {formatCurrency(Math.abs(net))}
                       </span>
-                    )}
+                      {totalRepairCost > 0 && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                          incl. ₹{totalRepairCost.toLocaleString("en-IN")}{" "}
+                          repairs
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })()}

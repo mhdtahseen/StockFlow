@@ -117,17 +117,21 @@ export const syncActionToSupabase = async (
 
       // ─── LEDGER ─────────────────────────────────────────────────────
       case "ledger/addEntry": {
-        if (payload.referenceId) {
-          const exists = await doesPhoneExist(payload.referenceId);
+        let finalReferenceId = payload.referenceId;
+        if (finalReferenceId) {
+          const exists = await doesPhoneExist(finalReferenceId);
+          // If the phone was deleted (e.g. reject unit -> removePhone),
+          // we drop the referenceId to avoid foreign key violations,
+          // but we MUST STILL insert the ledger entry (e.g. FUNDS_RELEASED)
           if (!exists) {
-            return false;
+            finalReferenceId = null;
           }
         }
         const { error } = await supabase.from("ledger").insert({
           id: payload.id,
           // tenant_id and user_id handled by DB trigger
           type: payload.type,
-          reference_id: payload.referenceId,
+          reference_id: finalReferenceId,
           amount: payload.amount,
           note: payload.note ?? null,
           created_at: payload.createdAt,

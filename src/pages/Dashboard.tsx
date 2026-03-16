@@ -27,6 +27,7 @@ import {
   Palette,
   Users,
   User,
+  ArrowUp,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
@@ -47,7 +48,21 @@ export default function Dashboard() {
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [settingsView, setSettingsView] = useState<"main" | "theme">("main");
   const settingsRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight > clientHeight) {
+      const scrollPercentage = scrollTop / (scrollHeight - clientHeight);
+      setShowScrollTop(scrollPercentage > 0.5);
+    }
+  };
+
+  const scrollToTop = () => {
+    mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   useEffect(() => {
     async function checkRole() {
@@ -266,7 +281,11 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-12">
+      <main
+        ref={mainRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-4 pb-12"
+      >
         {/* Hero: Available Cash */}
         <section className="pt-4 pb-2">
           <div className="bg-[#064a98] dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative overflow-hidden">
@@ -500,6 +519,13 @@ export default function Dashboard() {
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500 dark:text-slate-400 truncate">
                           {phone.storage} • {phone.color}
+                          {phone.imeis &&
+                          phone.imeis.filter((i) => i.length >= 4).length > 0
+                            ? ` • ${phone.imeis
+                                .filter((i) => i.length >= 4)
+                                .map((i) => i.slice(-4))
+                                .join(" / ")}`
+                            : ""}
                         </span>
                         <span className="text-slate-400 dark:text-slate-500 font-bold bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider border border-slate-100 dark:border-slate-700">
                           {config.label}
@@ -513,6 +539,15 @@ export default function Dashboard() {
           </section>
         )}
       </main>
+
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-24 right-4 z-40 size-12 bg-[#064a98] dark:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-800 dark:hover:bg-blue-700 transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-5"
+        >
+          <ArrowUp size={24} />
+        </button>
+      )}
 
       <ExportModal
         isOpen={showExportModal}

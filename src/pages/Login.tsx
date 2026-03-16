@@ -137,13 +137,14 @@ export default function Login() {
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="password"
-                    type="password"
+                    type="text"
+                    style={{ WebkitTextSecurity: "disc" } as any}
                     placeholder="••••••••"
                     autoComplete="new-password"
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck="false"
-                    className={`pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 ${errors.password ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
+                    className={`pl-10 tracking-widest bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 ${errors.password ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
                     {...register("password")}
                   />
                 </div>

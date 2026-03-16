@@ -6,29 +6,34 @@ import { BrandCatalog } from "@/data/deviceCatalog"; // reuse types
 export type ColorOption = { label: string; hex: string };
 
 const fetchCatalog = async (): Promise<BrandCatalog> => {
-  // Fetch models
-  const { data: models, error: modelsError } = await supabase
-    .from("catalog_models")
-    .select("id, brand, model, storage, ram");
+  let allModels: any[] = [];
+  let from = 0;
+  const batchSize = 1000;
+  let hasMore = true;
 
-  if (modelsError) throw modelsError;
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from("catalog_models_v2")
+      .select("id, brand, model, storage, ram, colors")
+      .order("brand")
+      .order("model")
+      .range(from, from + batchSize - 1);
 
-  // Fetch colors
-  const { data: colors, error: colorsError } = await supabase
-    .from("catalog_model_colors")
-    .select("model_id, label, hex");
+    if (error) throw error;
 
-  if (colorsError) throw colorsError;
+    if (data) {
+      allModels = [...allModels, ...data];
+      hasMore = data.length === batchSize;
+      from += batchSize;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  const models = allModels;
 
   // Transform into the BrandCatalog mapping object
   const map: BrandCatalog = {};
-
-  // Group colors by model_id
-  const colorMap: Record<string, ColorOption[]> = {};
-  for (const c of colors) {
-    if (!colorMap[c.model_id]) colorMap[c.model_id] = [];
-    colorMap[c.model_id].push({ label: c.label, hex: c.hex });
-  }
 
   // Populate structure matching deviceCatalog
   for (const row of models) {
@@ -36,10 +41,11 @@ const fetchCatalog = async (): Promise<BrandCatalog> => {
       map[row.brand] = { models: {} };
     }
 
+    // Since colors is now a JSONB column in V2, it matches our ColorOption[] type directly
     map[row.brand].models[row.model] = {
       storage: row.storage || [],
       ram: row.ram || [],
-      colors: colorMap[row.id] || [],
+      colors: (row.colors as ColorOption[]) || [],
     };
   }
 
