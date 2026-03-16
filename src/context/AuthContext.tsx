@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 interface AuthContextType {
   session: Session | null;
   user: User | null;
+  isAdmin: boolean;
   isLoading: boolean;
   signOut: () => Promise<void>;
 }
@@ -16,6 +17,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (mounted) {
           setSession(data.session);
           setUser(data.session?.user || null);
+          setIsAdmin(data.session?.user?.user_metadata?.role === 'super-admin');
 
           if (data.session) {
             localStorage.setItem("stockflow_auth", "true");
@@ -50,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       (event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user || null);
+        setIsAdmin(newSession?.user?.user_metadata?.role === 'super-admin');
 
         if (newSession) {
           localStorage.setItem("stockflow_auth", "true");
@@ -72,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, isLoading, signOut }}>
+    <AuthContext.Provider value={{ session, user, isAdmin, isLoading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

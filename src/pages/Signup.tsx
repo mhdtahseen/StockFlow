@@ -22,7 +22,6 @@ const signupSchema = z.object({
   shopName: z.string().min(2, "Shop/Organization name is required"),
   fullName: z.string().min(2, "Full name is required"),
   email: z.string().email("Enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters long"),
 });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
@@ -42,7 +41,6 @@ export default function Signup() {
       shopName: "",
       fullName: "",
       email: "",
-      password: "",
     },
   });
 
@@ -50,43 +48,27 @@ export default function Signup() {
     setIsLoading(true);
 
     try {
-      const { data: authData, error } = await supabase.auth.signUp({
+      const { error } = await supabase.from("tenant_requests").insert({
+        org_name: data.shopName,
+        full_name: data.fullName,
         email: data.email,
-        password: data.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/verified`,
-          data: {
-            // These map perfectly to the Postgres trigger `handle_new_user()`
-            full_name: data.fullName,
-            org_name: data.shopName,
-          },
-        },
+        status: "pending",
       });
 
       if (error) {
-        toast.error("Registration Failed", {
+        toast.error("Request Failed", {
           description:
-            error.message || "Could not create organization. Please try again.",
+            error.message || "Could not submit your request. Please try again.",
         });
         setIsLoading(false);
         return;
       }
 
-      // Check if email confirmation is required by Supabase settings
-      if (authData.user && !authData.session) {
-        setIsSuccess(true);
-        toast.success("Account Created", {
-          description:
-            "Check your email for the confirmation link to activate your account.",
-        });
-      } else if (authData.session) {
-        // Auto-logged in
-        localStorage.setItem("stockflow_auth", "true");
-        toast.success("Welcome to StockFlow!", {
-          description: `Your organization ${data.shopName} has been created.`,
-        });
-        navigate("/");
-      }
+      setIsSuccess(true);
+      toast.success("Request Submitted", {
+        description:
+          "Your request to join has been recorded. The admin will review it.",
+      });
     } catch (err: any) {
       toast.error("Error", {
         description: err.message || "An unexpected error occurred.",
@@ -105,11 +87,10 @@ export default function Signup() {
                 <Mail size={32} />
               </div>
               <CardTitle className="text-2xl font-bold">
-                Check your email
+                Access Request Sent
               </CardTitle>
               <CardDescription className="text-base text-slate-600 dark:text-slate-400">
-                We've sent a verification link to your email address. Please
-                click the link to verify and activate your organization.
+                Your request to join StockFlow has been recorded. Please get in touch with the admin to grant you access. An invite link will be emailed to your address upon approval.
               </CardDescription>
             </CardHeader>
             <CardFooter className="flex justify-center pb-10">
@@ -137,7 +118,7 @@ export default function Signup() {
             className="h-16 w-16 mb-2 dark:brightness-0 dark:invert"
           />
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Create your Organization
+            Request Access
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Start managing your inventory across your team
@@ -208,25 +189,7 @@ export default function Signup() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    autoComplete="new-password"
-                    className={`pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 ${errors.password ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
-                    {...register("password")}
-                  />
-                </div>
-                {errors.password && (
-                  <p className="text-xs font-medium text-rose-500 mt-1">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
+
 
               <Button
                 type="button"
@@ -240,7 +203,7 @@ export default function Signup() {
                     Creating account...
                   </>
                 ) : (
-                  "Create Organization"
+                  "Submit Request"
                 )}
               </Button>
             </div>

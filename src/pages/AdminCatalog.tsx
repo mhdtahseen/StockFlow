@@ -23,9 +23,7 @@ import {
 
 /* ──────────────────────── Types ──────────────────────── */
 
-type ColorRow = {
-  id: string;
-  model_id: string;
+type ColorItem = {
   label: string;
   hex: string;
 };
@@ -36,8 +34,10 @@ type ModelRow = {
   model: string;
   storage: string[];
   ram: string[];
+  colors: { label: string; hex: string }[];
   created_at: string;
-  colors?: ColorRow[];
+  gsmarena_url?: string;
+  verified?: boolean;
 };
 
 type BrandSummary = {
@@ -50,7 +50,6 @@ type BrandSummary = {
 
 export default function AdminCatalog() {
   const [models, setModels] = useState<ModelRow[]>([]);
-  const [colors, setColors] = useState<ColorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -63,53 +62,48 @@ export default function AdminCatalog() {
   const [showColorModal, setShowColorModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{
     type: "model" | "color";
-    id: string;
+    id: string; // for models
+    color?: ColorItem; // for colors
     name: string;
   } | null>(null);
   const [editingModel, setEditingModel] = useState<ModelRow | null>(null);
-  const [editingColor, setEditingColor] = useState<ColorRow | null>(null);
+  const [editingColor, setEditingColor] = useState<ColorItem | null>(null);
   const [showBrandModal, setShowBrandModal] = useState(false);
 
   /* ── Fetch all data ──────────────────────────────────────── */
   const fetchData = useCallback(async () => {
     setLoading(true);
 
-    // Models: unlikely to exceed 1000, but set explicit limit
-    const modelsRes = await supabase
-      .from("catalog_models")
-      .select("*")
-      .order("brand")
-      .order("model")
-      .limit(2000);
-
-    // Colors: can exceed default 1000-row limit, so paginate
-    let allColors: ColorRow[] = [];
+    let allModels: ModelRow[] = [];
     let from = 0;
     const batchSize = 1000;
     let hasMore = true;
+
     while (hasMore) {
       const { data, error } = await supabase
-        .from("catalog_model_colors")
+        .from("catalog_models_v2")
         .select("*")
-        .order("label")
+        .order("brand")
+        .order("model")
         .range(from, from + batchSize - 1);
+
       if (error) {
-        toast.error("Failed to load colors", { description: error.message });
+        toast.error("Failed to load catalog", {
+          description: error.message,
+        });
         break;
       }
-      allColors = allColors.concat((data as ColorRow[]) || []);
-      hasMore = (data?.length || 0) === batchSize;
-      from += batchSize;
+
+      if (data) {
+        allModels = [...allModels, ...(data as ModelRow[])];
+        hasMore = data.length === batchSize;
+        from += batchSize;
+      } else {
+        hasMore = false;
+      }
     }
 
-    if (modelsRes.error) {
-      toast.error("Failed to load models", {
-        description: modelsRes.error.message,
-      });
-    }
-
-    setModels((modelsRes.data as ModelRow[]) || []);
-    setColors(allColors);
+    setModels(allModels);
     setLoading(false);
   }, []);
 
@@ -123,7 +117,7 @@ export default function AdminCatalog() {
     for (const m of models) {
       const entry = map.get(m.brand) || { models: 0, colors: 0 };
       entry.models++;
-      entry.colors += colors.filter((c) => c.model_id === m.id).length;
+      entry.colors += m.colors?.length || 0;
       map.set(m.brand, entry);
     }
     return Array.from(map.entries())
@@ -133,7 +127,7 @@ export default function AdminCatalog() {
         colorCount: data.colors,
       }))
       .sort((a, b) => a.brand.localeCompare(b.brand));
-  }, [models, colors]);
+  }, [models]);
 
   const filteredBrands = useMemo(() => {
     if (!search) return brands;
@@ -152,8 +146,9 @@ export default function AdminCatalog() {
 
   const modelColors = useMemo(() => {
     if (!selectedModel) return [];
-    return colors.filter((c) => c.model_id === selectedModel.id);
-  }, [colors, selectedModel]);
+    // Colors are already part of the selectedModel object in V2
+    return selectedModel.colors || [];
+  }, [selectedModel]);
 
   /* ── CRUD: Models (with full JSON support) ────────────── */
   const saveModel = async (data: {
@@ -164,75 +159,38 @@ export default function AdminCatalog() {
     colors: { label: string; hex: string }[];
   }) => {
     if (editingModel) {
-      // Update model fields
+      // Update model fields (including inline JSONB colors)
       const { error } = await supabase
-        .from("catalog_models")
+        .from("catalog_models_v2")
         .update({
           brand: data.brand,
           model: data.model,
           storage: data.storage,
           ram: data.ram,
+          colors: data.colors,
         })
         .eq("id", editingModel.id);
+
       if (error) {
         toast.error("Failed to update model", { description: error.message });
         return;
       }
-      // Replace all colors: delete old, insert new
-      await supabase
-        .from("catalog_model_colors")
-        .delete()
-        .eq("model_id", editingModel.id);
-      if (data.colors.length > 0) {
-        const { error: cErr } = await supabase
-          .from("catalog_model_colors")
-          .insert(
-            data.colors.map((c) => ({
-              model_id: editingModel.id,
-              label: c.label,
-              hex: c.hex,
-            })),
-          );
-        if (cErr) {
-          toast.error("Model saved, but colors failed", {
-            description: cErr.message,
-          });
-          return;
-        }
-      }
-      toast.success("Model updated (with colors)");
+      toast.success("Model updated");
     } else {
-      // Insert new model
-      const { data: newRow, error } = await supabase
-        .from("catalog_models")
+      // Insert new model into V2 table
+      const { error } = await supabase
+        .from("catalog_models_v2")
         .insert({
           brand: data.brand,
           model: data.model,
           storage: data.storage,
           ram: data.ram,
-        })
-        .select("id")
-        .single();
+          colors: data.colors || [],
+        });
+
       if (error) {
         toast.error("Failed to add model", { description: error.message });
         return;
-      }
-      // Insert colors
-      if (data.colors.length > 0) {
-        const { error: cErr } = await supabase
-          .from("catalog_model_colors")
-          .insert(
-            data.colors.map((c) => ({
-              model_id: newRow.id,
-              label: c.label,
-              hex: c.hex,
-            })),
-          );
-        if (cErr) {
-          toast.error("Model added, but colors failed", {
-            description: cErr.message,
-          });
-        }
       }
       toast.success("Model added");
     }
@@ -242,12 +200,11 @@ export default function AdminCatalog() {
   };
 
   const deleteModel = async (id: string) => {
-    // Delete colors first (cascade)
-    await supabase.from("catalog_model_colors").delete().eq("model_id", id);
     const { error } = await supabase
-      .from("catalog_models")
+      .from("catalog_models_v2")
       .delete()
       .eq("id", id);
+
     if (error) {
       toast.error("Failed to delete model", { description: error.message });
       return;
@@ -258,49 +215,70 @@ export default function AdminCatalog() {
     fetchData();
   };
 
-  /* ── CRUD: Colors ──────────────────────────────────────── */
+  /* ── CRUD: Colors (Inline updates for V2) ────────────────── */
   const saveColor = async (data: {
     model_id: string;
     label: string;
     hex: string;
   }) => {
+    if (!selectedModel) return;
+
+    let updatedColors = [...(selectedModel.colors || [])];
     if (editingColor) {
-      const { error } = await supabase
-        .from("catalog_model_colors")
-        .update({ label: data.label, hex: data.hex })
-        .eq("id", editingColor.id);
-      if (error) {
-        toast.error("Failed to update color", { description: error.message });
-        return;
-      }
-      toast.success("Color updated");
+      // Find and update specific color by its properties (since V2 colors don't have IDs)
+      updatedColors = updatedColors.map((c) =>
+        c.label === editingColor.label && c.hex === editingColor.hex
+          ? { label: data.label, hex: data.hex }
+          : c,
+      );
     } else {
-      const { error } = await supabase
-        .from("catalog_model_colors")
-        .insert(data);
-      if (error) {
-        toast.error("Failed to add color", { description: error.message });
-        return;
-      }
-      toast.success("Color added");
+      updatedColors.push({ label: data.label, hex: data.hex });
     }
+
+    const { error } = await supabase
+      .from("catalog_models_v2")
+      .update({ colors: updatedColors })
+      .eq("id", data.model_id);
+
+    if (error) {
+      toast.error("Failed to update colors", { description: error.message });
+      return;
+    }
+
+    toast.success(editingColor ? "Color updated" : "Color added");
     setShowColorModal(false);
     setEditingColor(null);
-    fetchData();
+    
+    // Update local state for immediate feedback
+    const updatedModel = { ...selectedModel, colors: updatedColors };
+    setSelectedModel(updatedModel);
+    setModels(prev => prev.map(m => m.id === updatedModel.id ? updatedModel : m));
   };
 
-  const deleteColor = async (id: string) => {
+  const deleteColor = async (colorToDelete: { label: string; hex: string }) => {
+    if (!selectedModel) return;
+
+    const updatedColors = (selectedModel.colors || []).filter(
+      (c) => c.label !== colorToDelete.label || c.hex !== colorToDelete.hex,
+    );
+
     const { error } = await supabase
-      .from("catalog_model_colors")
-      .delete()
-      .eq("id", id);
+      .from("catalog_models_v2")
+      .update({ colors: updatedColors })
+      .eq("id", selectedModel.id);
+
     if (error) {
       toast.error("Failed to delete color", { description: error.message });
       return;
     }
+
     toast.success("Color deleted");
     setShowDeleteConfirm(null);
-    fetchData();
+
+    // Update local state
+    const updatedModel = { ...selectedModel, colors: updatedColors };
+    setSelectedModel(updatedModel);
+    setModels(prev => prev.map(m => m.id === updatedModel.id ? updatedModel : m));
   };
 
   /* ── Stats bar ──────────────────────────────────────── */
@@ -308,9 +286,9 @@ export default function AdminCatalog() {
     () => ({
       brands: brands.length,
       models: models.length,
-      colors: colors.length,
+      colors: models.reduce((acc, m) => acc + (m.colors?.length || 0), 0),
     }),
-    [brands, models, colors],
+    [brands, models],
   );
 
   /* ── Render ──────────────────────────────────────── */
@@ -324,35 +302,16 @@ export default function AdminCatalog() {
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      {/* ── Header ──────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 pt-[env(safe-area-inset-top,0px)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                <Database
-                  className="text-blue-600 dark:text-blue-400"
-                  size={22}
-                />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">
-                  Device Catalog Manager
-                </h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  Super Admin • Internal Tool
-                </p>
-              </div>
-            </div>
-            <a
-              href="/"
-              className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium transition-colors"
-            >
-              ← Back to App
-            </a>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2">
+        <div className="flex flex-col gap-1 mb-2">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Device Catalog Manager
+          </h1>
+          <p className="text-sm text-slate-500">
+            Super Admin • Internal Tool
+          </p>
         </div>
-      </header>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* ── Stats Row ──────────────────────────────────────── */}
@@ -506,7 +465,8 @@ export default function AdminCatalog() {
             onDeleteColor={(c) =>
               setShowDeleteConfirm({
                 type: "color",
-                id: c.id,
+                id: selectedModel.id,
+                color: c,
                 name: c.label,
               })
             }
@@ -519,7 +479,6 @@ export default function AdminCatalog() {
           <ModelListView
             brand={selectedBrand}
             models={brandModels}
-            colors={colors}
             onSelectModel={(m) => {
               setSelectedModel(m);
               setSearch("");
@@ -557,7 +516,7 @@ export default function AdminCatalog() {
           model={editingModel}
           existingColors={
             editingModel
-              ? colors.filter((c) => c.model_id === editingModel.id)
+              ? editingModel.colors || []
               : []
           }
           defaultBrand={selectedBrand || ""}
@@ -600,8 +559,8 @@ export default function AdminCatalog() {
           onConfirm={() => {
             if (showDeleteConfirm.type === "model") {
               deleteModel(showDeleteConfirm.id);
-            } else {
-              deleteColor(showDeleteConfirm.id);
+            } else if (showDeleteConfirm.color) {
+              deleteColor(showDeleteConfirm.color);
             }
           }}
           onClose={() => setShowDeleteConfirm(null)}
@@ -653,7 +612,6 @@ function BrandListView({
 
 function ModelListView({
   models,
-  colors,
   onSelectModel,
   onEditModel,
   onDeleteModel,
@@ -661,7 +619,6 @@ function ModelListView({
 }: {
   brand: string;
   models: ModelRow[];
-  colors: ColorRow[];
   onSelectModel: (m: ModelRow) => void;
   onEditModel: (m: ModelRow) => void;
   onDeleteModel: (m: ModelRow) => void;
@@ -678,7 +635,7 @@ function ModelListView({
       </button>
       <div className="space-y-2">
         {models.map((m) => {
-          const mc = colors.filter((c) => c.model_id === m.id);
+          const mc = m.colors || [];
           return (
             <div
               key={m.id}
@@ -707,9 +664,9 @@ function ModelListView({
 
               {/* Color dots */}
               <div className="flex items-center gap-1 mr-4">
-                {mc.slice(0, 6).map((c) => (
+                {mc.slice(0, 6).map((c, idx) => (
                   <div
-                    key={c.id}
+                    key={idx}
                     className="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-700"
                     style={{ backgroundColor: c.hex }}
                     title={c.label}
@@ -772,11 +729,11 @@ function ModelDetailView({
   onAddColor,
 }: {
   model: ModelRow;
-  colors: ColorRow[];
+  colors: ColorItem[];
   onBack: () => void;
   onEditModel: () => void;
-  onEditColor: (c: ColorRow) => void;
-  onDeleteColor: (c: ColorRow) => void;
+  onEditColor: (c: ColorItem) => void;
+  onDeleteColor: (c: ColorItem) => void;
   onAddColor: () => void;
 }) {
   return (
@@ -836,9 +793,9 @@ function ModelDetailView({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {colors.map((c) => (
+        {colors.map((c, idx) => (
           <div
-            key={c.id}
+            key={idx}
             className="flex items-center gap-3 bg-white dark:bg-slate-900 rounded-xl p-3.5 border border-slate-200 dark:border-slate-800 group"
           >
             <div
@@ -887,7 +844,7 @@ function JsonModelEditor({
   onClose,
 }: {
   model: ModelRow | null;
-  existingColors: ColorRow[];
+  existingColors: ColorItem[];
   defaultBrand: string;
   onSave: (data: {
     brand: string;
@@ -1413,7 +1370,7 @@ function ColorFormModal({
   onSave,
   onClose,
 }: {
-  color: ColorRow | null;
+  color: ColorItem | null;
   modelId: string;
   onSave: (data: { model_id: string; label: string; hex: string }) => void;
   onClose: () => void;
