@@ -6,6 +6,7 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   isLoading: boolean;
   signOut: () => Promise<void>;
 }
@@ -18,6 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,11 +31,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (error) throw error;
 
         if (mounted) {
-          setSession(data.session);
-          setUser(data.session?.user || null);
-          setIsAdmin(data.session?.user?.user_metadata?.role === 'super-admin');
+          const s = data.session;
+          setSession(s);
+          setUser(s?.user || null);
+          
+          const role = s?.user?.user_metadata?.role;
+          setIsSuperAdmin(role === 'super-admin');
+          setIsAdmin(role === 'admin' || role === 'super-admin');
 
-          if (data.session) {
+          if (s) {
             localStorage.setItem("stockflow_auth", "true");
           } else {
             localStorage.removeItem("stockflow_auth");
@@ -53,7 +59,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       (event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user || null);
-        setIsAdmin(newSession?.user?.user_metadata?.role === 'super-admin');
+        
+        const role = newSession?.user?.user_metadata?.role;
+        setIsSuperAdmin(role === 'super-admin');
+        setIsAdmin(role === 'admin' || role === 'super-admin');
 
         if (newSession) {
           localStorage.setItem("stockflow_auth", "true");
@@ -76,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, isAdmin, isLoading, signOut }}>
+    <AuthContext.Provider value={{ session, user, isAdmin, isSuperAdmin, isLoading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

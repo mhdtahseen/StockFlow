@@ -45,7 +45,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, isAdmin, isLoading } = useAuth();
+  const { session, isSuperAdmin, isLoading } = useAuth();
   const hasLocalFlag = localStorage.getItem("stockflow_auth") === "true";
 
   if (isLoading && !hasLocalFlag) {
@@ -60,7 +60,7 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (!isLoading && !isAdmin) {
+  if (!isLoading && !isSuperAdmin) {
     return <Navigate to="/" replace />;
   }
 

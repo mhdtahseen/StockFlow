@@ -42,14 +42,13 @@ export default function Dashboard() {
   const metrics = useAppSelector(selectInventoryMetrics);
   const phones = useAppSelector((state) => state.inventory.phones);
   const { mode, setMode, resolved } = useTheme();
-  const { session } = useAuth();
+  const { session, isAdmin } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [settingsView, setSettingsView] = useState<"main" | "theme">("main");
   const settingsRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const handleScroll = (e: React.UIEvent<HTMLElement>) => {
@@ -63,23 +62,6 @@ export default function Dashboard() {
   const scrollToTop = () => {
     mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  useEffect(() => {
-    async function checkRole() {
-      if (session?.user.id) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
-        // Allow both admin and super-admin to manage the team
-        if (data?.role === "admin" || data?.role === "super-admin") {
-          setIsAdmin(true);
-        }
-      }
-    }
-    checkRole();
-  }, [session]);
 
   // Close settings when clicking outside
   useEffect(() => {
