@@ -35,6 +35,48 @@ import clsx from "clsx";
 import ExportModal from "../components/shared/ExportModal";
 import ComingSoonModal from "../components/shared/ComingSoonModal";
 import NotificationsPopover from "../components/shared/NotificationsPopover";
+import {
+  SiApple,
+  SiSamsung,
+  SiGoogle,
+  SiXiaomi,
+  SiMotorola,
+  SiOppo,
+  SiVivo,
+  SiOneplus,
+  SiHuawei,
+  SiNokia,
+  SiAsus,
+  SiSony,
+} from "react-icons/si";
+
+const BrandIcon = ({ brand }: { brand: string }) => {
+  const b = brand.toLowerCase().trim();
+
+  // Square/Icon-dominant logos (Smaller size works)
+  if (b.includes("apple") || b.includes("iphone")) return <SiApple size={18} />;
+  if (b.includes("google") || b.includes("pixel"))
+    return <SiGoogle size={18} />;
+  if (b.includes("xiaomi") || b.includes("redmi") || b.includes("mi "))
+    return <SiXiaomi size={20} />;
+  if (b.includes("nothing")) return <Smartphone size={18} />;
+  if (b.includes("oneplus")) return <SiOneplus size={18} />;
+  if (b.includes("motorola") || b.includes("moto"))
+    return <SiMotorola size={18} />;
+
+  // Text-dominant/Wide logos (Needs larger size to be readable)
+  if (b.includes("samsung")) return <SiSamsung size={26} />;
+  if (b.includes("oppo")) return <SiOppo size={26} />;
+  if (b.includes("vivo")) return <SiVivo size={26} />;
+  if (b.includes("huawei")) return <SiHuawei size={24} />;
+  if (b.includes("realme")) return <Smartphone size={18} />; // SiRealme missing
+  if (b.includes("infinix")) return <Smartphone size={18} />; // SiInfinix missing
+  if (b.includes("nokia")) return <SiNokia size={24} />;
+  if (b.includes("asus")) return <SiAsus size={24} />;
+  if (b.includes("sony")) return <SiSony size={24} />;
+
+  return <Smartphone size={18} />;
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -488,7 +530,7 @@ export default function Dashboard() {
                         config.color,
                       )}
                     >
-                      <Smartphone size={18} />
+                      <BrandIcon brand={phone.brand} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline mb-0.5">
