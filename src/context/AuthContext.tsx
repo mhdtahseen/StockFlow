@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+
+export interface TenantInfo {
+  id: string;
+  name: string;
+  plan: string;
+  planExpiresAt: string | null;
+}
 
 interface AuthContextType {
   session: Session | null;
@@ -8,6 +16,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isLoading: boolean;
+  tenant: TenantInfo | null;
   signOut: () => Promise<void>;
 }
 
@@ -21,9 +30,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [tenant, setTenant] = useState<TenantInfo | null>(null);
 
   useEffect(() => {
     let mounted = true;
+
+    async function fetchTenant(tenantId: string) {
+      const { data: tenantData } = await supabase
+        .from("tenants")
+        .select("id, name, plan, plan_expires_at")
+        .eq("id", tenantId)
+        .single();
+      if (tenantData && mounted) {
+        setTenant({
+          id: tenantData.id,
+          name: tenantData.name,
+          plan: tenantData.plan,
+          planExpiresAt: tenantData.plan_expires_at,
+        });
+      }
+    }
 
     async function getInitialSession() {
       try {
@@ -41,6 +67,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
           if (s) {
             localStorage.setItem("stockflow_auth", "true");
+            if (s.user.user_metadata.tenant_id) {
+              await fetchTenant(s.user.user_metadata.tenant_id);
+            }
           } else {
             localStorage.removeItem("stockflow_auth");
             localStorage.removeItem("persist:stockflow-root");
@@ -66,9 +95,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (newSession) {
           localStorage.setItem("stockflow_auth", "true");
+          // If we haven't fetched it yet (e.g. login event) and we have tenant_id
+          if (newSession.user.user_metadata.tenant_id && !tenant) {
+            fetchTenant(newSession.user.user_metadata.tenant_id);
+          }
         } else {
           localStorage.removeItem("stockflow_auth");
           localStorage.removeItem("persist:stockflow-root");
+          setTenant(null);
         }
         setIsLoading(false);
       },
@@ -80,12 +114,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!session || !tenant) return;
+    const interval = setInterval(
+      async () => {
+        const { data } = await supabase
+          .from("tenants")
+          .select("plan, plan_expires_at")
+          .eq("id", tenant.id)
+          .single();
+        if (data && data.plan !== tenant.plan) {
+          setTenant((prev) =>
+            prev
+              ? { ...prev, plan: data.plan, planExpiresAt: data.plan_expires_at }
+              : null,
+          );
+          toast.info("Your subscription has been updated.");
+        }
+      },
+      15 * 60 * 1000,
+    );
+    return () => clearInterval(interval);
+  }, [session, tenant?.id, tenant?.plan]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, isAdmin, isSuperAdmin, isLoading, signOut }}>
+    <AuthContext.Provider value={{ session, user, isAdmin, isSuperAdmin, isLoading, tenant, signOut }}>
       {children}
     </AuthContext.Provider>
   );

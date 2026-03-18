@@ -42,3 +42,18 @@ _Note: RLS (Row Level Security) is mapped out in the database to prevent unautho
 ### 1. Advanced Offline & PWA Features
 
 - [ ] **Service Worker Background Sync API:** Implement true background syncing so offline actions auto-upload to Supabase even when the app is completely closed or swiped away.
+
+## 🚀 MVP 2
+
+### 1. Phase 1 Manual Configuration
+- [ ] Enable the `pg_cron` extension in the Supabase Dashboard (Database -> Extensions).
+- [ ] Run the trial expiry schedule query in the Supabase SQL Editor:
+  ```sql
+  SELECT cron.schedule('expire-trials', '0 2 * * *', $$
+    UPDATE public.tenants
+    SET plan = 'expired'
+    WHERE plan = 'trial'
+      AND plan_expires_at IS NOT NULL
+      AND plan_expires_at < now();
+  $$);
+  ```

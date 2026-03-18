@@ -75,8 +75,12 @@ export const selectCashflowSummary = (period: TimePeriod) =>
   });
 
 export const selectInventoryMetrics = createSelector(
-  [selectInventoryPhones, selectLedgerEntries],
-  (phones, entries) => {
+  [
+    selectInventoryPhones,
+    selectLedgerEntries,
+    (state: RootState) => state.billing?.orders ?? [],
+  ],
+  (phones, entries, billingOrders) => {
     const inStock = phones.filter((p) => p.status === "IN_STOCK");
     const pending = phones.filter((p) => p.status === "PENDING");
     const sold = phones.filter((p) => p.status === "SOLD");
@@ -112,13 +116,20 @@ export const selectInventoryMetrics = createSelector(
       let validPhones = 0;
 
       sold.forEach((phone) => {
-        const saleEntry = entries.find(
-          (e) => e.type === "PHONE_SALE" && e.referenceId === phone.id,
-        );
-        if (saleEntry) {
-          const created = new Date(phone.createdAt).getTime();
-          const soldAt = new Date(saleEntry.createdAt).getTime();
-          const days = Math.max(0, (soldAt - created) / (1000 * 60 * 60 * 24));
+        let soldAt: Date | null = null;
+        if ((phone as any).saleOrderId) {
+          const order = billingOrders.find(
+            (o) => o.id === (phone as any).saleOrderId,
+          );
+          if (order) soldAt = new Date(order.createdAt);
+        } else {
+          const entry = entries.find(
+            (e) => e.type === "PHONE_SALE" && e.referenceId === phone.id,
+          );
+          if (entry) soldAt = new Date(entry.createdAt);
+        }
+        if (soldAt) {
+          const days = Math.max(0, (soldAt.getTime() - new Date(phone.createdAt).getTime()) / (1000 * 60 * 60 * 24));
           totalDays += days;
           validPhones++;
         }

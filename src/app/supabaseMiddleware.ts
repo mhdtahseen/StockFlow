@@ -23,12 +23,23 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
           return;
         }
 
-        const trackablePrefixes = ["inventory/", "ledger/", "masterData/"];
+        const trackablePrefixes = [
+          "inventory/",
+          "ledger/",
+          "masterData/",
+          "billing/",
+          "purchasing/",
+          "customers/",
+        ];
         // Ignore setPhones, setEntries, setAll which are used for initial hydrations
         const ignoredHydrationTypes = [
           "inventory/setPhones",
           "ledger/setEntries",
           "masterData/setAll",
+          "billing/setOrders",
+          "purchasing/setPurchaseOrders",
+          "customers/setAll",
+          "customers/setPayments",
         ];
 
         const isTrackable = trackablePrefixes.some((prefix) =>

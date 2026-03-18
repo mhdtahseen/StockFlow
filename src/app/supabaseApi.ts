@@ -178,6 +178,85 @@ export const syncActionToSupabase = async (
         }
         break;
       }
+      // ─── BILLING ────────────────────────────────────────────────────
+      case 'billing/addOrder': {
+        const { error } = await supabase.rpc('create_trade_order', {
+          p_order_id: payload.id,
+          p_counterparty_id: payload.counterpartyId,
+          p_order_type: payload.orderType,
+          p_payment_mode: payload.paymentMode ?? null,
+          p_initial_payment: payload.amountPaid,
+          p_due_date: payload.dueDate ?? null,
+          p_notes: payload.notes ?? null,
+          p_items: payload.items.map((i: any) => ({
+            phone_id: i.phoneId, sale_price: i.salePrice,
+            discount_amount: i.discountAmount,
+            imei_snapshot: i.imeiSnapshot,
+            brand: i.brandSnapshot, model: i.modelSnapshot,
+            storage: i.storageSnapshot, color: i.colorSnapshot,
+          })),
+          p_payment_note: null,
+        });
+        if (error) throw error;
+        break;
+      }
+      // ─── PURCHASING ─────────────────────────────────────────────────
+      case 'purchasing/addPurchaseOrder': {
+        const { error } = await supabase.rpc('create_purchase_order', {
+          p_order_id: payload.id,
+          p_counterparty_id: payload.counterpartyId,
+          p_channel: payload.acquisitionChannel,
+          p_platform_fee: payload.platformFee,
+          p_payment_mode: payload.paymentMode ?? null,
+          p_initial_payment: payload.amountPaid,
+          p_due_date: payload.dueDate ?? null,
+          p_notes: payload.notes ?? null,
+          p_items: payload.items.map((i: any) => ({
+            phone_id: i.phoneId, purchase_price: i.purchasePrice,
+          })),
+        });
+        if (error) throw error;
+        break;
+      }
+      // ─── CUSTOMERS ──────────────────────────────────────────────────
+      case 'customers/addCustomerPayment': {
+        const { error } = await supabase.rpc('record_customer_payment', {
+          p_counterparty_id: payload.counterpartyId,
+          p_total_received: payload.totalReceived,
+          p_mode: payload.mode,
+          p_allocations: payload.allocations,
+          p_note: payload.note ?? null,
+        });
+        if (error) throw error;
+        break;
+      }
+      case 'customers/addCustomer': {
+        const { error } = await supabase.from('counterparties').insert({
+          id: payload.id, name: payload.name, type: payload.type,
+          phone: payload.phone ?? null, email: payload.email ?? null,
+          platform_name: payload.platformName ?? null,
+          linked_tenant_id: payload.linkedTenantId ?? null,
+          notes: payload.notes ?? null, created_at: payload.createdAt,
+        });
+        if (error) throw error;
+        break;
+      }
+      case 'customers/updateCustomer': {
+        const { error } = await supabase.from('counterparties').update({
+          name: payload.name, type: payload.type,
+          phone: payload.phone ?? null, email: payload.email ?? null,
+          platform_name: payload.platformName ?? null,
+          linked_tenant_id: payload.linkedTenantId ?? null,
+          notes: payload.notes ?? null, updated_at: new Date().toISOString(),
+        }).eq('id', payload.id).eq('tenant_id', tenant_id);
+        if (error) throw error;
+        break;
+      }
+      case 'customers/removeCustomer': {
+        const { error } = await supabase.from('counterparties').delete().eq('id', payload).eq('tenant_id', tenant_id);
+        if (error) throw error;
+        break;
+      }
     }
 
     return true; // Sync succeeded
