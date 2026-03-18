@@ -26,3 +26,4 @@ dist-ssr
 
 # Google Play / TWA signing — contains keystore & credentials, never commit
 StockFlow Beta - Google Play package/
+docs/v4/
