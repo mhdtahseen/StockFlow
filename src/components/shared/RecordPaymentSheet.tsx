@@ -6,7 +6,7 @@ import { useAppDispatch } from '@/app/hooks';
 import { updateOrderPayment } from '@/features/billing/slice';
 import { updatePOPayment } from '@/features/purchasing/slice';
 import { addCustomerPayment } from '@/features/customers/slice';
-import { PayMode } from '@/features/customers/types';
+import type { PayMode } from '@/features/billing/types';
 import clsx from 'clsx';
 import { toast } from 'sonner';
 
@@ -23,7 +23,7 @@ interface Props {
 export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId, currentAmountPaid, totalAmount, type }: Props) {
   const max = totalAmount - currentAmountPaid;
   const [amountStr, setAmountStr] = useState(max.toString());
-  const [mode, setMode] = useState<PayMode>('CASH');
+  const [mode, setMode] = useState<Exclude<PayMode, 'CREDIT'>>('CASH');
   const dispatch = useAppDispatch();
 
   React.useEffect(() => { if (open) setAmountStr(max.toString()) }, [open, max]);
@@ -44,8 +44,9 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
         counterpartyId,
         totalReceived: amount,
         mode,
-        createdAt: new Date().toISOString(),
-        allocations: [{ orderId, amountAllocated: amount }]
+        receivedAt: new Date().toISOString(),
+        recordedBy: 'system', // or current user id
+        allocations: [{ saleOrderId: orderId, amountAllocated: amount }]
       }));
       toast.success("Accounts Receivable Payment Recorded");
     } else {
@@ -70,7 +71,7 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
              <label className="text-xs uppercase font-extrabold tracking-wider text-slate-500 mb-2 block ml-2">Tender Mode</label>
              <div className="grid grid-cols-4 gap-2 mb-5 ml-2">
                 {['CASH', 'UPI', 'BANK_TRANSFER'].map(m => (
-                  <button key={m} type="button" onClick={() => setMode(m as PayMode)}
+                  <button key={m} type="button" onClick={() => setMode(m as Exclude<PayMode, 'CREDIT'>)}
                     className={clsx(
                       "py-2.5 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-colors border text-center break-words",
                       mode === m ? "bg-[#064a98] text-white border-[#064a98] shadow-md shadow-[#064a98]/20" : "bg-slate-50 border-slate-200 dark:bg-slate-950 text-slate-500 dark:border-slate-800"

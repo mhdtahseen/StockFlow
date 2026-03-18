@@ -153,7 +153,7 @@ export default function CustomerDetail() {
                        {p.allocations.map((a, i) => (
                          <div key={i} className="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400">
                            <span className="truncate">Applied to Order</span>
-                           <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0">₹{a.amount.toLocaleString()}</span>
+                           <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0">₹{a.amountAllocated.toLocaleString()}</span>
                          </div>
                        ))}
                      </div>

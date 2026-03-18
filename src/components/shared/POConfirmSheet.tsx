@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch } from '@/app/hooks';
 import { confirmReceipt } from '@/features/purchasing/slice';
-import { addPhone } from '@/features/inventory/inventorySlice';
+import { addPhone } from '@/features/inventory/slice';
 import { PurchaseOrder, POItemStatus } from '@/features/purchasing/types';
 import { Phone } from '@/features/inventory/types';
 import clsx from 'clsx';
@@ -89,9 +89,10 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
          id: phoneId,
          brand, model, storage, color,
          purchasePrice: price, salePrice: price * 1.2,
-         status: 'IN_STOCK', condition: 'A',
+         status: 'IN_STOCK',
+         ram: '', // Added missing required property
+         issueTags: [], // Added missing required property
          imeis: imei ? [imei] : [],
-         purchaseOrderId: order.id,
          createdAt: new Date().toISOString()
       };
       

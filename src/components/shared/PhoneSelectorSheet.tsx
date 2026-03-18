@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Check } from 'lucide-react';
 import { useAppSelector } from '@/app/hooks';
-import { selectInventoryPhones } from '@/features/inventory/inventorySlice';
 import { Phone } from '@/features/inventory/types';
 import clsx from 'clsx';
 
@@ -17,7 +16,7 @@ interface Props {
 
 export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }: Props) {
   const [query, setQuery] = useState("");
-  const phones = useAppSelector(selectInventoryPhones).filter(p => p.status === 'IN_STOCK');
+  const phones = useAppSelector(state => state.inventory.phones).filter((p: Phone) => p.status === 'IN_STOCK');
   const [draftIds, setDraftIds] = useState<Set<string>>(new Set(selectedIds));
 
   React.useEffect(() => {
@@ -27,7 +26,7 @@ export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }
   const filtered = useMemo(() => {
     if (!query) return phones;
     const q = query.toLowerCase();
-    return phones.filter(p => 
+    return phones.filter((p: Phone) => 
       p.brand.toLowerCase().includes(q) || 
       p.model.toLowerCase().includes(q) ||
       p.imeis?.[0]?.toLowerCase().includes(q)
@@ -66,7 +65,7 @@ export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-2 pb-6">
-          {filtered.map(p => {
+          {filtered.map((p: Phone) => {
             const isSelected = draftIds.has(p.id);
             return (
               <button
@@ -92,7 +91,7 @@ export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }
                   </div>
                 </div>
                 <div className="font-black text-[#064a98] dark:text-blue-400 shrink-0">
-                  ₹{p.salePrice.toLocaleString()}
+                  ₹{(p.salePrice || 0).toLocaleString()}
                 </div>
               </button>
             )
@@ -108,7 +107,7 @@ export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }
         <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
           <Button 
             onClick={() => {
-              const selectedPhones = phones.filter(p => draftIds.has(p.id));
+              const selectedPhones = phones.filter((p: Phone) => draftIds.has(p.id));
               onSelect(selectedPhones);
               onOpenChange(false);
             }} 

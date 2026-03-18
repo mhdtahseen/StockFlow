@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { X, Plus, Percent } from 'lucide-react';
 import { useAppDispatch } from '@/app/hooks';
 import { addOrder } from '@/features/billing/slice';
-import { markAsSold } from '@/features/inventory/inventorySlice';
+import { markAsSold } from '@/features/inventory/slice';
 import { SaleOrder, OrderType, PayMode } from '@/features/billing/types';
 import { Phone } from '@/features/inventory/types';
 import { Customer } from '@/features/customers/types';
@@ -94,7 +94,7 @@ export function CreateOrderSheet({ open, onOpenChange, initialPhones = [] }: Pro
     
     dispatch(addOrder(order));
     order.items.forEach((item) =>
-      dispatch(markAsSold({ id: item.phoneId, salePrice: item.effectivePrice })),
+      item.phoneId && dispatch(markAsSold({ id: item.phoneId, salePrice: item.effectivePrice }))
     );
     
     onOpenChange(false);

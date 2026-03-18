@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch } from '@/app/hooks';
 import { addPurchaseOrder } from '@/features/purchasing/slice';
-import { PurchaseOrder, PayMode } from '@/features/purchasing/types';
+import type { PurchaseOrder, AcquisitionChannel, PayMode } from '@/features/purchasing/types';
 import { Customer } from '@/features/customers/types';
 import { CustomerPicker } from '@/components/ui/CustomerPicker';
 import { usePlan } from '@/hooks/usePlan';
@@ -19,7 +19,7 @@ interface Props {
 
 export function BatchAddSheet({ open, onOpenChange }: Props) {
   const [supplier, setSupplier] = useState<Customer | null>(null);
-  const [acquisitionChannel, setAcquisitionChannel] = useState<'LOCAL_MARKET' | 'DISTRIBUTOR' | 'EXCHANGE' | 'ONLINE_PORTAL'>('DISTRIBUTOR');
+  const [channel, setChannel] = useState<AcquisitionChannel>('DIRECT');
   const [deviceCountStr, setDeviceCountStr] = useState<string>('1');
   const [totalCostStr, setTotalCostStr] = useState<string>('');
   const [platformFeeStr, setPlatformFeeStr] = useState<string>('');
@@ -34,7 +34,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
   React.useEffect(() => {
     if (open) {
       setSupplier(null);
-      setAcquisitionChannel('DISTRIBUTOR');
+      setChannel('DIRECT');
       setDeviceCountStr('1');
       setTotalCostStr('');
       setPlatformFeeStr('');
@@ -71,15 +71,17 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
     const order: PurchaseOrder = {
       id: orderId,
       counterpartyId: supplier.id,
-      acquisitionChannel,
+      acquisitionChannel: channel,
       totalAmount,
       platformFee,
       amountPaid,
-      status: amountPaid >= totalAmount ? 'SETTLED' : amountPaid > 0 ? 'PARTIAL' : 'OPEN',
+      status: amountPaid >= totalAmount ? 'SETTLED' : 'AWAITING_RECEIPT',
       paymentMode: payMode,
+      phonesOrdered: parseInt(deviceCountStr) || 1,
+      phonesReceived: 0,
       dueDate: isCredit ? new Date(dueDateStr).toISOString() : undefined,
       createdAt: new Date().toISOString(),
-      items: orderItems,
+      items: []
     };
     
     dispatch(addPurchaseOrder(order));
@@ -105,19 +107,19 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
                 <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 block">Acquisition Channel</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {['LOCAL_MARKET', 'DISTRIBUTOR', 'EXCHANGE', 'ONLINE_PORTAL'].map(type => (
+                  {['DIRECT', 'PLATFORM', 'INTER_TENANT'].map(c => (
                       <button
-                        key={type}
+                        key={c}
                         type="button"
-                        onClick={() => setAcquisitionChannel(type as any)}
+                        onClick={() => setChannel(c as AcquisitionChannel)}
                         className={clsx(
                           "py-3 rounded-xl text-xs font-black tracking-wide transition-colors border",
-                          acquisitionChannel === type 
+                          channel === c 
                             ? "bg-[#064a98] text-white border-[#064a98] shadow-md shadow-[#064a98]/20" 
-                            : "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-100"
+                            : "bg-slate-50 border-slate-200 dark:bg-slate-950 text-slate-500 dark:border-slate-800"
                         )}
                       >
-                        {type.replace('_', ' ')}
+                        {c.replace('_',' ')}
                       </button>
                     ))}
                 </div>

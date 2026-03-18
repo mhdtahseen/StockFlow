@@ -6,7 +6,7 @@ import { useAppSelector, useAppDispatch } from '@/app/hooks';
 import { selectOrdersByCounterparty } from '@/features/billing/selectors';
 import { addCustomerPayment } from '@/features/customers/slice';
 import { updateOrderPayment } from '@/features/billing/slice';
-import { PayMode } from '@/features/customers/types';
+import type { PayMode } from '@/features/billing/types';
 import clsx from 'clsx';
 import { toast } from 'sonner';
 
@@ -21,7 +21,7 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
   const orders = useAppSelector(selectOrdersByCounterparty(customerId)).filter(o => o.status === 'OPEN' || o.status === 'PARTIAL').sort((a,b) => new Date(a.dueDate || a.createdAt).getTime() - new Date(b.dueDate || b.createdAt).getTime());
   
   const [totalReceivedStr, setTotalReceivedStr] = useState('');
-  const [mode, setMode] = useState<PayMode>('CASH');
+  const [mode, setMode] = useState<Exclude<PayMode, 'CREDIT'>>('CASH');
 
   const maxOwed = orders.reduce((sum, o) => sum + (o.totalAmount - o.amountPaid), 0);
   const totalReceived = parseFloat(totalReceivedStr) || 0;
@@ -49,8 +49,9 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
        counterpartyId: customerId,
        totalReceived,
        mode,
-       createdAt: new Date().toISOString(),
-       allocations: allocationsToApply.map(a => ({ orderId: a.orderId, amountAllocated: a.allocated }))
+       receivedAt: new Date().toISOString(),
+       recordedBy: 'system',
+       allocations: allocationsToApply.map(a => ({ saleOrderId: a.orderId, amountAllocated: a.allocated }))
     }));
 
     allocationsToApply.forEach(a => {
@@ -82,8 +83,8 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
                 
                 <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500 mb-2 block ml-2">Tender Mode Collection</label>
                 <div className="grid grid-cols-4 gap-2 mb-5 ml-2">
-                   {['CASH', 'UPI', 'BANK_TRANSFER', 'CREDIT_ADJUST'].map(m => (
-                     <button key={m} type="button" onClick={() => setMode(m as PayMode)}
+                   {['CASH', 'UPI', 'BANK_TRANSFER'].map(m => (
+                  <button key={m} type="button" onClick={() => setMode(m as Exclude<PayMode, 'CREDIT'>)}
                        className={clsx(
                          "py-2.5 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-colors border text-center break-words",
                          mode === m ? "bg-[#064a98] text-white border-[#064a98] shadow-md shadow-[#064a98]/20" : "bg-slate-50 border-slate-200 dark:bg-slate-950 text-slate-500 dark:border-slate-800"

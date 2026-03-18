@@ -35,3 +35,11 @@
 - **Top-Level Pages**: Fully fleshed out list and detail screens removing phase 3 placeholder stubs across `Customers`, `CustomerDetail`, `Orders`, and `OrderDetail`.
 - **Financial Refactoring**: Overhauled the money perspective by retaining `Wallet.tsx` entirely as a pure immutable view now called `LedgerPage.tsx`. Converted `Financials.tsx` into the overarching dashboard appending critical operational metrics: *End of Day Settlement*, *Accounts Receivable (AR)*, and *Accounts Payable (AP)* above the legacy wallet stack.
 - **Subscription Upgrades**: Bootstrapped `Pricing.tsx` detailing comparative features, gating checks, and visual tiers bridging into the targeted phase 6 checkout integrations.
+
+### Commit: fix(mvp2): resolve phase 4 typescript and linting errors
+**Date:** 2026-03-19
+
+**Implemented Features & Changes:**
+- **Type Safety**: Resolved all TypeScript compilation errors introduced during the Phase 4 bulk refactor across all UI elements (`AllocationSheet`, `BatchAddSheet`, `CreateOrderSheet`, `PhoneSelectorSheet`, `POConfirmSheet`, `RecordPaymentSheet`, `CustomerPicker`) and primary transaction pages (`OrderDetail`, `CustomerDetail`).
+- **Data Integrations**: Re-linked property mismatches tying Redux data accurately to the UI components (e.g. `amountAllocated` vs `amount`, `effectivePrice` usage, required fields on new stock creation).
+- **Control Consistency**: Normalized variable assignments (e.g. tracking toggle sheet visibility and explicit `target` mappings) matching the intended architectural state shapes.

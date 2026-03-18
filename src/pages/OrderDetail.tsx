@@ -6,7 +6,7 @@ import { format, parseISO } from 'date-fns';
 import clsx from 'clsx';
 import { returnOrder } from '@/features/billing/slice';
 import { addEntry } from '@/features/ledger/slice';
-import { updatePhoneStatus } from '@/features/inventory/slice';
+import { updatePhone, markAsInStock } from '@/features/inventory/slice';
 import { toast } from 'sonner';
 import { RecordPaymentSheet } from '@/components/shared/RecordPaymentSheet';
 import { usePlan } from '@/hooks/usePlan';
@@ -37,7 +37,7 @@ export default function OrderDetail() {
 
   const orderAllocations = payments.flatMap(p => 
     (p.allocations || [])
-      .filter(a => a.orderId === order.id)
+      .filter(a => a.saleOrderId === order.id)
       .map(a => ({
         ...a,
         paymentId: p.id,
@@ -54,13 +54,13 @@ export default function OrderDetail() {
         type: 'PHONE_SALE',
         referenceId: order.id,
         amount: -order.totalAmount, // Negative amount
-        notes: `Returned Trade Order ${order.id.slice(0,8)}`,
+        note: `Refund for returned item(s) for Trade Order ${order.id.slice(0,8)}`,
         createdAt: new Date().toISOString()
       }));
       // Restock phones
       order.items.forEach(item => {
         if (item.phoneId) {
-          dispatch(updatePhoneStatus({ id: item.phoneId, status: 'IN_STOCK' }));
+          dispatch(markAsInStock({ id: item.phoneId, finalPrice: item.effectivePrice }));
         }
       });
       toast.success('Order Returned', { description: 'Devices restocked successfully.' });
@@ -192,7 +192,7 @@ export default function OrderDetail() {
                {orderAllocations.map(a => (
                  <div key={a.paymentId} className="flex justify-between items-center text-sm">
                     <div>
-                      <div className="font-bold text-slate-700 dark:text-slate-300">₹{a.amount.toLocaleString()} <span className="text-xs font-semibold text-slate-400 ml-1">from CP-{a.paymentId.slice(0,6)}</span></div>
+                      <div className="font-bold text-slate-800 dark:text-slate-200">₹{a.amountAllocated.toLocaleString()} <span className="text-xs font-semibold text-slate-400 ml-1">from CP-{a.paymentId.slice(0,6)}</span></div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{a.mode} • {format(parseISO(a.receivedAt), 'MMM d, h:mm a')}</div>
                     </div>
                  </div>
@@ -206,7 +206,11 @@ export default function OrderDetail() {
       <RecordPaymentSheet
          open={showPayment}
          onOpenChange={setShowPayment}
-         target={{ type: 'SALE_ORDER', id: order.id, relationId: order.counterpartyId, currentBalance: outstanding }}
+         orderId={order.id}
+         counterpartyId={order.counterpartyId}
+         currentAmountPaid={order.amountPaid}
+         totalAmount={order.totalAmount}
+         type="AR"
       />
     </div>
   );

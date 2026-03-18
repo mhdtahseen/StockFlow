@@ -22,7 +22,7 @@ export function CustomerPicker({ selectedId, onSelect }: Props) {
   // Create form state
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
-  const [newType, setNewType] = useState<Customer["type"]>("RETAIL");
+  const [newType, setNewType] = useState<Customer["type"]>("CUSTOMER");
 
   const customers = useAppSelector(selectCustomers);
   const dispatch = useAppDispatch();
