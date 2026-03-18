@@ -6,8 +6,14 @@ import Inventory from "./pages/Inventory";
 import AddPhone from "./pages/AddPhone";
 import PhoneDetail from "./pages/PhoneDetail";
 import EditPhone from "./pages/EditPhone";
-import Wallet from "./pages/Wallet";
 import Analytics from "./pages/Analytics";
+import Financials from "./pages/Financials";
+import LedgerPage from "./pages/LedgerPage";
+import Customers from "./pages/Customers";
+import CustomerDetail from "./pages/CustomerDetail";
+import Orders from "./pages/Orders";
+import OrderDetail from "./pages/OrderDetail";
+import Pricing from "./pages/Pricing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ManageTeam from "./pages/ManageTeam";
@@ -112,7 +118,14 @@ function App() {
               <Route path="add" element={<AddPhone />} />
               <Route path="inventory/:id" element={<PhoneDetail />} />
               <Route path="edit/:id" element={<EditPhone />} />
-              <Route path="wallet" element={<Wallet />} />
+              <Route path="financials" element={<Financials />} />
+              <Route path="ledger" element={<LedgerPage />} />
+              <Route path="customers" element={<Customers />} />
+              <Route path="customers/:id" element={<CustomerDetail />} />
+              <Route path="orders" element={<Orders />} />
+              <Route path="orders/:id" element={<OrderDetail />} />
+              <Route path="pricing" element={<Pricing />} />
+              <Route path="wallet" element={<Navigate to="/financials" replace />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="team" element={<ManageTeam />} />
               <Route path="profile" element={<ProfilePage />} />
