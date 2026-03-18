@@ -24,3 +24,14 @@
 - **Side Drawer**: Built `AppDrawer.tsx`, a slide-in overlay menu rendering available/locked sections natively mapping back to new routes.
 - **Bottom Navigation**: Cleaned up `BottomNav.tsx` down to just Dashboard, Add, and Menu to keep the app feeling spacious.
 - **Layout & Routing**: Altered `AppLayout.tsx` and `App.tsx` installing the 7 minimal component stubs to guarantee routing integrity across Phase 4 pages `financials`, `ledger`, `customers`, `orders`, and `pricing`.
+
+### Commit: feat(mvp2): complete phase 4 ui implementation and transactional sheets
+**Date:** 2026-03-19
+
+**Implemented Features & Changes:**
+- **UI Interaction Sheets**: Developed `@gorhom/bottom-sheet` bound components for handling comprehensive B2B transactions: `CreateOrderSheet`, `PhoneSelectorSheet`, `BatchAddSheet` (Purchase Orders), `RecordPaymentSheet`, `AllocationSheet`, and `POConfirmSheet`.
+- **Form Data Integration**: Developed a specialized `CustomerPicker` component configured for asynchronous fuzzy-searching counterparty objects efficiently inline.
+- **Flow Replacement**: Rewired core user flows to consume the new sheets natively. Upgraded `PhoneDetail.tsx` allowing single phone sales via the new `CreateOrderSheet`. Expanded `Inventory.tsx` enabling bulk asset selection for trade orders. Re-tooled `AddPhone.tsx` accepting mass PO intake flows directly via `BatchAddSheet`.
+- **Top-Level Pages**: Fully fleshed out list and detail screens removing phase 3 placeholder stubs across `Customers`, `CustomerDetail`, `Orders`, and `OrderDetail`.
+- **Financial Refactoring**: Overhauled the money perspective by retaining `Wallet.tsx` entirely as a pure immutable view now called `LedgerPage.tsx`. Converted `Financials.tsx` into the overarching dashboard appending critical operational metrics: *End of Day Settlement*, *Accounts Receivable (AR)*, and *Accounts Payable (AP)* above the legacy wallet stack.
+- **Subscription Upgrades**: Bootstrapped `Pricing.tsx` detailing comparative features, gating checks, and visual tiers bridging into the targeted phase 6 checkout integrations.

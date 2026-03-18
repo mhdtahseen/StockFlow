@@ -25,6 +25,7 @@ import {
   isYesterday,
   format,
 } from "date-fns";
+import { CreateOrderSheet } from "../components/shared/CreateOrderSheet";
 
 export type TabOption = PhoneStatus | "ALL";
 const VALID_TABS: TabOption[] = ["ALL", "IN_STOCK", "PENDING", "SOLD"];
@@ -47,6 +48,16 @@ export default function Inventory() {
   const [filterBrand, setFilterBrand] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Multi-select state
+  const [isMultiSelect, setIsMultiSelect] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showCreateOrder, setShowCreateOrder] = useState(false);
+
+  const selectedPhones = useMemo(
+    () => phones.filter((p) => selectedIds.includes(p.id)),
+    [phones, selectedIds],
+  );
+
   useEffect(() => {
     if (showSearch && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -55,6 +66,8 @@ export default function Inventory() {
 
   const setActiveTab = (tab: TabOption) => {
     setSearchParams({ tab });
+    setIsMultiSelect(false);
+    setSelectedIds([]);
   };
 
   const formatCurrency = (amount: number) => {
@@ -249,6 +262,22 @@ export default function Inventory() {
             </h1>
           )}
           <div className="flex gap-1.5 shrink-0">
+            {activeTab === "IN_STOCK" && (
+              <button
+                onClick={() => {
+                  setIsMultiSelect(!isMultiSelect);
+                  setSelectedIds([]);
+                }}
+                className={clsx(
+                  "px-3 py-2 rounded-xl text-xs font-bold transition-colors",
+                  isMultiSelect
+                    ? "bg-[#064a98] text-white"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold",
+                )}
+              >
+                {isMultiSelect ? "Cancel" : "Select"}
+              </button>
+            )}
             <button
               onClick={() => {
                 setShowSearch(!showSearch);
@@ -500,12 +529,27 @@ export default function Inventory() {
               </div>
             ) : (
               filteredPhones.map((phone) => (
-                <Link
+                <div
                   key={phone.id}
-                  to={`/inventory/${phone.id}`}
+                  onClick={() => {
+                    if (isMultiSelect) {
+                      if (phone.status !== "IN_STOCK") return;
+                      setSelectedIds((prev) =>
+                        prev.includes(phone.id)
+                          ? prev.filter((id) => id !== phone.id)
+                          : [...prev, phone.id],
+                      );
+                    } else {
+                      navigate(`/inventory/${phone.id}`);
+                    }
+                  }}
                   className={clsx(
-                    "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border border-slate-100 dark:border-slate-800 block hover:border-primary-500/20 dark:hover:border-primary-500/30 active:scale-[0.98] transition-all group",
+                    "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border block transition-all group cursor-pointer",
                     phone.status === "SOLD" && "opacity-90",
+                    isMultiSelect && selectedIds.includes(phone.id)
+                      ? "border-[#064a98] bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-500"
+                      : "border-slate-100 dark:border-slate-800 hover:border-[#064a98]/20 dark:hover:border-[#064a98]/30",
+                    isMultiSelect && phone.status !== "IN_STOCK" && "opacity-50 pointer-events-none"
                   )}
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -647,12 +691,45 @@ export default function Inventory() {
                       )}
                     </div>
                   </div>
-                </Link>
+                </div>
               ))
             )}
           </div>
         </section>
       </main>
+
+      {/* Multi-select bottom bar */}
+      {isMultiSelect && selectedIds.length > 0 && (
+        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-0 right-0 p-4 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)] flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase">
+              Selected
+            </span>
+            <span className="text-lg font-black text-slate-900 dark:text-slate-100">
+              {selectedIds.length} {selectedIds.length === 1 ? "device" : "devices"}
+            </span>
+          </div>
+          <button
+            onClick={() => setShowCreateOrder(true)}
+            className="bg-[#064a98] hover:bg-blue-800 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-sm"
+          >
+            Create Order
+          </button>
+        </div>
+      )}
+
+      {/* Create Order Sheet integration */}
+      <CreateOrderSheet
+        open={showCreateOrder}
+        onOpenChange={(open) => {
+          setShowCreateOrder(open);
+          if (!open) {
+            setIsMultiSelect(false);
+            setSelectedIds([]);
+          }
+        }}
+        initialPhones={selectedPhones}
+      />
     </div>
   );
 }

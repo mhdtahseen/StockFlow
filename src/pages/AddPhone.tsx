@@ -41,7 +41,9 @@ import {
   HardDrive,
   ChevronDown,
   ChevronUp,
+  Files
 } from "lucide-react";
+import { BatchAddSheet } from "../components/shared/BatchAddSheet";
 
 // ─── Validation (simple, no zod overhead on every render) ────────────────────
 
@@ -134,6 +136,9 @@ export default function AddPhone() {
   const [imeis, setImeis] = useState<ImeiEntry[]>([
     { value: "", status: "UNVERIFIED" },
   ]);
+
+  // PO flow state
+  const [showBatchAdd, setShowBatchAdd] = useState(false);
 
   // ── Autofill from existing inventory ──────────────────────────────────────
   useEffect(() => {
@@ -397,8 +402,15 @@ export default function AddPhone() {
           </h2>
           <button
             type="button"
+            onClick={() => setShowBatchAdd(true)}
+            className="flex items-center gap-1.5 bg-[#064a98]/10 hover:bg-[#064a98]/20 text-[#064a98] dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-400 font-bold text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+          >
+            <Files size={14} /> Batch PO
+          </button>
+          <button
+            type="button"
             onClick={handleReset}
-            className="text-[#064a98] dark:text-blue-400 font-bold text-sm px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+            className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-bold text-sm px-2 py-1 rounded-lg transition-colors"
           >
             Reset
           </button>
@@ -732,6 +744,11 @@ export default function AddPhone() {
           </div>
         </form>
       </main>
+
+      <BatchAddSheet
+        open={showBatchAdd}
+        onOpenChange={setShowBatchAdd}
+      />
     </div>
   );
 }

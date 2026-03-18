@@ -30,6 +30,7 @@ import {
 import clsx from "clsx";
 import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
 import { repairsFlatList } from "../data/repairCatalog";
+import { CreateOrderSheet } from "../components/shared/CreateOrderSheet";
 
 export default function PhoneDetail() {
   const { id } = useParams<{ id: string }>();
@@ -45,7 +46,6 @@ export default function PhoneDetail() {
   );
 
   const [showSaleModal, setShowSaleModal] = useState(false);
-  const [salePriceInput, setSalePriceInput] = useState("");
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = useState("");
   const [showRepairModal, setShowRepairModal] = useState(false);
@@ -153,27 +153,7 @@ export default function PhoneDetail() {
     });
   };
 
-  const handleConfirmSale = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!salePriceInput || Number(salePriceInput) <= 0) return;
 
-    const price = Number(salePriceInput);
-    dispatch(markAsSold({ id: phone.id, salePrice: price }));
-    dispatch(
-      addEntry({
-        id: crypto.randomUUID(),
-        type: "PHONE_SALE",
-        referenceId: phone.id,
-        amount: price,
-        createdAt: new Date().toISOString(),
-      }),
-    );
-
-    setShowSaleModal(false);
-    toast.success("Sale Recorded", {
-      description: `${phone.brand} ${phone.model} sold for ₹${price}. Vault updated.`,
-    });
-  };
 
   const handleLogRepair = (e: React.FormEvent) => {
     e.preventDefault();
@@ -693,46 +673,12 @@ export default function PhoneDetail() {
             })()}
         </section>
       </main>
-
-      {/* Sale Modal */}
-      {showSaleModal && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1 tracking-tight">
-              Record Sale
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">
-              Enter the final sale price for this device.
-            </p>
-
-            <form onSubmit={handleConfirmSale}>
-              <div className="mb-6">
-                <CurrencyInput
-                  autoFocus
-                  value={salePriceInput}
-                  onChange={setSalePriceInput}
-                  placeholder={expectedSalePrice.toFixed(0)}
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowSaleModal(false)}
-                  className="flex-[0.5] py-3.5 font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3.5 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-all"
-                >
-                  Confirm Sale
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Sale Modal via CreateOrderSheet */}
+      <CreateOrderSheet
+        open={showSaleModal}
+        onOpenChange={setShowSaleModal}
+        initialPhones={[phone]}
+      />
 
       {/* Purchase Confirmation Modal */}
       {showPurchaseModal && (
