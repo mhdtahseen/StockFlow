@@ -66,29 +66,29 @@ export default function Financials() {
   const purchasingOrders = useAppSelector((state) => state.purchasing.orders);
 
   // AR Calculation
-  const arInvoiced = billingOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const arInvoiced = billingOrders.reduce((sum: number, o: any) => sum + o.totalAmount, 0);
   const arOutstanding = billingOrders
-    .filter((o) => o.status !== "SETTLED" && o.status !== "RETURNED")
-    .reduce((sum, o) => sum + (o.totalAmount - o.amountPaid), 0);
+    .filter((o: any) => o.status !== "SETTLED" && o.status !== "RETURNED")
+    .reduce((sum: number, o: any) => sum + (o.totalAmount - o.amountPaid), 0);
   const arCollected = arInvoiced - arOutstanding;
 
   // AP Calculation
-  const apOwed = purchasingOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const apOwed = purchasingOrders.reduce((sum: number, o: any) => sum + o.totalAmount, 0);
   const apOutstanding = purchasingOrders
-    .filter((o) => o.status !== "SETTLED" && o.status !== "CANCELLED")
-    .reduce((sum, o) => sum + Math.max(0, o.totalAmount - o.amountPaid), 0);
+    .filter((o: any) => o.status !== "SETTLED" && o.status !== "CANCELLED")
+    .reduce((sum: number, o: any) => sum + Math.max(0, o.totalAmount - o.amountPaid), 0);
   const apPaid = apOwed - apOutstanding;
 
   // EOD Calculation
-  const todayEntries = ledgerEntries.filter((e) =>
+  const todayEntries = ledgerEntries.filter((e: any) =>
     isToday(parseISO(e.createdAt)),
   );
   const moneyIn = todayEntries
-    .filter((e) => e.type === "PHONE_SALE" || e.type === "MONEY_ADDED")
-    .reduce((s, e) => s + e.amount, 0);
+    .filter((e: any) => e.type === "PHONE_SALE" || e.type === "MONEY_ADDED")
+    .reduce((s: number, e: any) => s + e.amount, 0);
   const moneyOut = todayEntries
-    .filter((e) => ["FUNDS_CONSUMED", "WITHDRAWAL", "REPAIR_COST"].includes(e.type))
-    .reduce((s, e) => s + Math.abs(e.amount), 0);
+    .filter((e: any) => ["FUNDS_CONSUMED", "WITHDRAWAL", "REPAIR_COST"].includes(e.type))
+    .reduce((s: number, e: any) => s + Math.abs(e.amount), 0);
   const openingBalance = buckets.wallet - moneyIn + moneyOut;
 
   const hasDateFilter = dateFrom || dateTo;

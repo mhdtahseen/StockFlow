@@ -8,6 +8,9 @@ export interface TenantInfo {
   name: string;
   plan: string;
   planExpiresAt: string | null;
+  address?: string;
+  gstin?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
@@ -18,6 +21,7 @@ interface AuthContextType {
   isLoading: boolean;
   tenant: TenantInfo | null;
   signOut: () => Promise<void>;
+  refreshTenant: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,25 +35,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
+  const [isTenantLoading, setIsTenantLoading] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function fetchTenant(tenantId: string) {
+  const fetchTenant = async (tenantId: string) => {
+    setIsTenantLoading(true);
+    try {
       const { data: tenantData } = await supabase
         .from("tenants")
-        .select("id, name, plan, plan_expires_at")
+        .select("id, name, plan, plan_expires_at, address, gstin, phone")
         .eq("id", tenantId)
         .single();
-      if (tenantData && mounted) {
+      if (tenantData) {
         setTenant({
           id: tenantData.id,
           name: tenantData.name,
           plan: tenantData.plan,
           planExpiresAt: tenantData.plan_expires_at,
+          address: tenantData.address,
+          gstin: tenantData.gstin,
+          phone: tenantData.phone,
         });
       }
+    } catch (err) {
+      console.error("Error fetching tenant:", err);
+    } finally {
+      setIsTenantLoading(false);
     }
+  };
+
+  const refreshTenant = async () => {
+    if (!user) return;
+    
+    // Try to get tenant_id from metadata first, then fall back to profiles table
+    let tenantId = user.user_metadata.tenant_id;
+    
+    if (!tenantId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("tenant_id")
+        .eq("id", user.id)
+        .single();
+      if (profile?.tenant_id) {
+        tenantId = profile.tenant_id;
+      }
+    }
+
+    if (tenantId) {
+      await fetchTenant(tenantId);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
 
     async function getInitialSession() {
       try {
@@ -60,15 +97,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const s = data.session;
           setSession(s);
           setUser(s?.user || null);
-          
-          const role = s?.user?.user_metadata?.role;
-          setIsSuperAdmin(role === 'super-admin');
-          setIsAdmin(role === 'admin' || role === 'super-admin');
-
-          if (s) {
+          // Fetch real-time roles from profiles table
+          if (s?.user) {
             localStorage.setItem("stockflow_auth", "true");
-            if (s.user.user_metadata.tenant_id) {
-              await fetchTenant(s.user.user_metadata.tenant_id);
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("role, tenant_id")
+              .eq("id", s.user.id)
+              .single();
+            
+            if (profile) {
+              const profileRole = profile.role;
+              setIsSuperAdmin(profileRole === 'super-admin');
+              setIsAdmin(profileRole === 'admin' || profileRole === 'super-admin');
+              
+              if (profile.tenant_id) {
+                await fetchTenant(profile.tenant_id);
+              }
             }
           } else {
             localStorage.removeItem("stockflow_auth");
@@ -89,9 +134,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setSession(newSession);
         setUser(newSession?.user || null);
         
-        const role = newSession?.user?.user_metadata?.role;
-        setIsSuperAdmin(role === 'super-admin');
-        setIsAdmin(role === 'admin' || role === 'super-admin');
+        const updateRoles = async () => {
+          if (newSession?.user) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", newSession.user.id)
+              .single();
+            
+            if (profile) {
+              const profileRole = profile.role;
+              setIsSuperAdmin(profileRole === 'super-admin');
+              setIsAdmin(profileRole === 'admin' || profileRole === 'super-admin');
+            }
+          } else {
+            setIsSuperAdmin(false);
+            setIsAdmin(false);
+          }
+        };
+        updateRoles();
 
         if (newSession) {
           localStorage.setItem("stockflow_auth", "true");
@@ -142,7 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, isAdmin, isSuperAdmin, isLoading, tenant, signOut }}>
+    <AuthContext.Provider value={{ session, user, isAdmin, isSuperAdmin, isLoading: isLoading || isTenantLoading, tenant, signOut, refreshTenant }}>
       {children}
     </AuthContext.Provider>
   );

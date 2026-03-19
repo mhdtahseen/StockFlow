@@ -6,6 +6,7 @@ import { X, Plus, Percent } from 'lucide-react';
 import { useAppDispatch } from '@/app/hooks';
 import { addOrder } from '@/features/billing/slice';
 import { markAsSold } from '@/features/inventory/slice';
+import { addEntry } from '@/features/ledger/slice';
 import { SaleOrder, OrderType, PayMode } from '@/features/billing/types';
 import { Phone } from '@/features/inventory/types';
 import { Customer } from '@/features/customers/types';
@@ -96,6 +97,16 @@ export function CreateOrderSheet({ open, onOpenChange, initialPhones = [] }: Pro
     order.items.forEach((item) =>
       item.phoneId && dispatch(markAsSold({ id: item.phoneId, salePrice: item.effectivePrice }))
     );
+    if (amountPaid > 0) {
+      dispatch(addEntry({
+        id: crypto.randomUUID(),
+        type: 'PHONE_SALE',
+        referenceId: orderId,
+        amount: amountPaid,
+        note: `Initial downpayment for Trade Order ${orderId.slice(0,8)}`,
+        createdAt: new Date().toISOString()
+      }));
+    }
     
     onOpenChange(false);
     navigate(`/orders/${order.id}`);

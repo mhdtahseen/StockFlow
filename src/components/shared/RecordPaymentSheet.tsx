@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch } from '@/app/hooks';
 import { updateOrderPayment } from '@/features/billing/slice';
-import { updatePOPayment } from '@/features/purchasing/slice';
+import { updatePOPayment, addSupplierPayment } from '@/features/purchasing/slice';
 import { addCustomerPayment } from '@/features/customers/slice';
 import type { PayMode } from '@/features/billing/types';
 import clsx from 'clsx';
@@ -45,12 +45,21 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
         totalReceived: amount,
         mode,
         receivedAt: new Date().toISOString(),
-        recordedBy: 'system', // or current user id
+        recordedBy: 'system',
         allocations: [{ saleOrderId: orderId, amountAllocated: amount }]
       }));
       toast.success("Accounts Receivable Payment Recorded");
     } else {
       dispatch(updatePOPayment({ id: orderId, amountPaid: totalNow, status }));
+      dispatch(addSupplierPayment({
+        id: paymentId,
+        counterpartyId,
+        totalPaid: amount,
+        mode,
+        paidAt: new Date().toISOString(),
+        recordedBy: 'system',
+        allocations: [{ purchaseOrderId: orderId, amountAllocated: amount }]
+      }));
       toast.success("Accounts Payable Transfer Dispatched");
     }
     onOpenChange(false);

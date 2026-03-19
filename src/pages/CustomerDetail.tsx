@@ -6,6 +6,8 @@ import { format, parseISO, compareDesc } from 'date-fns';
 import clsx from 'clsx';
 import { SaleOrder } from '@/features/billing/types';
 import { CustomerPayment } from '@/features/customers/types';
+import { AllocationSheet } from '@/components/shared/AllocationSheet';
+import { SupplierAllocationSheet } from '@/components/shared/SupplierAllocationSheet';
 
 type Tab = 'orders' | 'payments' | 'timeline';
 
@@ -18,6 +20,8 @@ export default function CustomerDetail() {
   const payments = useAppSelector((state) => state.customers.payments.filter((p) => p.counterpartyId === id));
 
   const [activeTab, setActiveTab] = useState<Tab>('orders');
+  const [arOpen, setArOpen] = useState(false);
+  const [apOpen, setApOpen] = useState(false);
 
   if (!customer) {
     return (
@@ -65,11 +69,23 @@ export default function CustomerDetail() {
               ₹{outstanding.toLocaleString()}
             </span>
           </div>
-          {customer.phone && (
-            <a href={`tel:${customer.phone}`} className="size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-[#064a98] dark:text-blue-400 flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
-              <Phone size={18} fill="currentColor" />
-            </a>
-          )}
+          <div className="flex gap-2">
+            {outstanding > 0 && (customer.type === 'CUSTOMER' || customer.type === 'RETAILER') && (
+              <button onClick={() => setArOpen(true)} className="px-3 py-1.5 bg-[#064a98] text-white text-[10px] font-black uppercase tracking-tighter rounded-lg shadow-lg shadow-blue-500/20 active:scale-95 transition-transform">
+                Log Batch AR
+              </button>
+            )}
+            {outstanding > 0 && (customer.type === 'WHOLESALER' || customer.type === 'PLATFORM') && (
+              <button onClick={() => setApOpen(true)} className="px-3 py-1.5 bg-rose-600 text-white text-[10px] font-black uppercase tracking-tighter rounded-lg shadow-lg shadow-rose-500/20 active:scale-95 transition-transform">
+                Apply Payout
+              </button>
+            )}
+            {customer.phone && (
+              <a href={`tel:${customer.phone}`} className="size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-[#064a98] dark:text-blue-400 flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
+                <Phone size={18} fill="currentColor" />
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -214,6 +230,9 @@ export default function CustomerDetail() {
           </div>
         )}
       </div>
+
+      <AllocationSheet open={arOpen} onOpenChange={setArOpen} customerId={customer.id} />
+      <SupplierAllocationSheet open={apOpen} onOpenChange={setApOpen} supplierId={customer.id} />
     </div>
   );
 }

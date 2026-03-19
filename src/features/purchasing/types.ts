@@ -29,6 +29,24 @@ export interface PurchaseOrder {
   items: PurchaseOrderItem[];
 }
 
+export interface POAllocation {
+  purchaseOrderId: string;
+  amountAllocated: number;
+  note?: string;
+}
+
+export interface SupplierPayment {
+  id: string;
+  counterpartyId: string;
+  totalPaid: number;
+  mode: "CASH" | "UPI" | "BANK_TRANSFER";
+  paidAt: string;
+  note?: string;
+  recordedBy: string;
+  allocations: POAllocation[];
+}
+
 export interface PurchasingState {
   orders: PurchaseOrder[];
+  payments: SupplierPayment[];
 }

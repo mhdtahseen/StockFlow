@@ -29,11 +29,20 @@ const data = {
   },
   navMain: [
     {
-      title: "Tenant Approvals",
-      url: "/admin/approvals",
-      icon: CheckCircle,
+      title: "Tenant Management",
+      url: "#",
+      icon: Store,
       isActive: true,
-      items: [],
+      items: [
+        {
+          title: "Approvals",
+          url: "/admin/approvals",
+        },
+        {
+          title: "Supervision",
+          url: "/admin/supervision",
+        },
+      ],
     },
     {
       title: "Device Catalog V2",

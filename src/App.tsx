@@ -29,6 +29,7 @@ import SplashScreen from "./components/SplashScreen";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AdminLayout from "./pages/AdminLayout";
 import AdminApprovals from "./pages/AdminApprovals";
+import AdminSupervision from "./pages/AdminSupervision";
 import AdminCatalog from "./pages/AdminCatalog";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -102,6 +103,7 @@ function App() {
             >
               <Route index element={<Navigate to="approvals" replace />} />
               <Route path="approvals" element={<AdminApprovals />} />
+              <Route path="supervision" element={<AdminSupervision />} />
               <Route path="catalog" element={<AdminCatalog />} />
             </Route>
 

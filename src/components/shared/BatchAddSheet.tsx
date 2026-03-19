@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch } from '@/app/hooks';
 import { addPurchaseOrder } from '@/features/purchasing/slice';
+import { addEntry } from '@/features/ledger/slice';
 import type { PurchaseOrder, AcquisitionChannel, PayMode } from '@/features/purchasing/types';
 import { Customer } from '@/features/customers/types';
 import { CustomerPicker } from '@/components/ui/CustomerPicker';
@@ -81,10 +82,22 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       phonesReceived: 0,
       dueDate: isCredit ? new Date(dueDateStr).toISOString() : undefined,
       createdAt: new Date().toISOString(),
-      items: []
+      items: orderItems
     };
     
     dispatch(addPurchaseOrder(order));
+    
+    if (amountPaid > 0) {
+      dispatch(addEntry({
+        id: crypto.randomUUID(),
+        type: 'FUNDS_CONSUMED',
+        referenceId: orderId,
+        amount: -amountPaid, // Expense
+        note: `Initial payment for Purchase Order ${orderId.slice(0,8)}`,
+        createdAt: new Date().toISOString()
+      }));
+    }
+
     onOpenChange(false);
     toast.success("Purchase Order Dispatched");
   };

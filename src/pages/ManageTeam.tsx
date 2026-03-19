@@ -33,7 +33,7 @@ interface Profile {
 }
 
 export default function ManageTeam() {
-  const { session } = useAuth();
+  const { session, isAdmin } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -92,6 +92,12 @@ export default function ManageTeam() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
+      case "super-admin":
+        return (
+          <span className="flex items-center gap-1 bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">
+            <Shield size={12} className="fill-current" /> Super-admin
+          </span>
+        );
       case "admin":
         return (
           <span className="flex items-center gap-1 bg-red-100 dark:bg-rose-950/50 text-red-700 dark:text-rose-400 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">
@@ -131,8 +137,6 @@ export default function ManageTeam() {
     }
   };
 
-  const myProfile = profiles.find((p) => p.id === session?.user.id);
-  const isAdmin = myProfile?.role === "admin";
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">

@@ -309,6 +309,26 @@ export function useOfflineSyncManager() {
               })),
             });
           }
+
+          // Recent supplier payments (last 30 days)
+          const { data: spPayData } = await supabase
+            .from("supplier_payments")
+            .select("*, supplier_allocations(*)")
+            .eq("tenant_id", tenantId)
+            .gte("paid_at", thirtyDaysAgo)
+            .order("paid_at", { ascending: false });
+          if (spPayData && mounted && store.getState().sync.outbox.length === 0) {
+            dispatch({
+              type: "purchasing/setPayments",
+              payload: spPayData.map((p: any) => ({
+                id: p.id, counterpartyId: p.counterparty_id, totalPaid: p.total_paid,
+                mode: p.mode, paidAt: p.paid_at, note: p.note, recordedBy: p.recorded_by,
+                allocations: p.supplier_allocations.map((a: any) => ({
+                  purchaseOrderId: a.purchase_order_id, amountAllocated: a.amount_allocated, note: a.note
+                }))
+              })),
+            });
+          }
         }
       } catch (err) {
         console.error("Error fetching initial data from Supabase:", err);

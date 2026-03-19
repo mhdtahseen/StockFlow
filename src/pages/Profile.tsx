@@ -11,10 +11,14 @@ import {
   Pencil,
   Save,
   Phone,
+  Building2,
+  MapPin,
+  ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -46,9 +50,10 @@ const generateRandomAvatars = () => {
 };
 
 export default function ProfilePage() {
-  const { session } = useAuth();
+  const { session, tenant, refreshTenant } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingBusiness, setIsSavingBusiness] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
 
   const [fullName, setFullName] = useState("");
@@ -56,14 +61,21 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [email, setEmail] = useState("");
 
+  // Business State
+  const [storeName, setStoreName] = useState("");
+  const [storeAddress, setStoreAddress] = useState("");
+  const [storeGSTIN, setStoreGSTIN] = useState("");
+
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [modalAvatars, setModalAvatars] = useState<string[]>([]);
 
   useEffect(() => {
-    async function loadProfile() {
+    async function loadProfileData() {
       if (!session?.user.id) return;
+      
+      // Load personal profile (from profiles table)
       try {
         const { data, error } = await supabase
           .from("profiles")
@@ -71,22 +83,38 @@ export default function ProfilePage() {
           .eq("id", session.user.id)
           .single();
 
-        if (error) throw error;
+        if (error && error.code !== "PGRST116") { // Skip "not found" errors
+          console.error("Error loading profile:", error);
+        }
 
         if (data) {
           setFullName(data.full_name || "");
           setAvatarUrl(data.avatar_url || "");
           setEmail(data.email || session.user.email || "");
-          setPhone(session.user.user_metadata?.phone || "");
+        } else {
+          // Fallback if no profile record exists
+          setEmail(session.user.email || "");
+          setFullName(session.user.user_metadata?.full_name || "");
+          setAvatarUrl(session.user.user_metadata?.avatar_url || "");
         }
+        
+        // Always sync phone from auth metadata regardless
+        setPhone(session.user.user_metadata?.phone || "");
       } catch (err: any) {
-        toast.error("Error loading profile", { description: err.message });
-      } finally {
-        setIsLoading(false);
+        console.error("Profile load catch:", err);
       }
     }
-    loadProfile();
-  }, [session]);
+
+    // Only initialize business details once when tenant data first arrives
+    if (tenant) {
+      if (!storeName) setStoreName(tenant.name || session?.user.user_metadata?.org_name || "");
+      if (!storeAddress) setStoreAddress(tenant.address || "");
+      if (!storeGSTIN) setStoreGSTIN(tenant.gstin || "");
+    }
+
+    loadProfileData();
+    setIsLoading(false);
+  }, [session, tenant]);
 
   const handleUpdateProfile = async () => {
     if (!session?.user.id) return;
@@ -112,11 +140,61 @@ export default function ProfilePage() {
 
       if (authError) throw authError;
 
+      // Also sync to tenant if it exists
+      if (tenant?.id) {
+        await supabase
+          .from("tenants")
+          .update({ phone: phone })
+          .eq("id", tenant.id);
+      }
+
+      await refreshTenant();
       toast.success("Profile updated successfully");
     } catch (err: any) {
       toast.error("Failed to update profile", { description: err.message });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleUpdateBusiness = async () => {
+    if (!tenant?.id) return;
+    if (!storeName || !storeAddress || !phone) {
+      toast.error("Please fill in all mandatory fields (Name, Address, Phone)");
+      return;
+    }
+
+    setIsSavingBusiness(true);
+    try {
+      const { error } = await supabase
+        .from("tenants")
+        .update({
+          name: storeName,
+          address: storeAddress,
+          phone: phone,
+          gstin: storeGSTIN || null,
+        })
+        .eq("id", tenant.id);
+
+      if (error) throw error;
+
+      // Also sync to auth metadata
+      await supabase.auth.updateUser({
+        data: {
+          phone: phone,
+          org_name: storeName,
+        },
+      });
+
+      await refreshTenant();
+      toast.success("Business profile updated successfully");
+      // Note: Tenant info in AuthContext will refresh on next poll or page reload
+    } catch (err: any) {
+      toast.error("Failed to update business profile", {
+        description: err.message,
+      });
+    } finally {
+      setIsSavingBusiness(false);
     }
   };
 
@@ -168,7 +246,7 @@ export default function ProfilePage() {
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 border-b border-slate-100 dark:border-slate-800">
         <Link
-          to="/"
+          to="/settings"
           className="mr-3 p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
           <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
@@ -176,7 +254,7 @@ export default function ProfilePage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight">Your Profile</h1>
           <p className="text-slate-400 dark:text-slate-500 text-[11px] font-semibold uppercase tracking-wider mt-0.5">
-            Manage your account
+            Personal & Business Identity
           </p>
         </div>
       </header>
@@ -244,7 +322,9 @@ export default function ProfilePage() {
                 <Input
                   id="fullName"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setFullName(e.target.value)
+                  }
                   placeholder="John Doe"
                   className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 />
@@ -258,7 +338,9 @@ export default function ProfilePage() {
                 <Input
                   id="phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setPhone(e.target.value)
+                  }
                   placeholder="+1 (555) 000-0000"
                   className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 />
@@ -280,7 +362,83 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900 overflow-hidden border-t-[3px] border-t-amber-500">
+        {/* Business Profile Card */}
+        <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900 border-t-[3px]">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Building2 className="text-primary-500" size={20} />
+              <CardTitle className="text-lg">Business Identity</CardTitle>
+            </div>
+            <CardDescription>
+              Details used for invoices and financial headers.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="storeName">Business Name</Label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Input
+                  id="storeName"
+                  value={storeName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setStoreName(e.target.value)
+                  }
+                  placeholder="Smart Inventory HQ"
+                  className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="storeAddress">Business Address</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Textarea
+                  id="storeAddress"
+                  value={storeAddress}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    setStoreAddress(e.target.value)
+                  }
+                  placeholder="Full address with city, state, and pincode"
+                  className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 resize-none"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="storeGSTIN">GSTIN (Optional)</Label>
+              <div className="relative">
+                <ClipboardCheck className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Input
+                  id="storeGSTIN"
+                  value={storeGSTIN}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setStoreGSTIN(e.target.value.toUpperCase())
+                  }
+                  placeholder="29AAAAA0000A1Z5"
+                  className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 uppercase"
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={handleUpdateBusiness}
+              disabled={isSavingBusiness}
+              className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold mt-2"
+            >
+              {isSavingBusiness ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Save Business Details
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900 overflow-hidden border-t-[3px] mb-30">
           <CardHeader>
             <CardTitle className="text-lg">Security Settings</CardTitle>
             <CardDescription>
@@ -296,7 +454,9 @@ export default function ProfilePage() {
                   id="newPassword"
                   type="password"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setNewPassword(e.target.value)
+                  }
                   placeholder="••••••••"
                   className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 />
@@ -310,7 +470,9 @@ export default function ProfilePage() {
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setConfirmPassword(e.target.value)
+                  }
                   placeholder="••••••••"
                   className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 />

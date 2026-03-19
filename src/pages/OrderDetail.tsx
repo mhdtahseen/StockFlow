@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '@/app/hooks';
-import { ChevronLeft, FileText, Share, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, FileText, Share, AlertTriangle, ArrowLeft, User, Calendar as CalIcon, ShieldAlert } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import clsx from 'clsx';
 import { returnOrder } from '@/features/billing/slice';
@@ -11,12 +11,15 @@ import { toast } from 'sonner';
 import { RecordPaymentSheet } from '@/components/shared/RecordPaymentSheet';
 import { usePlan } from '@/hooks/usePlan';
 import { FeatureGate } from '@/components/shared/FeatureGate';
+import { useAuth } from '@/context/AuthContext';
+import { generateInvoicePDF } from '@/utils/generateInvoice';
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { canUse } = usePlan();
+  const { tenant } = useAuth();
 
   const order = useAppSelector((state) => state.billing.orders.find((o) => o.id === id));
   const customer = useAppSelector((state) => state.customers.customers.find((c) => c.id === order?.counterpartyId));
@@ -68,7 +71,13 @@ export default function OrderDetail() {
   };
 
   const generateInvoice = () => {
-    toast.info('Invoice Generation coming soon!', { description: 'Scheduled for Phase 5 implementation.' });
+    try {
+      generateInvoicePDF(order, customer, tenant);
+      toast.success('Invoice Generated', { description: `PDF for Order ${order.id.slice(0,8)} saved.` });
+    } catch (error) {
+      console.error('Invoice Gen Error:', error);
+      toast.error('Generation Failed', { description: 'Could not create PDF invoice.' });
+    }
   };
 
   return (
@@ -150,6 +159,13 @@ export default function OrderDetail() {
                <AlertTriangle size={18} /> Process Return
             </button>
           )}
+
+          <button
+             onClick={generateInvoice}
+             className="w-full mt-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold py-3.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          >
+             <FileText size={18} /> Generate Invoice
+          </button>
         </section>
 
         {/* Line Items */}

@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { PurchasingState, PurchaseOrder, PurchaseOrderItem } from "./types";
+import { PurchasingState, PurchaseOrder, PurchaseOrderItem, SupplierPayment } from "./types";
 
-const initialState: PurchasingState = { orders: [] };
+const initialState: PurchasingState = { orders: [], payments: [] };
 
 const purchasingSlice = createSlice({
   name: "purchasing",
@@ -12,6 +12,12 @@ const purchasingSlice = createSlice({
     },
     addPurchaseOrder: (s, a: PayloadAction<PurchaseOrder>) => {
       s.orders.unshift(a.payload);
+    },
+    setPayments: (s, a: PayloadAction<SupplierPayment[]>) => {
+      s.payments = a.payload;
+    },
+    addSupplierPayment: (s, a: PayloadAction<SupplierPayment>) => {
+      s.payments.unshift(a.payload);
     },
     updatePOPayment: (
       s,
@@ -45,6 +51,6 @@ const purchasingSlice = createSlice({
     },
   },
 });
-export const { setPurchaseOrders, addPurchaseOrder, updatePOPayment, confirmReceipt } =
+export const { setPurchaseOrders, addPurchaseOrder, updatePOPayment, confirmReceipt, setPayments, addSupplierPayment } =
   purchasingSlice.actions;
 export default purchasingSlice.reducer;

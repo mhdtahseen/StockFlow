@@ -19,6 +19,7 @@ import syncReducer from "../features/sync/slice";
 import billingReducer from "../features/billing/slice";
 import purchasingReducer from "../features/purchasing/slice";
 import customersReducer from "../features/customers/slice";
+import tenantReducer from "../features/tenant/slice";
 
 const rootReducer = combineReducers({
   inventory: inventoryReducer,
@@ -28,6 +29,7 @@ const rootReducer = combineReducers({
   billing: billingReducer,
   purchasing: purchasingReducer,
   customers: customersReducer,
+  tenant: tenantReducer,
 });
 
 const persistConfig = {

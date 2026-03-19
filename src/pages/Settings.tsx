@@ -15,13 +15,15 @@ import {
 import { Switch } from "@/components/ui/switch";
 import ExportModal from "@/components/shared/ExportModal";
 import clsx from "clsx";
-
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 export default function Settings() {
   const { mode, setMode } = useTheme();
   const [showExportModal, setShowExportModal] = useState(false);
   const [notifsEnabled, setNotifsEnabled] = useState(true);
   const [offlineSyncEnabled, setOfflineSyncEnabled] = useState(true);
   const [hapticFeedback, setHapticFeedback] = useState(true);
+
 
   const themeOptions: {
     value: "system" | "light" | "dark";
@@ -65,7 +67,7 @@ export default function Settings() {
                     className={clsx(
                       "p-2 rounded-lg",
                       mode === opt.value
-                        ? "bg-[#064a98] text-white dark:bg-blue-600"
+                        ? "bg-primary-500 text-white dark:bg-blue-600"
                         : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
                     )}
                   >
@@ -77,12 +79,12 @@ export default function Settings() {
                   className={clsx(
                     "size-5 rounded-full border-2 flex items-center justify-center transition-colors",
                     mode === opt.value
-                      ? "border-[#064a98] dark:border-blue-500"
+                      ? "border-primary-500 dark:border-blue-500"
                       : "border-slate-300 dark:border-slate-700",
                   )}
                 >
                   {mode === opt.value && (
-                    <div className="size-2.5 rounded-full bg-[#064a98] dark:bg-blue-500" />
+                    <div className="size-2.5 rounded-full bg-primary-500 dark:bg-blue-500" />
                   )}
                 </div>
               </button>

@@ -1,20 +1,23 @@
-import React, { useState } from 'react';
-import { useAppSelector } from '@/app/hooks';
-import { useNavigate } from 'react-router-dom';
-import Fuse from 'fuse.js';
-import { Search, Users, ChevronRight } from 'lucide-react';
+import React, { useState } from "react";
+import { useAppSelector } from "@/app/hooks";
+import { useNavigate } from "react-router-dom";
+import Fuse from "fuse.js";
+import { Search, Users, ChevronRight } from "lucide-react";
+import { selectCustomers } from "@/features/customers/selectors";
 
 export default function Customers() {
-  const { customers } = useAppSelector((state) => state.customers);
-  const [search, setSearch] = useState('');
+  const customers = useAppSelector(selectCustomers);
+  const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
   const fuse = new Fuse(customers, {
-    keys: ['name', 'phone'],
+    keys: ["name", "phone"],
     threshold: 0.3,
   });
 
-  const filtered = search.trim() ? fuse.search(search).map(r => r.item) : customers;
+  const filtered = search.trim()
+    ? fuse.search(search).map((r) => r.item)
+    : customers;
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
@@ -23,12 +26,17 @@ export default function Customers() {
           <Users className="text-[#064a98]" size={24} />
           Directory
         </h1>
-        <p className="text-xs font-bold text-slate-500 mt-1 uppercase tracking-wider">{customers.length} Contacts</p>
+        <p className="text-xs font-bold text-slate-500 mt-1 uppercase tracking-wider">
+          {customers.length} Contacts
+        </p>
       </header>
 
       <div className="p-4">
         <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            size={18}
+          />
           <input
             type="text"
             placeholder="Search by name or phone..."
@@ -41,8 +49,13 @@ export default function Customers() {
         <div className="space-y-3 pb-24">
           {filtered.length === 0 ? (
             <div className="text-center py-12 px-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
-               <p className="text-slate-500 font-semibold mb-2">No customers found.</p>
-               <p className="text-xs text-slate-400 font-medium">Create trade orders to add customers to the directory automatically.</p>
+              <p className="text-slate-500 font-semibold mb-2">
+                No customers found.
+              </p>
+              <p className="text-xs text-slate-400 font-medium">
+                Create trade orders to add customers to the directory
+                automatically.
+              </p>
             </div>
           ) : (
             filtered.map((c) => (
@@ -55,15 +68,24 @@ export default function Customers() {
                   {c.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">{c.name}</h3>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {c.name}
+                  </h3>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                       {c.type}
                     </span>
-                    {c.phone && <span className="text-xs font-medium text-slate-500 truncate">{c.phone}</span>}
+                    {c.phone && (
+                      <span className="text-xs font-medium text-slate-500 truncate">
+                        {c.phone}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <ChevronRight size={18} className="text-slate-300 group-hover:text-[#064a98] transition-colors shrink-0" />
+                <ChevronRight
+                  size={18}
+                  className="text-slate-300 group-hover:text-[#064a98] transition-colors shrink-0"
+                />
               </div>
             ))
           )}

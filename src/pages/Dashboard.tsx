@@ -84,7 +84,7 @@ export default function Dashboard() {
   const metrics = useAppSelector(selectInventoryMetrics);
   const phones = useAppSelector((state) => state.inventory.phones);
   const { mode, setMode, resolved } = useTheme();
-  const { session, isAdmin } = useAuth();
+  const { session, isAdmin, tenant } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
@@ -150,6 +150,21 @@ export default function Dashboard() {
     )
     .slice(0, 4);
 
+  // Profile Completion logic
+  const completionItems = [
+    { label: "Business Name", value: !!session?.user.user_metadata?.org_name },
+    { label: "Business Address", value: !!tenant?.address },
+    {
+      label: "Phone Number",
+      value: !!session?.user.user_metadata?.phone || !!tenant?.phone,
+    },
+    { label: "Full Name", value: !!session?.user.user_metadata?.full_name },
+  ];
+
+  const completedCount = completionItems.filter((item) => item.value).length;
+  const completionPercentage = (completedCount / completionItems.length) * 100;
+  const isProfileIncomplete = completionPercentage < 100;
+
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
@@ -160,10 +175,17 @@ export default function Dashboard() {
             className="h-9 w-9 dark:brightness-0 dark:invert"
           />
           <div>
-            <h1 className="text-xl tracking-tight text-slate-900 dark:text-slate-100">
-              <span className="font-bold">Stock</span>
-              <span className="font-medium">Flow</span>
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl tracking-tight text-slate-900 dark:text-slate-100">
+                <span className="font-bold">Stock</span>
+                <span className="font-medium">Flow</span>
+              </h1>
+              {tenant?.plan === 'wholesaler' && (
+                <span className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter flex items-center gap-1">
+                  Wholesaler
+                </span>
+              )}
+            </div>
             <p className="text-slate-400 dark:text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
               Smart Manager
             </p>
@@ -313,6 +335,32 @@ export default function Dashboard() {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-4 pb-12"
       >
+        {isProfileIncomplete && (
+          <div
+            onClick={() => navigate("/profile")}
+            className="mt-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 shadow-sm flex items-center justify-between cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all active:scale-[0.99] group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Info size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                  Profile Incomplete ({completionPercentage}%)
+                </h4>
+                <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                  Please complete your business & personal details to unlock all
+                  features.
+                </p>
+              </div>
+            </div>
+            <ChevronRight
+              size={18}
+              className="text-amber-400 group-hover:translate-x-0.5 transition-transform"
+            />
+          </div>
+        )}
+
         {/* Hero: Available Cash */}
         <section className="pt-4 pb-2">
           <div className="bg-[#064a98] dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative overflow-hidden">

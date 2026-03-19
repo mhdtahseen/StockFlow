@@ -33,7 +33,19 @@ export function usePlan() {
     isExpired: expired,
     canUse: (f: FeatureKey): boolean => {
       if (expired) return false;
-      if (plan === "trial") return true; // Trials have access to everything temporarily
+      if (plan === "trial") return true; 
+      
+      if (plan === "wholesaler") {
+        return true; 
+      }
+      
+      if (plan === "starter") {
+        // Special case: Starter has basic features but limited counts
+        const basic: FeatureKey[] = ["unlimited_phones", "imei_scanner", "catalog_autofill", "full_ledger"];
+        if (basic.includes(f)) return true;
+        return false;
+      }
+
       return (FEATURE_GATES[f] as readonly string[]).includes(plan);
     },
   };

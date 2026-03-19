@@ -224,7 +224,26 @@ export const syncActionToSupabase = async (
           p_counterparty_id: payload.counterpartyId,
           p_total_received: payload.totalReceived,
           p_mode: payload.mode,
-          p_allocations: payload.allocations,
+          p_allocations: payload.allocations.map((a: any) => ({
+            saleOrderId: a.saleOrderId,
+            amountAllocated: a.amountAllocated,
+            note: a.note
+          })),
+          p_note: payload.note ?? null,
+        });
+        if (error) throw error;
+        break;
+      }
+      case 'purchasing/addSupplierPayment': {
+        const { error } = await supabase.rpc('record_supplier_payment', {
+          p_counterparty_id: payload.counterpartyId,
+          p_total_paid: payload.totalPaid,
+          p_mode: payload.mode,
+          p_allocations: payload.allocations.map((a: any) => ({
+            purchaseOrderId: a.purchaseOrderId,
+            amountAllocated: a.amountAllocated,
+            note: a.note
+          })),
           p_note: payload.note ?? null,
         });
         if (error) throw error;
@@ -257,10 +276,34 @@ export const syncActionToSupabase = async (
         if (error) throw error;
         break;
       }
+      case 'tenant/updateTenant': {
+        const { error } = await supabase.from('tenants').update({
+          name: payload.name,
+          address: payload.address,
+          gstin: payload.gstin,
+          phone: payload.phone,
+        }).eq('id', tenant_id);
+        if (error) throw error;
+        break;
+      }
     }
 
     return true; // Sync succeeded
   } catch (error: any) {
+    // 409 Conflict or 23505 Unique Violation means the record already exists.
+    // In an offline-sync context with client-generated UUIDs, this typically 
+    // means the previous sync attempt succeeded but the ACK was lost. 
+    // We treat this as a success so the action is removed from the outbox.
+    const isConflict = 
+      error.status === 409 || 
+      error.code === "23505" ||
+      (error.message && error.message.toLowerCase().includes("already exists"));
+
+    if (isConflict) {
+      console.info("Supabase Sync: Record already exists (Conflict), marking as success.", action.type);
+      return true;
+    }
+
     console.warn("Supabase Sync Failed:", error.message || error);
     return false; // Sync failed
   }
