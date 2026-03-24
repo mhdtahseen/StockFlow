@@ -217,7 +217,7 @@ ALTER TABLE public.phones
 ```sql
 ALTER TABLE public.tenants
   ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'trial'
-    CHECK (plan IN ('trial','starter','pro','wholesaler','expired')),
+    CHECK (plan IN ('trial','starter','pro','enterprise','expired')),
   ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ;
 
 -- Set all existing tenants to trial with 14-day window
@@ -234,7 +234,7 @@ CREATE TABLE IF NOT EXISTS public.counterparties (
   tenant_id        UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   name             TEXT NOT NULL,
   type             TEXT NOT NULL
-    CHECK (type IN ('CUSTOMER','RETAILER','WHOLESALER','PLATFORM')),
+    CHECK (type IN ('CUSTOMER','RETAILER','ENTERPRISE','PLATFORM')),
   phone            TEXT,
   email            TEXT,
   platform_name    TEXT, -- populated only when type = PLATFORM
@@ -579,7 +579,7 @@ CREATE POLICY "Insert profiles" ON public.profiles FOR INSERT
 WITH CHECK (
   tenant_id = get_user_tenant_id()
   AND (
-    get_tenant_plan() IN ('wholesaler','trial')
+    get_tenant_plan() IN ('enterprise','trial')
     OR (get_tenant_plan() = 'pro'     AND get_tenant_member_count() < 3)
     OR (get_tenant_plan() = 'starter' AND get_tenant_member_count() < 1)
   )
@@ -1290,26 +1290,26 @@ export default function AppLayout() {
 
 ### P3-5: src/hooks/usePlan.ts
 
-```typescript
+````typescript
 import { useAuth } from "@/context/AuthContext";
 
 export const FEATURE_GATES = {
-  unlimited_phones: ["pro", "wholesaler"],
-  imei_scanner: ["pro", "wholesaler"],
-  catalog_autofill: ["pro", "wholesaler"],
-  full_ledger: ["pro", "wholesaler"],
-  trade_orders: ["pro", "wholesaler"],
-  customers: ["pro", "wholesaler"],
-  pdf_invoice: ["pro", "wholesaler"],
-  credit_tracking: ["pro", "wholesaler"],
-  analytics: ["pro", "wholesaler"],
-  purchase_orders: ["pro", "wholesaler"],
-  bulk_orders: ["wholesaler"],
-  bulk_invoice: ["wholesaler"],
-  trade_network: ["wholesaler"],
-  receivables: ["wholesaler"],
-  customer_pnl: ["wholesaler"],
-  unlimited_seats: ["wholesaler"],
+  unlimited_phones: ["pro", "enterprise"],
+  imei_scanner: ["pro", "enterprise"],
+  catalog_autofill: ["pro", "enterprise"],
+  full_ledger: ["pro", "enterprise"],
+  trade_orders: ["pro", "enterprise"],
+  customers: ["pro", "enterprise"],
+  pdf_invoice: ["pro", "enterprise"],
+  credit_tracking: ["pro", "enterprise"],
+  analytics: ["pro", "enterprise"],
+  purchase_orders: ["pro", "enterprise"],
+  bulk_orders: ["enterprise"],
+  bulk_invoice: ["enterprise"],
+  trade_network: ["enterprise"],
+  receivables: ["enterprise"],
+  customer_pnl: ["enterprise"],
+  unlimited_seats: ["enterprise"],
 } as const;
 export type FeatureKey = keyof typeof FEATURE_GATES;
 
@@ -1324,13 +1324,13 @@ export function usePlan() {
     isExpired: expired,
     canUse: (f: FeatureKey): boolean => {
       if (expired) return false;
-      if (plan === "trial") return true;
+      if (plan === "enterprise") {
+        return true;
+      }
       return (FEATURE_GATES[f] as readonly string[]).includes(plan);
     },
   };
 }
-```
-
 ### P3-6/7/8: FeatureGate, UpgradePrompt, TrialExpiredPaywall
 
 **FeatureGate.tsx:**
@@ -1343,7 +1343,7 @@ export function FeatureGate({ feature, children, fallback }: {
   if (canUse(feature)) return <>{children}</>;
   return fallback ? <>{fallback}</> : <UpgradePrompt feature={feature} currentPlan={plan} />;
 }
-```
+````
 
 **UpgradePrompt.tsx** — card with lock icon, feature name, plan badge, "Upgrade" button → /pricing. Use bg-white dark:bg-slate-900 rounded-xl p-5 border design.
 
@@ -1607,7 +1607,7 @@ For each:
 
 1. Login as Starter plan user
 2. Open Redux DevTools
-3. Dispatch: `store.dispatch({type:'@@bypass',payload:'wholesaler'})`
+3. Dispatch: `store.dispatch({type:'@@bypass',payload:'enterprise'})`
 4. Attempt to insert phone #201 via any UI
 5. Expected: RLS blocks INSERT, Supabase returns error, toast shows error
 

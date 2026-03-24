@@ -85,11 +85,8 @@ export default function Dashboard() {
   const phones = useAppSelector((state) => state.inventory.phones);
   const { mode, setMode, resolved } = useTheme();
   const { session, isAdmin, tenant } = useAuth();
-  const [showSettings, setShowSettings] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
-  const [settingsView, setSettingsView] = useState<"main" | "theme">("main");
-  const settingsRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -105,30 +102,6 @@ export default function Dashboard() {
     mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Close settings when clicking outside
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        settingsRef.current &&
-        !settingsRef.current.contains(e.target as Node)
-      ) {
-        setShowSettings(false);
-        setTimeout(() => setSettingsView("main"), 200); // Reset view after closing
-      }
-    };
-    if (showSettings) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showSettings]);
-
-  const themeOptions: {
-    value: "system" | "light" | "dark";
-    label: string;
-    icon: React.ReactNode;
-  }[] = [
-    { value: "system", label: "System", icon: <Monitor size={14} /> },
-    { value: "light", label: "Light", icon: <Sun size={14} /> },
-    { value: "dark", label: "Dark", icon: <Moon size={14} /> },
-  ];
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -136,11 +109,6 @@ export default function Dashboard() {
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(amount);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("stockflow_auth");
-    navigate("/login");
   };
 
   const recentPhones = [...phones]
@@ -167,169 +135,6 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <img
-            src="/logo.svg"
-            alt="StockFlow"
-            className="h-9 w-9 dark:brightness-0 dark:invert"
-          />
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl tracking-tight text-slate-900 dark:text-slate-100">
-                <span className="font-bold">Stock</span>
-                <span className="font-medium">Flow</span>
-              </h1>
-              {tenant?.plan === 'wholesaler' && (
-                <span className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter flex items-center gap-1">
-                  Wholesaler
-                </span>
-              )}
-            </div>
-            <p className="text-slate-400 dark:text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
-              Smart Manager
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 relative" ref={settingsRef}>
-          <NotificationsPopover />
-
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors relative"
-          >
-            <Settings2
-              size={18}
-              className="text-slate-600 dark:text-slate-400"
-            />
-            <div
-              className="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center border-2 border-white/80 dark:border-slate-900/80 transition-colors z-10"
-              title={`Theme: ${mode}`}
-            >
-              {resolved === "dark" ? (
-                <Moon size={9} className="text-blue-400" />
-              ) : (
-                <Sun size={9} className="text-amber-500" />
-              )}
-            </div>
-          </button>
-
-          {showSettings && (
-            <div className="absolute top-full mt-2 right-0 bg-white dark:bg-slate-900 rounded-xl shadow-xl dark:shadow-black/40 border border-slate-100 dark:border-slate-800 overflow-hidden min-w-[180px] z-[60] transition-all">
-              {settingsView === "main" ? (
-                <>
-                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                      Main Menu
-                    </p>
-                  </div>
-                  <div className="py-1">
-                    <button
-                      onClick={() => {
-                        setShowSettings(false);
-                        navigate("/profile");
-                      }}
-                      className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <User size={14} />
-                        Profile
-                      </div>
-                    </button>
-                    {isAdmin && (
-                      <button
-                        onClick={() => {
-                          setShowSettings(false);
-                          navigate("/team");
-                        }}
-                        className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Users size={14} />
-                          Manage Team
-                        </div>
-                        <ChevronRight size={14} className="text-slate-400" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        setShowSettings(false);
-                        navigate("/settings");
-                      }}
-                      className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Settings2 size={14} />
-                        Settings
-                      </div>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowSettings(false);
-                        navigate("/about");
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                    >
-                      <Info size={14} />
-                      About App
-                    </button>
-                  </div>
-                  <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors pb-3"
-                    >
-                      <LogOut size={14} />
-                      Sign Out
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="px-2 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1">
-                    <button
-                      onClick={() => setSettingsView("main")}
-                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-500 transition-colors"
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">
-                      Theme Selection
-                    </p>
-                  </div>
-                  <div className="py-1">
-                    {themeOptions.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => {
-                          setMode(opt.value);
-                          setTimeout(() => setSettingsView("main"), 200); // Go back to main menu
-                        }}
-                        className={clsx(
-                          "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold transition-colors",
-                          mode === opt.value
-                            ? "bg-[#064a98]/10 text-[#064a98] dark:bg-blue-500/20 dark:text-blue-400"
-                            : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800",
-                        )}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          {opt.icon}
-                          {opt.label}
-                        </div>
-                        {mode === opt.value && (
-                          <div className="size-1.5 rounded-full bg-[#064a98] dark:bg-blue-400"></div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </header>
-
       <main
         ref={mainRef}
         onScroll={handleScroll}
@@ -363,7 +168,7 @@ export default function Dashboard() {
 
         {/* Hero: Available Cash */}
         <section className="pt-4 pb-2">
-          <div className="bg-[#064a98] dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative overflow-hidden">
+          <div className="bg-primary-500 dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative overflow-hidden">
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 dark:bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
             <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-white/10 dark:bg-white/5 rounded-full blur-xl pointer-events-none"></div>
 
@@ -457,10 +262,10 @@ export default function Dashboard() {
             {/* Avg Profit Margin */}
             <Link
               to="/analytics"
-              className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-[#064a98]/20 dark:hover:border-blue-500/30 transition-all group"
+              className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-primary-500/20 dark:hover:border-blue-500/30 transition-all group"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="size-10 rounded-full bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-full bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400 flex items-center justify-center shrink-0">
                   <TrendingUp size={20} />
                 </div>
                 <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -489,7 +294,7 @@ export default function Dashboard() {
             </h3>
             <Link
               to="/inventory"
-              className="text-[#064a98] dark:text-blue-400 text-xs font-bold flex items-center gap-0.5 hover:underline"
+              className="text-primary-500 dark:text-blue-400 text-xs font-bold flex items-center gap-0.5 hover:underline"
             >
               See All <ChevronRight size={14} />
             </Link>
@@ -513,7 +318,7 @@ export default function Dashboard() {
               to="/inventory?tab=IN_STOCK"
               className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 border-b-[3px] border-b-[#064a98] dark:border-b-blue-500 flex flex-col items-center justify-center hover:shadow-md transition-all"
             >
-              <div className="size-8 rounded-full bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400 flex items-center justify-center mb-2">
+              <div className="size-8 rounded-full bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400 flex items-center justify-center mb-2">
                 <Package size={16} />
               </div>
               <span className="text-xl font-black text-slate-900 dark:text-slate-100">
@@ -556,7 +361,7 @@ export default function Dashboard() {
                   },
                   IN_STOCK: {
                     color:
-                      "bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400",
+                      "bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400",
                     label: "In Stock",
                   },
                   SOLD: {
@@ -618,7 +423,7 @@ export default function Dashboard() {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-24 right-4 z-40 size-12 bg-[#064a98] dark:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-800 dark:hover:bg-blue-700 transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-5"
+          className="fixed bottom-24 right-4 z-40 size-12 bg-primary-500 dark:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-800 dark:hover:bg-blue-700 transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-5"
         >
           <ArrowUp size={24} />
         </button>

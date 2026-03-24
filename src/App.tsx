@@ -1,36 +1,46 @@
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import AppLayout from "./components/layout/AppLayout";
-import Dashboard from "./pages/Dashboard";
-import Inventory from "./pages/Inventory";
-import AddPhone from "./pages/AddPhone";
-import PhoneDetail from "./pages/PhoneDetail";
-import EditPhone from "./pages/EditPhone";
-import Analytics from "./pages/Analytics";
-import Financials from "./pages/Financials";
-import LedgerPage from "./pages/LedgerPage";
-import Customers from "./pages/Customers";
-import CustomerDetail from "./pages/CustomerDetail";
-import Orders from "./pages/Orders";
-import OrderDetail from "./pages/OrderDetail";
-import Pricing from "./pages/Pricing";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import ManageTeam from "./pages/ManageTeam";
-import Verified from "./pages/Verified";
-import InviteSignup from "./pages/InviteSignup";
-import ProfilePage from "./pages/Profile";
-import SettingsPage from "./pages/Settings";
-import AboutApp from "./pages/AboutApp";
-import { useAuth } from "./context/AuthContext";
 import { Loader2 } from "lucide-react";
-import IosInstallPrompt from "./components/shared/IosInstallPrompt";
-import SplashScreen from "./components/SplashScreen";
+import SplashScreen from "@/components/SplashScreen";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import AdminLayout from "./pages/AdminLayout";
-import AdminApprovals from "./pages/AdminApprovals";
-import AdminSupervision from "./pages/AdminSupervision";
-import AdminCatalog from "./pages/AdminCatalog";
+import AppLayout from "@/components/layout/AppLayout";
+
+// Auth pages
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
+import InviteSignup from "@/pages/InviteSignup";
+import Verified from "@/pages/Verified";
+
+// Main pages
+import Dashboard from "@/pages/Dashboard";
+import Inventory from "@/pages/Inventory";
+import AddPhone from "@/pages/AddPhone";
+import PhoneDetail from "@/pages/PhoneDetail";
+import EditPhone from "@/pages/EditPhone";
+import Financials from "@/pages/Financials";
+import LedgerPage from "@/pages/LedgerPage";
+import Customers from "@/pages/Customers";
+import CustomerDetail from "@/pages/CustomerDetail";
+import Orders from "@/pages/Orders";
+import OrderDetail from "@/pages/OrderDetail";
+import PurchaseOrders from "@/pages/PurchaseOrders";
+import PurchaseOrderDetail from "@/pages/PurchaseOrderDetail";
+import Pricing from "@/pages/Pricing";
+import Analytics from "@/pages/Analytics";
+import ManageTeam from "@/pages/ManageTeam";
+import Profile from "@/pages/Profile";
+import Settings from "@/pages/Settings";
+import AboutApp from "@/pages/AboutApp";
+
+// Admin pages
+import AdminLayout from "@/pages/AdminLayout";
+import AdminApprovals from "@/pages/AdminApprovals";
+import AdminSupervision from "@/pages/AdminSupervision";
+import AdminCatalog from "@/pages/AdminCatalog";
+
+import "./index.css";
+import { useAuth } from "./context/AuthContext";
+import IosInstallPrompt from "./components/shared/IosInstallPrompt";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
@@ -39,7 +49,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (isLoading && !hasLocalFlag) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-[#064a98] dark:text-blue-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary-500 dark:text-blue-500" />
       </div>
     );
   }
@@ -58,7 +68,7 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (isLoading && !hasLocalFlag) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-[#064a98] dark:text-blue-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary-500 dark:text-blue-500" />
       </div>
     );
   }
@@ -67,7 +77,15 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (!isLoading && !isSuperAdmin) {
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-500 dark:text-blue-500" />
+      </div>
+    );
+  }
+
+  if (!isSuperAdmin) {
     return <Navigate to="/" replace />;
   }
 
@@ -92,7 +110,6 @@ function App() {
             <Route path="/join" element={<InviteSignup />} />
             <Route path="/verified" element={<Verified />} />
 
-            {/* Admin routes — outside AppLayout (no bottom nav) */}
             <Route
               path="/admin"
               element={
@@ -126,12 +143,20 @@ function App() {
               <Route path="customers/:id" element={<CustomerDetail />} />
               <Route path="orders" element={<Orders />} />
               <Route path="orders/:id" element={<OrderDetail />} />
+              <Route path="purchase-orders" element={<PurchaseOrders />} />
+              <Route
+                path="purchase-orders/:id"
+                element={<PurchaseOrderDetail />}
+              />
               <Route path="pricing" element={<Pricing />} />
-              <Route path="wallet" element={<Navigate to="/financials" replace />} />
+              <Route
+                path="wallet"
+                element={<Navigate to="/financials" replace />}
+              />
               <Route path="analytics" element={<Analytics />} />
               <Route path="team" element={<ManageTeam />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="settings" element={<SettingsPage />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="settings" element={<Settings />} />
               <Route path="about" element={<AboutApp />} />
             </Route>
           </Routes>

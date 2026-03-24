@@ -1,4 +1,9 @@
-export type PurchaseOrderStatus = "AWAITING_RECEIPT" | "RECEIVED" | "PARTIAL" | "SETTLED" | "CANCELLED";
+export type PurchaseOrderStatus =
+  | "AWAITING_RECEIPT"
+  | "RECEIVED"
+  | "PARTIAL"
+  | "SETTLED"
+  | "CANCELLED";
 export type AcquisitionChannel = "DIRECT" | "PLATFORM" | "INTER_TENANT";
 export type PayMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CREDIT";
 export type POItemStatus = "PENDING_INSPECTION" | "ACCEPTED" | "REJECTED";
@@ -16,6 +21,7 @@ export interface PurchaseOrder {
   id: string;
   counterpartyId: string;
   acquisitionChannel: AcquisitionChannel;
+  platformName?: string;
   platformFee: number;
   phonesOrdered: number;
   phonesReceived: number;

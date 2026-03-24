@@ -99,12 +99,12 @@ _Target:_ Wholesalers tracking profit, buying in bulk, needing fast hardware wor
 - **Annual Price:** ₹ 14,999 to ₹ 24,999 / year
 - _Includes:_ Everything in Starter + Camera Barcode OCR Scanner, Funds Ledger, Profit Analytics, Catalog Predictive Spec Autofill, Unlimited phones.
 
-**Enterprise Tier: "StockFlow Wholesaler" (All Modules + Future Roadmap)**
+**Enterprise Tier: "StockFlow Enterprise" (All Modules + Future Roadmap)**
 _Target:_ Massive dealers with multiple staff members and storefronts.
 
 - **Monthly Price:** ₹ 3,999 to ₹ 5,999 / month
-- **Annual Price:** ₹ 40,000 to ₹ 60,000 / year
-- _Includes:_ Multi-staff logins (RBAC), PDF invoice generation, CRM tracking, Payment Mode tracking.
+- **Annual Price:** ₹ 39,999 to ₹ 59,999 / year
+- _Includes:_ Everything in Pro + Priority technical support + Dedicated account manager.
 
 ### Strategy B: Outright Whitelabel Sale (Full IP Transfer)
 

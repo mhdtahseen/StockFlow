@@ -275,7 +275,7 @@ export default function ImeiScannerModal({
             <Camera
               size={18}
               strokeWidth={2.5}
-              className="text-[#064a98] dark:text-blue-400"
+              className="text-primary-500 dark:text-blue-400"
             />
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
               Scan IMEI

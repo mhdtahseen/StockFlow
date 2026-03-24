@@ -20,7 +20,7 @@ ALTER TABLE public.phones
 -- P1-3: ALTER tenants
 ALTER TABLE public.tenants
   ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'trial'
-    CHECK (plan IN ('trial','starter','pro','wholesaler','expired')),
+    CHECK (plan IN ('trial','starter','pro','enterprise','expired')),
   ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ;
 
 UPDATE public.tenants
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS public.counterparties (
   tenant_id        UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   name             TEXT NOT NULL,
   type             TEXT NOT NULL
-    CHECK (type IN ('CUSTOMER','RETAILER','WHOLESALER','PLATFORM')),
+    CHECK (type IN ('CUSTOMER','RETAILER','ENTERPRISE','PLATFORM')),
   phone            TEXT,
   email            TEXT,
   platform_name    TEXT,
@@ -333,7 +333,7 @@ CREATE POLICY "Insert profiles" ON public.profiles FOR INSERT
 WITH CHECK (
   tenant_id = get_user_tenant_id()
   AND (
-    get_tenant_plan() IN ('wholesaler','trial')
+    get_tenant_plan() IN ('enterprise','trial')
     OR (get_tenant_plan() = 'pro'     AND get_tenant_member_count() < 3)
     OR (get_tenant_plan() = 'starter' AND get_tenant_member_count() < 1)
   )

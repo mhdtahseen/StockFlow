@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
-import { addPhone } from "../features/inventory/slice";
+import { addPhone, linkPhoneToPO } from "../features/inventory/slice";
 import { addEntry } from "../features/ledger/slice";
+import { addPurchaseOrder } from "../features/purchasing/slice";
 import { useNavigate } from "react-router-dom";
 import {
   addBrand,
@@ -15,6 +16,10 @@ import {
 import { toast } from "sonner";
 import { Phone } from "../features/inventory/types";
 import {
+  PurchaseOrderStatus,
+  POItemStatus,
+} from "../features/purchasing/types";
+import {
   useDeviceCatalog,
   sortBySize,
   type ColorOption,
@@ -25,6 +30,7 @@ import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
 import CurrencyInput from "../components/ui/CurrencyInput";
+import { CustomerPicker } from "../components/ui/CustomerPicker";
 import clsx from "clsx";
 import {
   Smartphone,
@@ -41,7 +47,8 @@ import {
   HardDrive,
   ChevronDown,
   ChevronUp,
-  Files
+  Files,
+  Package,
 } from "lucide-react";
 import { BatchAddSheet } from "../components/shared/BatchAddSheet";
 
@@ -139,6 +146,20 @@ export default function AddPhone() {
 
   // PO flow state
   const [showBatchAdd, setShowBatchAdd] = useState(false);
+
+  // Supplier section state
+  const [showSupplierSection, setShowSupplierSection] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [acquisitionChannel, setAcquisitionChannel] = useState<
+    "DIRECT" | "PLATFORM" | "INTER_TENANT"
+  >("DIRECT");
+  const [platformName, setPlatformName] = useState("");
+  const [platformFeeStr, setPlatformFeeStr] = useState("");
+  const [paymentMode, setPaymentMode] = useState<
+    "CASH" | "UPI" | "BANK_TRANSFER" | "CREDIT"
+  >("CASH");
+  const [amountPaidStr, setAmountPaidStr] = useState("");
+  const [dueDateStr, setDueDateStr] = useState("");
 
   // ── Autofill from existing inventory ──────────────────────────────────────
   useEffect(() => {
@@ -335,9 +356,48 @@ export default function AddPhone() {
       }),
     );
 
+    // PO-aware logic: if supplier is selected, create a PO and link the phone
+    if (selectedSupplier) {
+      const poId = crypto.randomUUID();
+      const platformFeeAmount =
+        acquisitionChannel === "PLATFORM" ? parseFloat(platformFeeStr) || 0 : 0;
+      const totalAmount = parseFloat(price) + platformFeeAmount;
+      const amountPaidNum = parseFloat(amountPaidStr) || 0;
+
+      const purchaseOrder = {
+        id: poId,
+        counterpartyId: selectedSupplier.id,
+        acquisitionChannel,
+        platformName:
+          acquisitionChannel === "PLATFORM" ? platformName : undefined,
+        platformFee: platformFeeAmount,
+        phonesOrdered: 1,
+        phonesReceived: 0,
+        totalAmount,
+        amountPaid: amountPaidNum,
+        status: "AWAITING_RECEIPT" as PurchaseOrderStatus,
+        paymentMode,
+        dueDate: dueDateStr || undefined,
+        notes: "",
+        createdAt: new Date().toISOString(),
+        items: [
+          {
+            id: crypto.randomUUID(),
+            purchaseOrderId: poId,
+            phoneId: newPhone.id,
+            purchasePrice: parseFloat(price),
+            status: "PENDING_INSPECTION" as POItemStatus,
+          },
+        ],
+      };
+
+      dispatch(addPurchaseOrder(purchaseOrder));
+      dispatch(linkPhoneToPO({ phoneId: newPhone.id, purchaseOrderId: poId }));
+    }
+
     navigate("/inventory");
     toast.success("Device Added", {
-      description: `${brand} ${model} has been added to your pending inventory.`,
+      description: `${brand} ${model} has been added to your pending inventory.${selectedSupplier ? " Purchase order created." : ""}`,
     });
   };
 
@@ -388,22 +448,11 @@ export default function AddPhone() {
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300 relative">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3 w-full">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="size-10 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
-          >
-            <ChevronLeft size={24} strokeWidth={2.5} />
-          </button>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex-1">
-            Add New Device
-          </h2>
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-end shadow-sm gap-3">
           <button
             type="button"
             onClick={() => setShowBatchAdd(true)}
-            className="flex items-center gap-1.5 bg-[#064a98]/10 hover:bg-[#064a98]/20 text-[#064a98] dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-400 font-bold text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-500 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-400 font-bold text-xs px-2.5 py-1.5 rounded-lg transition-colors"
           >
             <Files size={14} /> Batch PO
           </button>
@@ -415,7 +464,6 @@ export default function AddPhone() {
             Reset
           </button>
         </div>
-      </header>
 
       <main className="w-full max-w-lg mx-auto p-4 pb-12 z-10">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -426,7 +474,7 @@ export default function AddPhone() {
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Smartphone
-                className="text-[#064a98]"
+                className="text-primary-500"
                 size={18}
                 strokeWidth={2.5}
               />
@@ -466,7 +514,7 @@ export default function AddPhone() {
 
             {/* Hint when model is locked to catalog */}
             {modelInCatalog && (
-              <p className="text-[10px] font-semibold text-[#064a98]/70 dark:text-blue-400/70 flex items-center gap-1 -mt-2">
+              <p className="text-[10px] font-semibold text-primary-500/70 dark:text-blue-400/70 flex items-center gap-1 -mt-2">
                 <Check size={11} strokeWidth={3} />
                 Catalog model — storage & colors auto-loaded
               </p>
@@ -476,7 +524,7 @@ export default function AddPhone() {
           {/* ── Specifications ───────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Cpu className="text-[#064a98]" size={18} strokeWidth={2.5} />
+              <Cpu className="text-primary-500" size={18} strokeWidth={2.5} />
               Specifications
             </h3>
 
@@ -552,7 +600,7 @@ export default function AddPhone() {
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Wrench
-                  className="text-[#064a98]"
+                  className="text-primary-500"
                   size={18}
                   strokeWidth={2.5}
                 />
@@ -700,7 +748,7 @@ export default function AddPhone() {
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4 mb-8">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <DollarSign
-                className="text-[#064a98]"
+                className="text-primary-500"
                 size={18}
                 strokeWidth={2.5}
               />
@@ -735,20 +783,185 @@ export default function AddPhone() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="w-full bg-[#064a98] hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+                className="w-full bg-primary-500 hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
               >
                 <Smartphone size={20} />
                 Save &amp; Add Device
               </button>
             </div>
           </div>
+
+          {/* Optional Supplier Section */}
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4 mb-8">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Package
+                  className="text-primary-500"
+                  size={18}
+                  strokeWidth={2.5}
+                />
+                Supplier (Optional)
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowSupplierSection(!showSupplierSection)}
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
+              >
+                {showSupplierSection ? "Hide" : "Add"}
+              </button>
+            </div>
+
+            {showSupplierSection && (
+              <div className="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                {/* Supplier Picker */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                    Who are you buying from?
+                  </label>
+                  <CustomerPicker
+                    selectedId={selectedSupplier?.id}
+                    onSelect={(supplier) => setSelectedSupplier(supplier)}
+                  />
+                </div>
+
+                {selectedSupplier && (
+                  <>
+                    {/* Acquisition Channel */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                        Acquisition Channel
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {(["DIRECT", "PLATFORM", "INTER_TENANT"] as const).map(
+                          (channel) => (
+                            <button
+                              key={channel}
+                              type="button"
+                              onClick={() => setAcquisitionChannel(channel)}
+                              className={clsx(
+                                "px-3 py-2 rounded-xl text-sm font-bold border transition-all active:scale-[0.97]",
+                                acquisitionChannel === channel
+                                  ? "bg-primary-500 border-primary-500 text-white"
+                                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400",
+                              )}
+                            >
+                              {channel}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Platform Name (only for PLATFORM) */}
+                    {acquisitionChannel === "PLATFORM" && (
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                          Platform Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Cashify, OLX, Budli"
+                          value={platformName}
+                          onChange={(e) => setPlatformName(e.target.value)}
+                          className="w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-sm font-semibold focus:border-primary-500 outline-none transition-colors"
+                        />
+                      </div>
+                    )}
+
+                    {/* Platform Fee (only for PLATFORM) */}
+                    {acquisitionChannel === "PLATFORM" && (
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                          Platform Fee (Optional)
+                        </label>
+                        <CurrencyInput
+                          value={platformFeeStr}
+                          onChange={setPlatformFeeStr}
+                        />
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          This fee will be added to the cost basis
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Payment Mode */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                        Payment Mode
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {(
+                          ["CASH", "UPI", "BANK_TRANSFER", "CREDIT"] as const
+                        ).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setPaymentMode(mode)}
+                            className={clsx(
+                              "px-3 py-2 rounded-xl text-sm font-bold border transition-all active:scale-[0.97]",
+                              paymentMode === mode
+                                ? mode === "CREDIT"
+                                  ? "bg-amber-500 border-amber-500 text-white"
+                                  : "bg-primary-500 border-primary-500 text-white"
+                                : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400",
+                            )}
+                          >
+                            {mode.replace("_", " ")}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Amount Paid */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                        Amount Paid to Supplier
+                      </label>
+                      <CurrencyInput
+                        value={amountPaidStr}
+                        onChange={setAmountPaidStr}
+                      />
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Total: ₹{price || "0"}
+                        {amountPaidStr &&
+                          parseFloat(amountPaidStr) <
+                            parseFloat(price || "0") && (
+                            <span className="text-amber-600 dark:text-amber-400 ml-2">
+                              Outstanding: ₹
+                              {(
+                                parseFloat(price || "0") -
+                                parseFloat(amountPaidStr)
+                              ).toLocaleString()}
+                            </span>
+                          )}
+                      </p>
+                    </div>
+
+                    {/* Due Date */}
+                    {(amountPaidStr &&
+                      parseFloat(amountPaidStr) < parseFloat(price || "0")) ||
+                    paymentMode === "CREDIT" ? (
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                          Payment Due By (Optional)
+                        </label>
+                        <input
+                          type="date"
+                          value={dueDateStr}
+                          onChange={(e) => setDueDateStr(e.target.value)}
+                          className="w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-sm font-semibold focus:border-primary-500 outline-none transition-colors"
+                        />
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </form>
       </main>
 
-      <BatchAddSheet
-        open={showBatchAdd}
-        onOpenChange={setShowBatchAdd}
-      />
+      <BatchAddSheet open={showBatchAdd} onOpenChange={setShowBatchAdd} />
     </div>
   );
 }

@@ -256,14 +256,6 @@ export default function Analytics() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-        <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-          Analytics
-        </h1>
-        <button className="size-10 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
-          <Calendar size={20} />
-        </button>
-      </header>
 
       <main className="flex-1 overflow-y-auto px-4 pb-12 space-y-4 pt-4">
         {/* Period Selector — Concept A pill toggle */}
@@ -285,7 +277,7 @@ export default function Analytics() {
         </div>
 
         {/* Hero Period Summary Card — Concept A blue card */}
-        <div className="bg-[#064a98] dark:bg-[#0a3a7a] rounded-xl p-6 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative overflow-hidden">
+        <div className="bg-primary-500 dark:bg-[#0a3a7a] rounded-xl p-6 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative overflow-hidden">
           <div className="absolute -right-8 -top-8 size-40 bg-white/10 dark:bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute -left-8 -bottom-8 size-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
 
@@ -350,7 +342,7 @@ export default function Analytics() {
               Profit Trends
             </h3>
             <div className="flex gap-2 items-center">
-              <span className="size-2 rounded-full bg-[#064a98]"></span>
+              <span className="size-2 rounded-full bg-primary-500"></span>
               <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                 Net Income
               </span>
@@ -445,7 +437,7 @@ export default function Analytics() {
             <h3 className="font-bold text-slate-900 dark:text-slate-100">
               Common Issues
             </h3>
-            <span className="text-[#064a98] dark:text-blue-400 text-xs font-bold">
+            <span className="text-primary-500 dark:text-blue-400 text-xs font-bold">
               See All
             </span>
           </div>
@@ -580,7 +572,7 @@ export default function Analytics() {
               {/* Chart 2: Profit Margin Trend */}
               <CarouselItem>
                 <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-5 flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-[#064a98]"></span>
+                  <span className="size-2 rounded-full bg-primary-500"></span>
                   Profit Margin Trend
                 </h2>
                 <div className="h-56 w-full">
@@ -715,7 +707,7 @@ export default function Analytics() {
         {/* Bottom Metric Widgets — Concept A 2-col grid */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 text-center">
-            <div className="size-8 rounded-full bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400 flex items-center justify-center mx-auto mb-2">
+            <div className="size-8 rounded-full bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400 flex items-center justify-center mx-auto mb-2">
               <Clock size={16} />
             </div>
             <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">

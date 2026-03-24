@@ -126,7 +126,7 @@ export default function NotificationsPopover() {
         return (
           <CheckCircle2
             size={14}
-            className="text-[#064a98] dark:text-blue-500"
+            className="text-primary-500 dark:text-blue-500"
           />
         );
       case "LEDGER_ENTRY":
@@ -149,7 +149,7 @@ export default function NotificationsPopover() {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <button className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors relative focus:outline-none focus:ring-2 focus:ring-[#064a98]/20">
+        <button className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors relative focus:outline-none focus:ring-2 focus:ring-primary-500/20">
           <Bell size={18} className="text-slate-600 dark:text-slate-400" />
           {unreadCount > 0 && (
             <span className="absolute top-2 right-2.5 size-2.5 bg-rose-500 border-2 border-white dark:border-slate-800 rounded-full animate-pulse z-10"></span>
@@ -175,7 +175,7 @@ export default function NotificationsPopover() {
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="text-[11px] font-semibold text-[#064a98] dark:text-blue-500 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+              className="text-[11px] font-semibold text-primary-500 dark:text-blue-500 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
             >
               Mark all read
             </button>
@@ -241,7 +241,7 @@ export default function NotificationsPopover() {
                   </p>
                 </div>
                 {n.read_at === null && (
-                  <div className="size-2 rounded-full bg-[#064a98] dark:bg-blue-500 shrink-0 mt-1.5 shadow-sm shadow-blue-500/50" />
+                  <div className="size-2 rounded-full bg-primary-500 dark:bg-blue-500 shrink-0 mt-1.5 shadow-sm shadow-blue-500/50" />
                 )}
               </button>
             ))

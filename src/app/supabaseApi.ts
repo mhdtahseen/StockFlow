@@ -22,6 +22,11 @@ export const getTenantId = async () => {
   return cachedTenantId;
 };
 
+/** Call on sign-out to prevent tenant ID leakage between user sessions (A-002) */
+export const clearTenantCache = () => {
+  cachedTenantId = null;
+};
+
 const doesPhoneExist = async (id: string): Promise<boolean> => {
   const { data, error } = await supabase
     .from("phones")
@@ -179,8 +184,8 @@ export const syncActionToSupabase = async (
         break;
       }
       // ─── BILLING ────────────────────────────────────────────────────
-      case 'billing/addOrder': {
-        const { error } = await supabase.rpc('create_trade_order', {
+      case "billing/addOrder": {
+        const { error } = await supabase.rpc("create_trade_order", {
           p_order_id: payload.id,
           p_counterparty_id: payload.counterpartyId,
           p_order_type: payload.orderType,
@@ -189,20 +194,56 @@ export const syncActionToSupabase = async (
           p_due_date: payload.dueDate ?? null,
           p_notes: payload.notes ?? null,
           p_items: payload.items.map((i: any) => ({
-            phone_id: i.phoneId, sale_price: i.salePrice,
+            phone_id: i.phoneId,
+            sale_price: i.salePrice,
             discount_amount: i.discountAmount,
             imei_snapshot: i.imeiSnapshot,
-            brand: i.brandSnapshot, model: i.modelSnapshot,
-            storage: i.storageSnapshot, color: i.colorSnapshot,
+            brand: i.brandSnapshot,
+            model: i.modelSnapshot,
+            storage: i.storageSnapshot,
+            color: i.colorSnapshot,
           })),
           p_payment_note: null,
         });
         if (error) throw error;
         break;
       }
+      case "billing/updateOrderPayment": {
+        const { error } = await supabase.rpc("update_order_payment", {
+          p_order_id: payload.id,
+          p_amount_paid: payload.amountPaid,
+          p_status: payload.status,
+        });
+        if (error) throw error;
+        break;
+      }
+      case "billing/returnOrder": {
+        const { error } = await supabase.rpc("return_order", {
+          p_order_id: payload,
+        });
+        if (error) throw error;
+        break;
+      }
+      // ─── INVENTORY ────────────────────────────────────────────────────
+      case "inventory/linkPhoneToPO": {
+        const { error } = await supabase.rpc("link_phone_to_po", {
+          p_phone_id: payload.phoneId,
+          p_purchase_order_id: payload.purchaseOrderId,
+        });
+        if (error) throw error;
+        break;
+      }
+      case "inventory/linkPhoneToTO": {
+        const { error } = await supabase.rpc("link_phone_to_to", {
+          p_phone_id: payload.phoneId,
+          p_sale_order_id: payload.saleOrderId,
+        });
+        if (error) throw error;
+        break;
+      }
       // ─── PURCHASING ─────────────────────────────────────────────────
-      case 'purchasing/addPurchaseOrder': {
-        const { error } = await supabase.rpc('create_purchase_order', {
+      case "purchasing/addPurchaseOrder": {
+        const { error } = await supabase.rpc("create_purchase_order", {
           p_order_id: payload.id,
           p_counterparty_id: payload.counterpartyId,
           p_channel: payload.acquisitionChannel,
@@ -212,77 +253,136 @@ export const syncActionToSupabase = async (
           p_due_date: payload.dueDate ?? null,
           p_notes: payload.notes ?? null,
           p_items: payload.items.map((i: any) => ({
-            phone_id: i.phoneId, purchase_price: i.purchasePrice,
+            phone_id: i.phoneId,
+            purchase_price: i.purchasePrice,
           })),
         });
         if (error) throw error;
         break;
       }
       // ─── CUSTOMERS ──────────────────────────────────────────────────
-      case 'customers/addCustomerPayment': {
-        const { error } = await supabase.rpc('record_customer_payment', {
+      case "customers/addCustomerPayment": {
+        const { error } = await supabase.rpc("record_customer_payment", {
           p_counterparty_id: payload.counterpartyId,
           p_total_received: payload.totalReceived,
           p_mode: payload.mode,
           p_allocations: payload.allocations.map((a: any) => ({
             saleOrderId: a.saleOrderId,
             amountAllocated: a.amountAllocated,
-            note: a.note
+            note: a.note,
           })),
           p_note: payload.note ?? null,
         });
         if (error) throw error;
         break;
       }
-      case 'purchasing/addSupplierPayment': {
-        const { error } = await supabase.rpc('record_supplier_payment', {
+      case "purchasing/addSupplierPayment": {
+        const { error } = await supabase.rpc("record_supplier_payment", {
           p_counterparty_id: payload.counterpartyId,
           p_total_paid: payload.totalPaid,
           p_mode: payload.mode,
           p_allocations: payload.allocations.map((a: any) => ({
             purchaseOrderId: a.purchaseOrderId,
             amountAllocated: a.amountAllocated,
-            note: a.note
+            note: a.note,
           })),
           p_note: payload.note ?? null,
         });
         if (error) throw error;
         break;
       }
-      case 'customers/addCustomer': {
-        const { error } = await supabase.from('counterparties').insert({
-          id: payload.id, name: payload.name, type: payload.type,
-          phone: payload.phone ?? null, email: payload.email ?? null,
-          platform_name: payload.platformName ?? null,
-          linked_tenant_id: payload.linkedTenantId ?? null,
-          notes: payload.notes ?? null, created_at: payload.createdAt,
+      case "purchasing/markPOItemAccepted": {
+        const { error } = await supabase.rpc("mark_po_item_accepted", {
+          p_purchase_order_id: payload.purchaseOrderId,
+          p_phone_id: payload.phoneId,
+          p_final_price: payload.finalPrice,
         });
         if (error) throw error;
         break;
       }
-      case 'customers/updateCustomer': {
-        const { error } = await supabase.from('counterparties').update({
-          name: payload.name, type: payload.type,
-          phone: payload.phone ?? null, email: payload.email ?? null,
+      case "purchasing/markPOItemRejected": {
+        const { error } = await supabase.rpc("mark_po_item_rejected", {
+          p_purchase_order_id: payload.purchaseOrderId,
+          p_phone_id: payload.phoneId,
+          p_reason: payload.reason,
+        });
+        if (error) throw error;
+        break;
+      }
+      case "customers/addCustomer": {
+        // Get tenant_id from current user's profile
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("tenant_id")
+          .eq("id", user.id)
+          .single();
+
+        if (!profile?.tenant_id) throw new Error("Tenant not found");
+
+        // Map legacy types to valid DB values
+        const validTypes: Record<string, string> = {
+          RETAIL: "CUSTOMER",
+          B2B: "ENTERPRISE",
+        };
+        const mappedType = validTypes[payload.type] || payload.type;
+
+        const { error } = await supabase.from("counterparties").insert({
+          id: payload.id,
+          tenant_id: profile.tenant_id,
+          name: payload.name,
+          type: mappedType,
+          phone: payload.phone ?? null,
+          email: payload.email ?? null,
           platform_name: payload.platformName ?? null,
           linked_tenant_id: payload.linkedTenantId ?? null,
-          notes: payload.notes ?? null, updated_at: new Date().toISOString(),
-        }).eq('id', payload.id).eq('tenant_id', tenant_id);
+          notes: payload.notes ?? null,
+          created_at: payload.createdAt,
+        });
         if (error) throw error;
         break;
       }
-      case 'customers/removeCustomer': {
-        const { error } = await supabase.from('counterparties').delete().eq('id', payload).eq('tenant_id', tenant_id);
+      case "customers/updateCustomer": {
+        const { error } = await supabase
+          .from("counterparties")
+          .update({
+            name: payload.name,
+            type: payload.type,
+            phone: payload.phone ?? null,
+            email: payload.email ?? null,
+            platform_name: payload.platformName ?? null,
+            linked_tenant_id: payload.linkedTenantId ?? null,
+            notes: payload.notes ?? null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", payload.id)
+          .eq("tenant_id", tenant_id);
         if (error) throw error;
         break;
       }
-      case 'tenant/updateTenant': {
-        const { error } = await supabase.from('tenants').update({
-          name: payload.name,
-          address: payload.address,
-          gstin: payload.gstin,
-          phone: payload.phone,
-        }).eq('id', tenant_id);
+      case "customers/removeCustomer": {
+        const { error } = await supabase
+          .from("counterparties")
+          .delete()
+          .eq("id", payload)
+          .eq("tenant_id", tenant_id);
+        if (error) throw error;
+        break;
+      }
+      case "tenant/updateTenant": {
+        const { error } = await supabase
+          .from("tenants")
+          .update({
+            name: payload.name,
+            address: payload.address,
+            gstin: payload.gstin,
+            phone: payload.phone,
+          })
+          .eq("id", tenant_id);
         if (error) throw error;
         break;
       }
@@ -291,16 +391,19 @@ export const syncActionToSupabase = async (
     return true; // Sync succeeded
   } catch (error: any) {
     // 409 Conflict or 23505 Unique Violation means the record already exists.
-    // In an offline-sync context with client-generated UUIDs, this typically 
-    // means the previous sync attempt succeeded but the ACK was lost. 
+    // In an offline-sync context with client-generated UUIDs, this typically
+    // means the previous sync attempt succeeded but the ACK was lost.
     // We treat this as a success so the action is removed from the outbox.
-    const isConflict = 
-      error.status === 409 || 
+    const isConflict =
+      error.status === 409 ||
       error.code === "23505" ||
       (error.message && error.message.toLowerCase().includes("already exists"));
 
     if (isConflict) {
-      console.info("Supabase Sync: Record already exists (Conflict), marking as success.", action.type);
+      console.info(
+        "Supabase Sync: Record already exists (Conflict), marking as success.",
+        action.type,
+      );
       return true;
     }
 

@@ -41,7 +41,7 @@ export function UpgradePrompt({ feature, currentPlan }: Props) {
       </p>
       <Link
         to="/pricing"
-        className="flex items-center gap-2 bg-[#064a98] hover:bg-blue-800 text-white font-medium py-2.5 px-6 rounded-lg transition-colors w-full justify-center shadow-md shadow-blue-900/20"
+        className="flex items-center gap-2 bg-primary-500 hover:bg-blue-800 text-white font-medium py-2.5 px-6 rounded-lg transition-colors w-full justify-center shadow-md shadow-blue-900/20"
       >
         View Pricing <ArrowRight size={18} />
       </Link>

@@ -5,7 +5,7 @@ import { Customer } from '@/features/customers/types';
 import { TenantInfo } from '@/context/AuthContext';
 import { format, parseISO } from 'date-fns';
 
-export function generateInvoicePDF(order: SaleOrder, customer: Customer | undefined, tenant: TenantInfo | null) {
+export async function generateInvoicePDF(order: SaleOrder, customer: Customer | undefined, tenant: TenantInfo | null) {
   const doc = new jsPDF();
   const filename = `Invoice_${order.id.slice(0, 8)}.pdf`;
   
@@ -169,19 +169,28 @@ export function generateInvoicePDF(order: SaleOrder, customer: Customer | undefi
   doc.setTextColor(greyColor[0], greyColor[1], greyColor[2]);
   doc.text(tenant?.name || 'StockFlow', 196, 280, { align: 'right' });
 
-  // Native Share Sheet Implementation
+  // Native Share Sheet — guard with canShare() for file-sharing support check
   if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
     try {
       const blob = doc.output('blob');
       const file = new File([blob], filename, { type: 'application/pdf' });
-      navigator.share({
+      const shareData = {
         files: [file],
         title: `Inv ${order.id.slice(0,8)}`,
         text: `StockFlow Invoice for ${customer?.name || 'Customer'}`
-      });
+      };
+      // Only call share if the browser supports sharing this file type
+      if (navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        doc.save(filename);
+      }
     } catch (e: any) {
-      console.warn('Share failed, falling back to download', e);
-      doc.save(filename);
+      if (e?.name !== 'AbortError') {
+        // User cancelled share — not an error, fall back to download
+        console.warn('Share failed, falling back to download', e);
+        doc.save(filename);
+      }
     }
   } else {
     doc.save(filename);

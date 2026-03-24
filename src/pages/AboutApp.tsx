@@ -11,17 +11,6 @@ import {
 export default function AboutApp() {
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 border-b border-slate-100 dark:border-slate-800">
-        <Link
-          to="/"
-          className="mr-3 p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">About StockFlow</h1>
-        </div>
-      </header>
 
       <main className="flex-1 p-4 max-w-lg mx-auto w-full space-y-8 pt-8">
         {/* App Hero Logo */}
@@ -34,7 +23,7 @@ export default function AboutApp() {
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mb-2">
             StockFlow Manager
           </h2>
-          <p className="text-sm font-medium text-[#064a98] dark:text-blue-400 uppercase tracking-widest bg-blue-100 dark:bg-blue-900/30 px-3 py-1 rounded-full">
+          <p className="text-sm font-medium text-primary-500 dark:text-blue-400 uppercase tracking-widest bg-blue-100 dark:bg-blue-900/30 px-3 py-1 rounded-full">
             Built for Mobile Merchants
           </p>
         </div>
@@ -63,7 +52,7 @@ export default function AboutApp() {
         {/* Core Values */}
         <div className="space-y-4">
           <div className="flex gap-4 items-start">
-            <div className="p-3 bg-blue-100 text-[#064a98] dark:bg-blue-900/30 dark:text-blue-400 rounded-xl mt-1">
+            <div className="p-3 bg-blue-100 text-primary-500 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl mt-1">
               <Target size={24} />
             </div>
             <div>

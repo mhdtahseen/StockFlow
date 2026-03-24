@@ -8,6 +8,10 @@ import {
   removePhone,
 } from "../features/inventory/slice";
 import { addEntry, removeEntry } from "../features/ledger/slice";
+import {
+  markPOItemAccepted,
+  markPOItemRejected,
+} from "../features/purchasing/slice";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -80,7 +84,7 @@ export default function PhoneDetail() {
         </p>
         <button
           onClick={() => navigate(-1)}
-          className="mt-4 text-[#064a98] font-bold text-sm"
+          className="mt-4 text-primary-500 font-bold text-sm"
         >
           Go Back
         </button>
@@ -147,13 +151,23 @@ export default function PhoneDetail() {
 
     // 3. Update inventory status + price
     dispatch(markAsInStock({ id: phone.id, finalPrice }));
+
+    // 4. PO-aware logic: if phone has a purchaseOrderId, mark PO item as accepted
+    if ((phone as any).purchaseOrderId) {
+      dispatch(
+        markPOItemAccepted({
+          purchaseOrderId: (phone as any).purchaseOrderId,
+          phoneId: phone.id,
+          finalPrice,
+        }),
+      );
+    }
+
     setShowPurchaseModal(false);
     toast.success("Purchase Confirmed", {
-      description: `${phone.brand} ${phone.model} moved to In Stock.`,
+      description: `${phone.brand} ${phone.model} moved to In Stock.${(phone as any).purchaseOrderId ? " Purchase order updated." : ""}`,
     });
   };
-
-
 
   const handleLogRepair = (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +225,7 @@ export default function PhoneDetail() {
     },
     IN_STOCK: {
       color:
-        "bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400 border-blue-200 dark:border-blue-800",
+        "bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400 border-blue-200 dark:border-blue-800",
       label: "In Stock",
     },
     SOLD: {
@@ -224,28 +238,16 @@ export default function PhoneDetail() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 pb-6 transition-colors duration-300">
-      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="size-10 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
-          >
-            <ChevronLeft size={24} strokeWidth={2.5} />
-          </button>
-          <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Device Details
-          </h1>
-        </div>
-
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
         {phone.status !== "SOLD" && (
           <button
             onClick={() => navigate(`/edit/${phone.id}`)}
-            className="text-[#064a98] dark:text-blue-400 font-bold text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors flex items-center gap-1.5"
+            className="text-primary-500 dark:text-blue-400 font-bold text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors flex items-center gap-1.5"
           >
             <PenSquare size={16} /> Edit
           </button>
         )}
-      </header>
+      </div>
 
       <main className="flex-1 overflow-y-auto px-4 pt-4 pb-12 max-w-lg mx-auto w-full space-y-5">
         {/* Device Identity Card */}
@@ -263,7 +265,7 @@ export default function PhoneDetail() {
                 phone.status === "SOLD"
                   ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400"
                   : phone.status === "IN_STOCK"
-                    ? "bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400"
+                    ? "bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400"
                     : "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400",
               )}
             >
@@ -330,7 +332,7 @@ export default function PhoneDetail() {
         <section className="bg-white dark:bg-slate-900 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden">
           <div className="p-5 border-b border-slate-50 dark:border-slate-800">
             <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
-              <DollarSign size={16} className="text-[#064a98]" />
+              <DollarSign size={16} className="text-primary-500" />
               Financial Breakdown
             </h3>
           </div>
@@ -389,7 +391,7 @@ export default function PhoneDetail() {
                               value={editNote}
                               onChange={(e) => setEditNote(e.target.value)}
                               placeholder="Description"
-                              className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
+                              className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
                             />
                             <div className="flex gap-2 items-center">
                               <input
@@ -397,11 +399,11 @@ export default function PhoneDetail() {
                                 value={editAmount}
                                 onChange={(e) => setEditAmount(e.target.value)}
                                 placeholder="Amount"
-                                className="flex-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
+                                className="flex-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
                               />
                               <button
                                 onClick={() => handleSaveRepairEdit(r)}
-                                className="px-3 py-2 bg-[#064a98] hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
+                                className="px-3 py-2 bg-primary-500 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
                               >
                                 Save
                               </button>
@@ -433,7 +435,7 @@ export default function PhoneDetail() {
                                 setEditNote(r.note || "");
                                 setEditAmount(String(r.amount));
                               }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#064a98] dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-primary-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                             >
                               <Pencil size={13} />
                             </button>
@@ -515,7 +517,7 @@ export default function PhoneDetail() {
                     ? marginPercentage < 0
                       ? "text-rose-600 dark:text-rose-400"
                       : "text-emerald-600 dark:text-emerald-400"
-                    : "text-[#064a98] dark:text-blue-400",
+                    : "text-primary-500 dark:text-blue-400",
                 )}
               >
                 {Math.abs(marginPercentage).toFixed(1)}%
@@ -594,9 +596,21 @@ export default function PhoneDetail() {
                         createdAt: new Date().toISOString(),
                       }),
                     );
+
+                    // PO-aware logic: if phone has a purchaseOrderId, mark PO item as rejected
+                    if ((phone as any).purchaseOrderId) {
+                      dispatch(
+                        markPOItemRejected({
+                          purchaseOrderId: (phone as any).purchaseOrderId,
+                          phoneId: phone.id,
+                          reason: "Unit rejected during inspection",
+                        }),
+                      );
+                    }
+
                     navigate("/inventory");
                     toast.error("Unit Rejected", {
-                      description: `${phone.brand} ${phone.model} removed from inventory. Escrowed funds released.`,
+                      description: `${phone.brand} ${phone.model} removed from inventory. Escrowed funds released.${(phone as any).purchaseOrderId ? " Purchase order updated." : ""}`,
                     });
                   }}
                   className="flex-[0.4] bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 font-bold py-3.5 rounded-xl border border-rose-200 dark:border-rose-800 active:bg-rose-50 transition-colors text-sm"
@@ -619,7 +633,7 @@ export default function PhoneDetail() {
           {phone.status === "IN_STOCK" && (
             <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col gap-4">
               <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
-                <p className="text-[#064a98] dark:text-blue-400 text-sm font-semibold">
+                <p className="text-primary-500 dark:text-blue-400 text-sm font-semibold">
                   Device is currently in your active inventory.
                 </p>
               </div>
@@ -635,9 +649,9 @@ export default function PhoneDetail() {
                 </button>
                 <button
                   onClick={() => setShowSaleModal(true)}
-                  className="flex-1 bg-[#064a98] hover:bg-blue-800 dark:hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all text-sm"
+                  className="flex-1 bg-primary-500 hover:bg-blue-800 dark:hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all text-sm"
                 >
-                  Mark as Sold
+                  Create Trade Order
                 </button>
               </div>
             </div>

@@ -117,7 +117,7 @@ export default function InviteSignup() {
           </CardDescription>
           <Button
             onClick={() => navigate("/login")}
-            className="mt-6 w-full bg-[#064a98]"
+            className="mt-6 w-full bg-primary-500"
           >
             Go to Login
           </Button>
@@ -162,7 +162,7 @@ export default function InviteSignup() {
     <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-slate-50 dark:bg-slate-950 p-4 font-sans transition-colors duration-300">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6">
-          <div className="size-16 bg-[#064a98] rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-blue-900/20">
+          <div className="size-16 bg-primary-500 rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-blue-900/20">
             <span className="text-white text-3xl font-bold tracking-tighter">
               S
             </span>
@@ -171,7 +171,7 @@ export default function InviteSignup() {
             Join the team
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5 bg-slate-200/50 dark:bg-slate-800/50 px-3 py-1 rounded-full border border-slate-300/50 dark:border-slate-700/50 font-medium">
-            <Building size={14} className="text-[#064a98] dark:text-blue-400" />
+            <Building size={14} className="text-primary-500 dark:text-blue-400" />
             {orgName}
           </p>
         </div>
@@ -248,7 +248,7 @@ export default function InviteSignup() {
                 type="button"
                 onClick={handleSubmit(onSubmit)}
                 disabled={isLoading}
-                className="w-full bg-[#064a98] hover:bg-blue-800 text-white font-semibold py-2.5 mt-4 transition-all active:scale-[0.98]"
+                className="w-full bg-primary-500 hover:bg-blue-800 text-white font-semibold py-2.5 mt-4 transition-all active:scale-[0.98]"
               >
                 {isLoading ? (
                   <>
@@ -265,7 +265,7 @@ export default function InviteSignup() {
               Already have an account?{" "}
               <Link
                 to="/login"
-                className="text-[#064a98] dark:text-blue-500 hover:underline font-medium"
+                className="text-primary-500 dark:text-blue-500 hover:underline font-medium"
               >
                 Sign in
               </Link>

@@ -85,6 +85,13 @@ export function useOfflineSyncManager() {
           continue;
         }
 
+        // Hard cap: permanently discard after 5 retries to prevent infinite loops
+        if (item.retryCount >= 5) {
+          console.error(`[Outbox] Permanently dropping action after 5 retries:`, item.action.type);
+          dispatch(removeAction(item.id));
+          continue;
+        }
+
         const success = await syncActionToSupabase(item.action);
 
         if (success) {

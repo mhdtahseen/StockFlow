@@ -52,6 +52,7 @@ export default function Inventory() {
   const [isMultiSelect, setIsMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [longPressTimer, setLongPressTimer] = useState<number | null>(null);
 
   const selectedPhones = useMemo(
     () => phones.filter((p) => selectedIds.includes(p.id)),
@@ -63,6 +64,41 @@ export default function Inventory() {
       searchInputRef.current.focus();
     }
   }, [showSearch]);
+
+  // Long press handlers
+  const handleTouchStart = (phone: Phone) => {
+    if (phone.status !== "IN_STOCK") return;
+    const timer = setTimeout(() => {
+      navigator.vibrate?.(30);
+      setIsMultiSelect(true);
+      setSelectedIds([phone.id]);
+    }, 500);
+    setLongPressTimer(timer);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  const handleMouseDown = (phone: Phone) => {
+    if (phone.status !== "IN_STOCK") return;
+    const timer = setTimeout(() => {
+      navigator.vibrate?.(30);
+      setIsMultiSelect(true);
+      setSelectedIds([phone.id]);
+    }, 500);
+    setLongPressTimer(timer);
+  };
+
+  const handleMouseUp = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
 
   const setActiveTab = (tab: TabOption) => {
     setSearchParams({ tab });
@@ -230,7 +266,7 @@ export default function Inventory() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-0 relative transition-colors duration-300">
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 flex-shrink-0 pt-[env(safe-area-inset-top,0px)]">
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 shrink-0">
         {/* Title row / Search row */}
         <div className="px-4 py-3 flex items-center justify-between gap-3">
           {showSearch ? (
@@ -257,9 +293,7 @@ export default function Inventory() {
               )}
             </div>
           ) : (
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              Inventory
-            </h1>
+            <div className="flex-1" />
           )}
           <div className="flex gap-1.5 shrink-0">
             {activeTab === "IN_STOCK" && (
@@ -271,7 +305,7 @@ export default function Inventory() {
                 className={clsx(
                   "px-3 py-2 rounded-xl text-xs font-bold transition-colors",
                   isMultiSelect
-                    ? "bg-[#064a98] text-white"
+                    ? "bg-primary-500 text-white"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold",
                 )}
               >
@@ -286,7 +320,7 @@ export default function Inventory() {
               className={clsx(
                 "size-10 rounded-full flex items-center justify-center transition-colors",
                 showSearch
-                  ? "bg-[#064a98] text-white"
+                  ? "bg-primary-500 text-white"
                   : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400",
               )}
             >
@@ -297,13 +331,13 @@ export default function Inventory() {
               className={clsx(
                 "size-10 rounded-full flex items-center justify-center transition-colors relative",
                 showFilter
-                  ? "bg-[#064a98] text-white"
+                  ? "bg-primary-500 text-white"
                   : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400",
               )}
             >
               <SlidersHorizontal size={20} />
               {activeFilterCount > 0 && !showFilter && (
-                <span className="absolute -top-0.5 -right-0.5 size-4 bg-[#064a98] text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                <span className="absolute -top-0.5 -right-0.5 size-4 bg-primary-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
                   {activeFilterCount}
                 </span>
               )}
@@ -335,7 +369,7 @@ export default function Inventory() {
                     className={clsx(
                       "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors",
                       sortBy === s.value
-                        ? "bg-[#064a98] text-white"
+                        ? "bg-primary-500 text-white"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700",
                     )}
                   >
@@ -371,7 +405,7 @@ export default function Inventory() {
                     className={clsx(
                       "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors",
                       filterBrand === brand
-                        ? "bg-[#064a98] text-white"
+                        ? "bg-primary-500 text-white"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700",
                     )}
                   >
@@ -424,14 +458,14 @@ export default function Inventory() {
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24 z-10 w-full max-w-lg mx-auto space-y-5">
         {/* Active search/filter indicator */}
         {(query || filterBrand) && (
           <div className="flex items-center gap-2 flex-wrap">
             {query && (
-              <span className="flex items-center gap-1 bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400 text-xs font-bold px-2.5 py-1 rounded-md border border-blue-100 dark:border-blue-900">
+              <span className="flex items-center gap-1 bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400 text-xs font-bold px-2.5 py-1 rounded-md border border-blue-100 dark:border-blue-900">
                 Search: "{query}"
                 <button onClick={() => setQuery("")}>
                   <X size={12} />
@@ -439,7 +473,7 @@ export default function Inventory() {
               </span>
             )}
             {filterBrand && (
-              <span className="flex items-center gap-1 bg-blue-50 dark:bg-blue-950 text-[#064a98] dark:text-blue-400 text-xs font-bold px-2.5 py-1 rounded-md border border-blue-100 dark:border-blue-900">
+              <span className="flex items-center gap-1 bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400 text-xs font-bold px-2.5 py-1 rounded-md border border-blue-100 dark:border-blue-900">
                 Brand: {filterBrand}
                 <button onClick={() => setFilterBrand(null)}>
                   <X size={12} />
@@ -453,9 +487,9 @@ export default function Inventory() {
         {activeTab === "ALL" ? (
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col justify-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-[#064a98]/5 dark:bg-blue-500/5 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary-500/5 dark:bg-blue-500/5 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
               <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#064a98] dark:bg-blue-400"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 dark:bg-blue-400"></span>
                 Active Capital
               </p>
               <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
@@ -476,9 +510,9 @@ export default function Inventory() {
         ) : (
           <div className="flex gap-4">
             <div className="bg-white dark:bg-slate-900 flex-[1.2] p-5 rounded-2xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-[#064a98]/5 dark:bg-blue-500/5 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary-500/5 dark:bg-blue-500/5 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
               <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#064a98] dark:bg-blue-400"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 dark:bg-blue-400"></span>
                 {label}
               </p>
               <p className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
@@ -531,6 +565,10 @@ export default function Inventory() {
               filteredPhones.map((phone) => (
                 <div
                   key={phone.id}
+                  onTouchStart={() => handleTouchStart(phone)}
+                  onTouchEnd={handleTouchEnd}
+                  onMouseDown={() => handleMouseDown(phone)}
+                  onMouseUp={handleMouseUp}
                   onClick={() => {
                     if (isMultiSelect) {
                       if (phone.status !== "IN_STOCK") return;
@@ -544,14 +582,45 @@ export default function Inventory() {
                     }
                   }}
                   className={clsx(
-                    "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border block transition-all group cursor-pointer",
+                    "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border block transition-all group cursor-pointer relative",
                     phone.status === "SOLD" && "opacity-90",
                     isMultiSelect && selectedIds.includes(phone.id)
-                      ? "border-[#064a98] bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-500"
-                      : "border-slate-100 dark:border-slate-800 hover:border-[#064a98]/20 dark:hover:border-[#064a98]/30",
-                    isMultiSelect && phone.status !== "IN_STOCK" && "opacity-50 pointer-events-none"
+                      ? "border-primary-500 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-500"
+                      : "border-slate-100 dark:border-slate-800 hover:border-primary-500/20 dark:hover:border-primary-500/30",
+                    isMultiSelect &&
+                      phone.status !== "IN_STOCK" &&
+                      "opacity-50 pointer-events-none",
                   )}
                 >
+                  {/* Checkbox overlay for multi-select mode */}
+                  {isMultiSelect && phone.status === "IN_STOCK" && (
+                    <div className="absolute top-3 left-3 z-10">
+                      <div
+                        className={clsx(
+                          "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
+                          selectedIds.includes(phone.id)
+                            ? "bg-primary-500 border-primary-500"
+                            : "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600",
+                        )}
+                      >
+                        {selectedIds.includes(phone.id) && (
+                          <svg
+                            className="w-4 h-4 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={3}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1 pr-4">
                       <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
@@ -706,12 +775,13 @@ export default function Inventory() {
               Selected
             </span>
             <span className="text-lg font-black text-slate-900 dark:text-slate-100">
-              {selectedIds.length} {selectedIds.length === 1 ? "device" : "devices"}
+              {selectedIds.length}{" "}
+              {selectedIds.length === 1 ? "device" : "devices"}
             </span>
           </div>
           <button
             onClick={() => setShowCreateOrder(true)}
-            className="bg-[#064a98] hover:bg-blue-800 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-sm"
+            className="bg-primary-500 hover:bg-blue-800 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-sm"
           >
             Create Order
           </button>

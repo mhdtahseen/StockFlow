@@ -21,7 +21,7 @@ export default function TrialExpiredPaywall() {
       <div className="flex flex-col gap-3 w-full max-w-xs">
         <Link 
           to="/pricing" 
-          className="bg-[#064a98] hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-blue-900/20"
+          className="bg-primary-500 hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-blue-900/20"
         >
           Choose a Plan
         </Link>
@@ -35,7 +35,7 @@ export default function TrialExpiredPaywall() {
 
       <div className="mt-12 text-xs text-slate-400 dark:text-slate-600">
         <span className="opacity-70">Need your data? </span>
-        <Link to="/financials" className="text-[#064a98] dark:text-blue-400 hover:underline">
+        <Link to="/financials" className="text-primary-500 dark:text-blue-400 hover:underline">
           View in Read-Only Mode
         </Link>
       </div>

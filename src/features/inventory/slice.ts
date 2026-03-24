@@ -44,6 +44,21 @@ const inventorySlice = createSlice({
         phone.salePrice = action.payload.salePrice;
       }
     },
+    linkPhoneToPO: (
+      state,
+      action: PayloadAction<{ phoneId: string; purchaseOrderId: string }>,
+    ) => {
+      const phone = state.phones.find((p) => p.id === action.payload.phoneId);
+      if (phone)
+        (phone as any).purchaseOrderId = action.payload.purchaseOrderId;
+    },
+    linkPhoneToTO: (
+      state,
+      action: PayloadAction<{ phoneId: string; saleOrderId: string }>,
+    ) => {
+      const phone = state.phones.find((p) => p.id === action.payload.phoneId);
+      if (phone) (phone as any).saleOrderId = action.payload.saleOrderId;
+    },
   },
 });
 
@@ -54,5 +69,7 @@ export const {
   removePhone,
   markAsInStock,
   markAsSold,
+  linkPhoneToPO,
+  linkPhoneToTO,
 } = inventorySlice.actions;
 export default inventorySlice.reducer;

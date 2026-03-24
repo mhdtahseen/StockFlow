@@ -119,7 +119,7 @@ export default function ImeiSection({ imeis, onChange }: ImeiSectionProps) {
     <>
       <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
         <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          <Fingerprint className="text-[#064a98]" size={18} strokeWidth={2.5} />
+          <Fingerprint className="text-primary-500" size={18} strokeWidth={2.5} />
           IMEI
         </h3>
 
@@ -155,7 +155,7 @@ export default function ImeiSection({ imeis, onChange }: ImeiSectionProps) {
                           ? "border-rose-300 dark:border-rose-700 focus:border-rose-400 dark:focus:border-rose-600 focus:ring-1 focus:ring-rose-200 dark:focus:ring-rose-800"
                           : isValid
                             ? "border-emerald-300 dark:border-emerald-700 focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-800"
-                            : "border-slate-200 dark:border-slate-700 focus:border-[#064a98] dark:focus:border-blue-500 focus:ring-1 focus:ring-[#064a98]/20 dark:focus:ring-blue-500/20",
+                            : "border-slate-200 dark:border-slate-700 focus:border-primary-500 dark:focus:border-blue-500 focus:ring-1 focus:ring-primary-500/20 dark:focus:ring-blue-500/20",
                       )}
                     />
                     {/* Validation icon */}
@@ -180,7 +180,7 @@ export default function ImeiSection({ imeis, onChange }: ImeiSectionProps) {
                       setScanTarget(index);
                       setScannerOpen(true);
                     }}
-                    className="size-[46px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-[#064a98]/10 dark:hover:bg-blue-500/10 hover:border-[#064a98]/30 dark:hover:border-blue-500/30 flex items-center justify-center text-[#064a98] dark:text-blue-400 transition-all active:scale-95 shrink-0"
+                    className="size-[46px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-primary-500/10 dark:hover:bg-blue-500/10 hover:border-primary-500/30 dark:hover:border-blue-500/30 flex items-center justify-center text-primary-500 dark:text-blue-400 transition-all active:scale-95 shrink-0"
                     title="Scan Barcode"
                   >
                     <ScanBarcode size={20} strokeWidth={2} />
@@ -241,7 +241,7 @@ export default function ImeiSection({ imeis, onChange }: ImeiSectionProps) {
           <button
             type="button"
             onClick={addImeiSlot}
-            className="flex items-center gap-2 text-xs font-bold text-[#064a98] dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors py-1"
+            className="flex items-center gap-2 text-xs font-bold text-primary-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors py-1"
           >
             <Plus size={14} strokeWidth={3} />
             Add Another IMEI
@@ -254,7 +254,7 @@ export default function ImeiSection({ imeis, onChange }: ImeiSectionProps) {
             href={CEIR_VERIFICATION_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 py-3 bg-[#064a98] hover:bg-blue-800 text-white rounded-xl font-bold text-xs shadow-md shadow-blue-900/10 transition-all active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-primary-500 hover:bg-blue-800 text-white rounded-xl font-bold text-xs shadow-md shadow-blue-900/10 transition-all active:scale-[0.98]"
           >
             <ExternalLink size={14} />
             Verify IMEI on CEIR

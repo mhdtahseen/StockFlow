@@ -77,7 +77,7 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24">
            <form id="payout-form" onSubmit={handleSubmit}>
               <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden mb-6">
-                <div className="absolute top-0 left-0 w-1 bg-[#064a98] h-full" />
+                <div className="absolute top-0 left-0 w-1 bg-primary-500 h-full" />
                 <div className="flex justify-between items-center mb-5 ml-2">
                   <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Payable Dues Remaining</label>
                   <span className="text-2xl font-black text-rose-500 tracking-tight">₹{maxOwed.toLocaleString()}</span>
@@ -88,8 +88,8 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
                    {['CASH', 'UPI', 'BANK_TRANSFER'].map(m => (
                   <button key={m} type="button" onClick={() => setMode(m as Exclude<PayMode, 'CREDIT'>)}
                        className={clsx(
-                         "py-2.5 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-colors border text-center break-words",
-                         mode === m ? "bg-[#064a98] text-white border-[#064a98] shadow-md shadow-[#064a98]/20" : "bg-slate-50 border-slate-200 dark:bg-slate-950 text-slate-500 dark:border-slate-800"
+                         "py-2.5 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-colors border text-center wrap-break-word",
+                         mode === m ? "bg-primary-500 text-white border-primary-500 shadow-md shadow-primary-500/20" : "bg-slate-50 border-slate-200 dark:bg-slate-950 text-slate-500 dark:border-slate-800"
                        )}
                      >{m.replace('_','\n')}</button>
                    ))}
@@ -122,7 +122,7 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
         </div>
 
         <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0">
-           <Button type="submit" form="payout-form" disabled={totalPaid <= 0 || allocations.length === 0} className="w-full h-14 rounded-xl text-lg font-black tracking-wide bg-[#064a98] hover:bg-blue-800 text-white shadow-xl shadow-[#064a98]/20 transition-all disabled:opacity-50">
+           <Button type="submit" form="payout-form" disabled={totalPaid <= 0 || allocations.length === 0} className="w-full h-14 rounded-xl text-lg font-black tracking-wide bg-primary-500 hover:bg-blue-800 text-white shadow-xl shadow-primary-500/20 transition-all disabled:opacity-50">
              Execute Capital Outflow
            </Button>
         </div>

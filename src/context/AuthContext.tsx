@@ -65,10 +65,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const refreshTenant = async () => {
     if (!user) return;
-    
+
     // Try to get tenant_id from metadata first, then fall back to profiles table
     let tenantId = user.user_metadata.tenant_id;
-    
+
     if (!tenantId) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -100,20 +100,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           // Fetch real-time roles from profiles table
           if (s?.user) {
             localStorage.setItem("stockflow_auth", "true");
-            const { data: profile } = await supabase
+            const { data: profile, error } = await supabase
               .from("profiles")
               .select("role, tenant_id")
               .eq("id", s.user.id)
               .single();
-            
+
+            if (error) {
+              console.error("Error fetching initial profile:", error);
+            }
+
             if (profile) {
               const profileRole = profile.role;
-              setIsSuperAdmin(profileRole === 'super-admin');
-              setIsAdmin(profileRole === 'admin' || profileRole === 'super-admin');
-              
+              setIsSuperAdmin(profileRole === "super-admin");
+              setIsAdmin(
+                profileRole === "admin" || profileRole === "super-admin",
+              );
+
               if (profile.tenant_id) {
                 await fetchTenant(profile.tenant_id);
               }
+            } else {
+              setIsSuperAdmin(false);
+              setIsAdmin(false);
             }
           } else {
             localStorage.removeItem("stockflow_auth");
@@ -133,24 +142,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       (event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user || null);
-        
+
         const updateRoles = async () => {
           if (newSession?.user) {
-            const { data: profile } = await supabase
+            const { data: profile, error } = await supabase
               .from("profiles")
               .select("role")
               .eq("id", newSession.user.id)
               .single();
-            
+
+            if (error) {
+              console.error("Error fetching profile:", error);
+            }
+
             if (profile) {
               const profileRole = profile.role;
-              setIsSuperAdmin(profileRole === 'super-admin');
-              setIsAdmin(profileRole === 'admin' || profileRole === 'super-admin');
+              setIsSuperAdmin(profileRole === "super-admin");
+              setIsAdmin(
+                profileRole === "admin" || profileRole === "super-admin",
+              );
+            } else {
+              setIsSuperAdmin(false);
+              setIsAdmin(false);
             }
           } else {
             setIsSuperAdmin(false);
             setIsAdmin(false);
           }
+          // Set loading to false only after roles are determined
+          setIsLoading(false);
         };
         updateRoles();
 
@@ -165,7 +185,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           localStorage.removeItem("persist:stockflow-root");
           setTenant(null);
         }
-        setIsLoading(false);
       },
     );
 
@@ -187,7 +206,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (data && data.plan !== tenant.plan) {
           setTenant((prev) =>
             prev
-              ? { ...prev, plan: data.plan, planExpiresAt: data.plan_expires_at }
+              ? {
+                  ...prev,
+                  plan: data.plan,
+                  planExpiresAt: data.plan_expires_at,
+                }
               : null,
           );
           toast.info("Your subscription has been updated.");
@@ -199,11 +222,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [session, tenant?.id, tenant?.plan]);
 
   const signOut = async () => {
+    // Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
+    import('@/app/supabaseApi').then(m => m.clearTenantCache?.());
     await supabase.auth.signOut();
   };
 
+
   return (
-    <AuthContext.Provider value={{ session, user, isAdmin, isSuperAdmin, isLoading: isLoading || isTenantLoading, tenant, signOut, refreshTenant }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        isAdmin,
+        isSuperAdmin,
+        isLoading: isLoading || isTenantLoading,
+        tenant,
+        signOut,
+        refreshTenant,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

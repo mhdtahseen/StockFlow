@@ -50,7 +50,7 @@ export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }
       <SheetContent side="bottom" className="h-[90vh] flex flex-col p-4 sm:p-6 rounded-t-3xl border-t border-slate-200 dark:border-slate-800">
         <SheetHeader className="mb-4 flex flex-row items-center justify-between">
           <SheetTitle>Select Inventory</SheetTitle>
-          <button onClick={toggleAll} className="text-sm text-[#064a98] dark:text-blue-400 font-bold active:scale-95 transition-transform">
+          <button onClick={toggleAll} className="text-sm text-primary-500 dark:text-blue-400 font-bold active:scale-95 transition-transform">
             {draftIds.size === filtered.length ? 'Clear All' : 'Select All'}
           </button>
         </SheetHeader>
@@ -74,13 +74,13 @@ export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }
                 className={clsx(
                   "w-full text-left p-4 rounded-xl flex items-center gap-4 transition-colors border",
                   isSelected 
-                    ? "bg-blue-50/80 border-[#064a98]/30 dark:bg-[#064a98]/20 dark:border-[#064a98]/50" 
-                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-[#064a98]/30"
+                    ? "bg-blue-50/80 border-primary-500/30 dark:bg-primary-500/20 dark:border-primary-500/50" 
+                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-primary-500/30"
                 )}
               >
                 <div className={clsx(
                   "size-6 rounded-md border flex items-center justify-center transition-colors shrink-0",
-                  isSelected ? "bg-[#064a98] border-[#064a98] text-white" : "border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-950"
+                  isSelected ? "bg-primary-500 border-primary-500 text-white" : "border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-950"
                 )}>
                   {isSelected && <Check size={14} strokeWidth={3.5} />}
                 </div>
@@ -90,7 +90,7 @@ export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }
                     {p.storage} • {p.color} • IMEI: ****{p.imeis?.[0]?.slice(-4) || 'N/A'}
                   </div>
                 </div>
-                <div className="font-black text-[#064a98] dark:text-blue-400 shrink-0">
+                <div className="font-black text-primary-500 dark:text-blue-400 shrink-0">
                   ₹{(p.salePrice || 0).toLocaleString()}
                 </div>
               </button>
@@ -111,7 +111,7 @@ export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }
               onSelect(selectedPhones);
               onOpenChange(false);
             }} 
-            className="w-full h-14 rounded-xl text-lg font-bold bg-[#064a98] hover:bg-blue-800 text-white shadow-lg shadow-[#064a98]/20"
+            className="w-full h-14 rounded-xl text-lg font-bold bg-primary-500 hover:bg-blue-800 text-white shadow-lg shadow-primary-500/20"
           >
             Confirm {draftIds.size} {draftIds.size === 1 ? 'Device' : 'Devices'}
           </Button>

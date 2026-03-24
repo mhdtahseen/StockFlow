@@ -87,7 +87,7 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
                    {['CASH', 'UPI', 'BANK_TRANSFER'].map(m => (
                   <button key={m} type="button" onClick={() => setMode(m as Exclude<PayMode, 'CREDIT'>)}
                        className={clsx(
-                         "py-2.5 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-colors border text-center whitespace-normal break-words",
+                         "py-2.5 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-colors border text-center whitespace-normal wrap-break-word",
                          mode === m ? "bg-primary-500 text-white border-primary-500 shadow-md shadow-primary-500/20" : "bg-slate-50 border-slate-200 dark:bg-slate-950 text-slate-500 dark:border-slate-800"
                        )}
                      >{m.replace('_','\n')}</button>

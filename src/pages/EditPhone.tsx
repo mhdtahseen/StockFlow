@@ -87,7 +87,7 @@ export default function EditPhone() {
         </p>
         <button
           onClick={() => navigate(-1)}
-          className="mt-4 text-[#064a98] font-bold text-sm"
+          className="mt-4 text-primary-500 font-bold text-sm"
         >
           Go Back
         </button>
@@ -103,7 +103,7 @@ export default function EditPhone() {
         </p>
         <button
           onClick={() => navigate(-1)}
-          className="mt-4 text-[#064a98] font-bold text-sm"
+          className="mt-4 text-primary-500 font-bold text-sm"
         >
           Go Back
         </button>
@@ -372,18 +372,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300 relative">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3 w-full">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="size-10 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
-          >
-            <ChevronLeft size={24} strokeWidth={2.5} />
-          </button>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex-1">
-            Edit Device
-          </h2>
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-end shadow-sm gap-3">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -392,7 +381,6 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
             Cancel
           </button>
         </div>
-      </header>
 
       <main className="w-full max-w-lg mx-auto p-4 pb-12 z-10">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -403,7 +391,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Smartphone
-                className="text-[#064a98]"
+                className="text-primary-500"
                 size={18}
                 strokeWidth={2.5}
               />
@@ -442,7 +430,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
             />
 
             {modelInCatalog && (
-              <p className="text-[10px] font-semibold text-[#064a98]/70 dark:text-blue-400/70 flex items-center gap-1 -mt-2">
+              <p className="text-[10px] font-semibold text-primary-500/70 dark:text-blue-400/70 flex items-center gap-1 -mt-2">
                 <Check size={11} strokeWidth={3} />
                 Catalog model — storage & colors auto-loaded
               </p>
@@ -452,7 +440,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
           {/* ── Specifications ───────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Cpu className="text-[#064a98]" size={18} strokeWidth={2.5} />
+              <Cpu className="text-primary-500" size={18} strokeWidth={2.5} />
               Specifications
             </h3>
 
@@ -528,7 +516,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Wrench
-                  className="text-[#064a98]"
+                  className="text-primary-500"
                   size={18}
                   strokeWidth={2.5}
                 />
@@ -675,7 +663,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4 mb-8">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <DollarSign
-                className="text-[#064a98]"
+                className="text-primary-500"
                 size={18}
                 strokeWidth={2.5}
               />
@@ -711,7 +699,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="w-full bg-[#064a98] hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+                className="w-full bg-primary-500 hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
               >
                 <Smartphone size={20} />
                 Update Device

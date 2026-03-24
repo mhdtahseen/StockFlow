@@ -21,15 +21,7 @@ export default function Customers() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
-      <header className="px-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] pb-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 sticky top-0 z-10">
-        <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <Users className="text-[#064a98]" size={24} />
-          Directory
-        </h1>
-        <p className="text-xs font-bold text-slate-500 mt-1 uppercase tracking-wider">
-          {customers.length} Contacts
-        </p>
-      </header>
+      {/* Search Bar */}
 
       <div className="p-4">
         <div className="relative mb-6">
@@ -42,7 +34,7 @@ export default function Customers() {
             placeholder="Search by name or phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-12 pl-10 pr-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-semibold shadow-sm focus:border-[#064a98] outline-none transition-colors"
+            className="w-full h-12 pl-10 pr-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-semibold shadow-sm focus:border-primary-500 outline-none transition-colors"
           />
         </div>
 
@@ -62,9 +54,9 @@ export default function Customers() {
               <div
                 key={c.id}
                 onClick={() => navigate(`/customers/${c.id}`)}
-                className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 cursor-pointer hover:border-[#064a98]/30 active:scale-[0.98] transition-all group"
+                className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 cursor-pointer hover:border-primary-500/30 active:scale-[0.98] transition-all group"
               >
-                <div className="size-12 rounded-full bg-blue-50 dark:bg-blue-900/20 text-[#064a98] dark:text-blue-400 flex items-center justify-center font-black text-lg shrink-0">
+                <div className="size-12 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary-500 dark:text-blue-400 flex items-center justify-center font-black text-lg shrink-0">
                   {c.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -84,7 +76,7 @@ export default function Customers() {
                 </div>
                 <ChevronRight
                   size={18}
-                  className="text-slate-300 group-hover:text-[#064a98] transition-colors shrink-0"
+                  className="text-slate-300 group-hover:text-primary-500 transition-colors shrink-0"
                 />
               </div>
             ))

@@ -231,8 +231,8 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
                   "bg-slate-50 dark:bg-slate-800",
                   "hover:bg-slate-100 dark:hover:bg-slate-750",
                   "focus:bg-white dark:focus:bg-slate-800",
-                  "focus:border-[#064a98] dark:focus:border-blue-500",
-                  "focus:ring-[#064a98]/20 dark:focus:ring-blue-500/20",
+                  "focus:border-primary-500 dark:focus:border-blue-500",
+                  "focus:ring-primary-500/20 dark:focus:ring-blue-500/20",
                   "text-slate-900 dark:text-slate-100",
                 ],
           )}
@@ -289,9 +289,9 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
                 className={clsx(
                   "flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer text-sm font-semibold transition-colors",
                   isActive
-                    ? "bg-[#064a98]/5 dark:bg-blue-500/10 text-[#064a98] dark:text-blue-400"
+                    ? "bg-primary-500/5 dark:bg-blue-500/10 text-primary-500 dark:text-blue-400"
                     : isSelected
-                      ? "bg-blue-50 dark:bg-blue-950/40 text-[#064a98] dark:text-blue-300"
+                      ? "bg-blue-50 dark:bg-blue-950/40 text-primary-500 dark:text-blue-300"
                       : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800",
                 )}
               >
@@ -308,7 +308,7 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
                   <Check
                     size={14}
                     strokeWidth={2.5}
-                    className="shrink-0 text-[#064a98] dark:text-blue-400"
+                    className="shrink-0 text-primary-500 dark:text-blue-400"
                   />
                 )}
               </li>

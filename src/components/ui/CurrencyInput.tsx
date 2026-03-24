@@ -93,7 +93,7 @@ export default function CurrencyInput({
           "w-full rounded-xl pl-10 pr-4 py-4 text-2xl font-black tracking-tight transition-all outline-none",
           disabled
             ? "border-2 border-slate-100 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-            : "border-2 border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-[#064a98] dark:focus:border-blue-500 text-slate-900 dark:text-slate-100 placeholder:font-bold placeholder:text-slate-300 dark:placeholder:text-slate-600",
+            : "border-2 border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-primary-500 dark:focus:border-blue-500 text-slate-900 dark:text-slate-100 placeholder:font-bold placeholder:text-slate-300 dark:placeholder:text-slate-600",
           className,
         )}
       />

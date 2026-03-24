@@ -140,28 +140,13 @@ export default function ManageTeam() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      {/* Header */}
-      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 border-b border-slate-100 dark:border-slate-800">
-        <Link
-          to="/"
-          className="mr-3 p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Manage Team</h1>
-          <p className="text-slate-400 dark:text-slate-500 text-[11px] font-semibold uppercase tracking-wider mt-0.5">
-            Organization Access
-          </p>
-        </div>
-      </header>
 
       <main className="flex-1 p-4">
         {/* Invite Section (Only Admins) */}
         {isAdmin && (
           <div className="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm dark:shadow-black/20 border border-slate-200 dark:border-slate-800 mb-6">
             <div className="flex items-start gap-4">
-              <div className="size-12 rounded-full bg-[#064a98]/10 dark:bg-blue-500/10 text-[#064a98] dark:text-blue-400 flex items-center justify-center shrink-0">
+              <div className="size-12 rounded-full bg-primary-500/10 dark:bg-blue-500/10 text-primary-500 dark:text-blue-400 flex items-center justify-center shrink-0">
                 <Users size={24} />
               </div>
               <div className="flex-1">
@@ -175,7 +160,7 @@ export default function ManageTeam() {
                 {!showInviteDetails ? (
                   <Button
                     onClick={() => setShowInviteDetails(true)}
-                    className="w-full bg-[#064a98] hover:bg-blue-800 text-white font-semibold py-2"
+                    className="w-full bg-primary-500 hover:bg-blue-800 text-white font-semibold py-2"
                   >
                     <Plus size={16} className="mr-2" />
                     Generate Invite Link

@@ -342,14 +342,11 @@ export default function Wallet() {
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
       {/* Header with calendar icon dropdown */}
-      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 justify-between border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-2 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 shrink-0">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Wallet Ledger
-          </h1>
           {dateRangeLabel && (
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[10px] font-bold text-[#064a98] dark:text-blue-400 uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-primary-500 dark:text-blue-400 uppercase tracking-wider">
                 {dateRangeLabel}
               </span>
               <button
@@ -371,7 +368,7 @@ export default function Wallet() {
             className={clsx(
               "size-10 rounded-full flex items-center justify-center transition-colors relative",
               hasDateFilter
-                ? "bg-[#064a98] text-white"
+                ? "bg-primary-500 text-white"
                 : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400",
             )}
           >
@@ -413,7 +410,7 @@ export default function Wallet() {
                 <div className="border-t border-slate-100 dark:border-slate-800">
                   <button
                     onClick={() => setShowCustomDates(!showCustomDates)}
-                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#064a98] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-primary-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                   >
                     Custom Range...
                   </button>
@@ -429,7 +426,7 @@ export default function Wallet() {
                           value={dateFrom}
                           onChange={(e) => setDateFrom(e.target.value)}
                           max={dateTo || undefined}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
                         />
                       </div>
                       <div>
@@ -441,7 +438,7 @@ export default function Wallet() {
                           value={dateTo}
                           onChange={(e) => setDateTo(e.target.value)}
                           min={dateFrom || undefined}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
                         />
                       </div>
                       <button
@@ -450,7 +447,7 @@ export default function Wallet() {
                           setShowCustomDates(false);
                         }}
                         disabled={!dateFrom && !dateTo}
-                        className="w-full py-2 text-xs font-bold text-white bg-[#064a98] rounded-lg disabled:opacity-40 transition-all"
+                        className="w-full py-2 text-xs font-bold text-white bg-primary-500 rounded-lg disabled:opacity-40 transition-all"
                       >
                         Apply
                       </button>
@@ -472,12 +469,12 @@ export default function Wallet() {
             </>
           )}
         </div>
-      </header>
+      </div>
 
       <main className="flex-1 overflow-y-auto px-4 pb-12">
         {/* Hero Card */}
         <section className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm pt-4 pb-2 -mx-4 px-4">
-          <div className="bg-[#064a98] dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative flex flex-col justify-between h-32 overflow-hidden">
+          <div className="bg-primary-500 dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative flex flex-col justify-between h-32 overflow-hidden">
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 dark:bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
             <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-white/10 dark:bg-white/5 rounded-full blur-xl pointer-events-none"></div>
 
@@ -718,14 +715,14 @@ export default function Wallet() {
                   className={clsx(
                     "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors",
                     withdrawSource === "WALLET"
-                      ? "bg-slate-50 dark:bg-slate-800 border-[#064a98] dark:border-blue-500"
+                      ? "bg-slate-50 dark:bg-slate-800 border-primary-500 dark:border-blue-500"
                       : "border-slate-200 dark:border-slate-700",
                   )}
                 >
                   <input
                     type="radio"
                     name="withdrawSource"
-                    className="w-4 h-4 text-[#064a98] focus:ring-[#064a98]"
+                    className="w-4 h-4 text-primary-500 focus:ring-primary-500"
                     checked={withdrawSource === "WALLET"}
                     onChange={() => setWithdrawSource("WALLET")}
                   />
@@ -742,14 +739,14 @@ export default function Wallet() {
                   className={clsx(
                     "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors",
                     withdrawSource === "PROFITS"
-                      ? "bg-slate-50 dark:bg-slate-800 border-[#064a98] dark:border-blue-500"
+                      ? "bg-slate-50 dark:bg-slate-800 border-primary-500 dark:border-blue-500"
                       : "border-slate-200 dark:border-slate-700",
                   )}
                 >
                   <input
                     type="radio"
                     name="withdrawSource"
-                    className="w-4 h-4 text-[#064a98] focus:ring-[#064a98]"
+                    className="w-4 h-4 text-primary-500 focus:ring-primary-500"
                     checked={withdrawSource === "PROFITS"}
                     onChange={() => setWithdrawSource("PROFITS")}
                   />
@@ -793,7 +790,7 @@ export default function Wallet() {
                 className={clsx(
                   "flex-1 py-3.5 font-semibold text-white rounded-xl shadow-lg transition-all active:scale-[0.98]",
                   actionType === "ADD"
-                    ? "bg-[#064a98] hover:bg-blue-800 shadow-blue-600/20"
+                    ? "bg-primary-500 hover:bg-blue-800 shadow-blue-600/20"
                     : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20",
                 )}
               >

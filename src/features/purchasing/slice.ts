@@ -1,5 +1,10 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { PurchasingState, PurchaseOrder, PurchaseOrderItem, SupplierPayment } from "./types";
+import {
+  PurchasingState,
+  PurchaseOrder,
+  PurchaseOrderItem,
+  SupplierPayment,
+} from "./types";
 
 const initialState: PurchasingState = { orders: [], payments: [] };
 
@@ -49,8 +54,60 @@ const purchasingSlice = createSlice({
         o.items = a.payload.items;
       }
     },
+    markPOItemAccepted: (
+      state,
+      action: PayloadAction<{
+        purchaseOrderId: string;
+        phoneId: string;
+        finalPrice: number;
+      }>,
+    ) => {
+      const po = state.orders.find(
+        (o) => o.id === action.payload.purchaseOrderId,
+      );
+      if (!po) return;
+      const item = po.items.find((i) => i.phoneId === action.payload.phoneId);
+      if (item) item.status = "ACCEPTED";
+      po.phonesReceived = (po.phonesReceived ?? 0) + 1;
+      // Check if all items resolved → update PO status
+      const allResolved = po.items.every(
+        (i) => i.status !== "PENDING_INSPECTION",
+      );
+      if (allResolved) po.status = "RECEIVED";
+    },
+    markPOItemRejected: (
+      state,
+      action: PayloadAction<{
+        purchaseOrderId: string;
+        phoneId: string;
+        reason?: string;
+      }>,
+    ) => {
+      const po = state.orders.find(
+        (o) => o.id === action.payload.purchaseOrderId,
+      );
+      if (!po) return;
+      const item = po.items.find((i) => i.phoneId === action.payload.phoneId);
+      if (item) {
+        item.status = "REJECTED";
+        if (action.payload.reason)
+          (item as any).rejectionReason = action.payload.reason;
+      }
+      const allResolved = po.items.every(
+        (i) => i.status !== "PENDING_INSPECTION",
+      );
+      if (allResolved) po.status = "RECEIVED";
+    },
   },
 });
-export const { setPurchaseOrders, addPurchaseOrder, updatePOPayment, confirmReceipt, setPayments, addSupplierPayment } =
-  purchasingSlice.actions;
+export const {
+  setPurchaseOrders,
+  addPurchaseOrder,
+  updatePOPayment,
+  confirmReceipt,
+  setPayments,
+  addSupplierPayment,
+  markPOItemAccepted,
+  markPOItemRejected,
+} = purchasingSlice.actions;
 export default purchasingSlice.reducer;

@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/ui/textarea.tsx";
 import {
   Card,
   CardContent,
@@ -237,27 +237,13 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-950 p-4">
-        <Loader2 className="h-8 w-8 animate-spin text-[#064a98] dark:text-blue-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary-500 dark:text-blue-500" />
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 border-b border-slate-100 dark:border-slate-800">
-        <Link
-          to="/settings"
-          className="mr-3 p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Your Profile</h1>
-          <p className="text-slate-400 dark:text-slate-500 text-[11px] font-semibold uppercase tracking-wider mt-0.5">
-            Personal & Business Identity
-          </p>
-        </div>
-      </header>
 
       <main className="flex-1 p-4 max-w-lg mx-auto w-full space-y-6">
         <div className="flex flex-col items-center pt-2">
@@ -279,7 +265,7 @@ export default function ProfilePage() {
             <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="text-white" size={24} />
             </div>
-            <div className="absolute bottom-0 right-0 bg-[#064a98] dark:bg-blue-600 p-2 rounded-full border-2 border-white dark:border-slate-900 text-white shadow-md">
+            <div className="absolute bottom-0 right-0 bg-primary-500 dark:bg-blue-600 p-2 rounded-full border-2 border-white dark:border-slate-900 text-white shadow-md">
               <Pencil size={14} />
             </div>
           </div>
@@ -350,7 +336,7 @@ export default function ProfilePage() {
             <Button
               onClick={handleUpdateProfile}
               disabled={isSaving}
-              className="w-full bg-[#064a98] hover:bg-blue-800 text-white font-semibold mt-2"
+              className="w-full bg-primary-500 hover:bg-blue-800 text-white font-semibold mt-2"
             >
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -513,7 +499,7 @@ export default function ProfilePage() {
                 onClick={() => handleSelectAvatar(url)}
                 className={`w-full aspect-square rounded-2xl bg-slate-100 dark:bg-slate-800 overflow-hidden border-2 transition-all hover:scale-105 hover:shadow-lg ${
                   avatarUrl === url
-                    ? "border-[#064a98] dark:border-blue-500 shadow-xl shadow-blue-900/10"
+                    ? "border-primary-500 dark:border-blue-500 shadow-xl shadow-blue-900/10"
                     : "border-transparent hover:border-slate-300 dark:hover:border-slate-700"
                 }`}
               >
