@@ -21,8 +21,12 @@ export const selectOpenOrders = createSelector(selectOrders, (orders) =>
 
 // AR summary — reads from orders only (no ledger needed)
 export const selectARSummary = createSelector(selectOrders, (orders) => ({
-  totalInvoiced: orders.reduce((s, o) => s + o.totalAmount, 0),
+  // P3-BUG-20: Exclude RETURNED orders — a ₹50k returned order was inflating the invoiced figure
+  totalInvoiced: orders
+    .filter((o) => o.status !== "RETURNED")
+    .reduce((s, o) => s + o.totalAmount, 0),
   totalOutstanding: orders
     .filter((o) => o.status !== "SETTLED" && o.status !== "RETURNED")
     .reduce((s, o) => s + (o.totalAmount - o.amountPaid), 0),
 }));
+

@@ -18,7 +18,7 @@ export default function Pricing() {
   const currentPlan = tenant?.plan || "trial";
 
   const handleSubscribe = (planCode: string) => {
-    if (planCode === "free") return;
+    if (planCode === "starter") return; // P1-BUG-03: was "free"
     toast.info("Checkout Integration", {
       description: "Razorpay integration is scheduled for Phase 6.",
     });
@@ -26,28 +26,28 @@ export default function Pricing() {
 
   const plans = [
     {
-      id: "free",
+      id: "starter", // P1-BUG-03: was "free" — must match DB CHECK constraint
       name: "Starter",
-      price: "₹0",
+      price: "₹699", // P2-ARCH-14: Align with BRD pricing
       period: "/mo",
       icon: Store,
       description: "Basic features for small retail shops getting started.",
       features: [
-        "Up to 50 active inventory devices",
+        "Up to 200 active inventory devices",
         "Basic local ledger",
         "Single user account",
         "Standard categorization",
       ],
       buttonText:
-        currentPlan === "free" ? "Current Plan" : "Downgrade to Starter",
-      disabled: currentPlan === "free",
+        currentPlan === "starter" ? "Current Plan" : "Downgrade to Starter",
+      disabled: currentPlan === "starter",
       popular: false,
       color: "slate",
     },
     {
       id: "pro",
       name: "Professional",
-      price: "₹999",
+      price: "₹1,799", // P2-ARCH-14: Align with BRD pricing
       period: "/mo",
       icon: Sparkles,
       description: "Full suite of tools for growing mobile retail stores.",
@@ -67,7 +67,7 @@ export default function Pricing() {
     {
       id: "enterprise",
       name: "Enterprise",
-      price: "₹2,499",
+      price: "₹3,999", // P2-ARCH-14: Align with BRD pricing
       period: "/mo",
       icon: Crown,
       description:

@@ -121,7 +121,7 @@ export function CustomerPicker({ selectedId, onSelect }: Props) {
                   <button
                     key={c.id}
                     onClick={() => handleSelect(c)}
-                    className="w-full text-left p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between group border border-transparent dark:border-slate-800 focus:outline-[#064a98]"
+                    className="w-full text-left p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between group border border-transparent dark:border-slate-800 focus:outline-primary-500"
                   >
                     <div>
                       <div className="font-semibold text-slate-900 dark:text-slate-100">

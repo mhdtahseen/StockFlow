@@ -124,7 +124,8 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       paymentMode: payMode,
       phonesOrdered: rows.length,
       phonesReceived: 0,
-      dueDate: isCredit ? new Date(dueDateStr).toISOString() : undefined,
+      // P3-BUG-24: Store raw date string — avoid .toISOString() which shifts timezone in IST+5:30
+      dueDate: isCredit ? dueDateStr : undefined,
       createdAt: new Date().toISOString(),
       items: orderItems as any // Extend if needed in types
     };
@@ -134,10 +135,12 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
     if (amountPaid > 0) {
       dispatch(addEntry({
         id: crypto.randomUUID(),
-        type: 'FUNDS_CONSUMED',
+        // P2-BUG-11: FUNDS_PLEDGED (not CONSUMED) at PO creation — capital is in lien.
+        // FUNDS_CONSUMED fires per accepted item in POConfirmSheet after physical inspection.
+        type: 'FUNDS_PLEDGED',
         referenceId: orderId,
         amount: -amountPaid, 
-        note: `Payment for Stockup (PO-${orderId.slice(0,6)})`,
+        note: `Capital pledged for Stockup (PO-${orderId.slice(0,6)})`,
         createdAt: new Date().toISOString()
       }));
     }
@@ -145,6 +148,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
     onOpenChange(false);
     toast.success("Purchase Order Committed");
   };
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

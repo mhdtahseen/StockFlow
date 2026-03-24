@@ -6,6 +6,7 @@ import { useAppDispatch } from '@/app/hooks';
 import { updateOrderPayment } from '@/features/billing/slice';
 import { updatePOPayment, addSupplierPayment } from '@/features/purchasing/slice';
 import { addCustomerPayment } from '@/features/customers/slice';
+import { addEntry } from '@/features/ledger/slice';
 import type { PayMode } from '@/features/billing/types';
 import clsx from 'clsx';
 import { toast } from 'sonner';
@@ -38,6 +39,9 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
     const status = totalNow >= totalAmount ? 'SETTLED' : 'PARTIAL';
 
     if (type === 'AR') {
+      // P1-BUG-05: Only dispatch addCustomerPayment — DO NOT also call updateOrderPayment.
+      // The record_customer_payment RPC handles order status atomically server-side.
+      // We do a local optimistic update here to keep Redux in sync without the double-write race.
       dispatch(updateOrderPayment({ id: orderId, amountPaid: totalNow, status }));
       dispatch(addCustomerPayment({
         id: paymentId,
@@ -47,6 +51,16 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
         receivedAt: new Date().toISOString(),
         recordedBy: 'system',
         allocations: [{ saleOrderId: orderId, amountAllocated: amount }]
+      }));
+      // P1-BUG-06: Optimistic PHONE_SALE ledger entry so Wallet bucket updates immediately.
+      // referenceId present → middleware's isTransactionSegment check skips cloud sync.
+      dispatch(addEntry({
+        id: crypto.randomUUID(),
+        type: 'PHONE_SALE',
+        referenceId: paymentId,
+        amount,
+        note: `Payment received for Order ${orderId.slice(0, 8).toUpperCase()}`,
+        createdAt: new Date().toISOString(),
       }));
       toast.success("Accounts Receivable Payment Recorded");
     } else {
@@ -64,6 +78,7 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
     }
     onOpenChange(false);
   };
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

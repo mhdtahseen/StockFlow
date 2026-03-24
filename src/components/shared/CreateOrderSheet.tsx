@@ -112,7 +112,7 @@ export function CreateOrderSheet({
             ? "PARTIAL"
             : "OPEN",
       paymentMode: payMode,
-      dueDate: isCredit ? new Date(dueDateStr).toISOString() : undefined,
+      dueDate: isCredit ? dueDateStr : undefined, // P3-BUG-24: raw string avoids UTC off-by-1 day in IST+5:30
       notes: notes || undefined,
       createdAt: new Date().toISOString(),
       items: items.map((draft) => ({

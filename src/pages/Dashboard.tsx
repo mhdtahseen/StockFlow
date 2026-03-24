@@ -182,7 +182,7 @@ export default function Dashboard() {
                 </h2>
               </div>
               <Link
-                to="/wallet"
+                to="/financials"
                 className="bg-white/20 dark:bg-white/10 rounded-full p-2 backdrop-blur-sm hover:bg-white/30 dark:hover:bg-white/20 transition-colors"
               >
                 <Wallet size={22} className="text-white" />
@@ -210,7 +210,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-3">
             {/* Purchases → routes to Wallet with Purchases filter */}
             <Link
-              to="/wallet?filter=Purchases"
+              to="/financials?filter=Purchases"
               className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-rose-200 dark:hover:border-rose-800 transition-all group"
             >
               <div className="flex items-center gap-3 mb-3">
@@ -243,7 +243,7 @@ export default function Dashboard() {
 
             {/* Sales → routes to Wallet with Sales filter */}
             <Link
-              to="/wallet?filter=Sales"
+              to="/financials?filter=Sales"
               className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all group"
             >
               <div className="flex items-center gap-3 mb-3">

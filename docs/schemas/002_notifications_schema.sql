@@ -21,28 +21,16 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- 3. RLS Policies
--- Users can only see their OWN notifications
 CREATE POLICY "Users can view their own notifications"
-    ON public.notifications
-    FOR SELECT
-    USING (auth.uid() = user_id);
+    ON public.notifications FOR SELECT USING (auth.uid() = user_id);
 
--- System can insert (handled via functions with SECURITY DEFINER or direct application inserts)
--- We will allow authenticated users within the same tenant to trigger notifications 
 CREATE POLICY "Users can insert notifications for their tenant"
-    ON public.notifications
-    FOR INSERT
-    WITH CHECK (
-        tenant_id = (SELECT tenant_id FROM public.profiles WHERE id = auth.uid())
+    ON public.notifications FOR INSERT WITH CHECK (
+      tenant_id = (SELECT tenant_id FROM public.profiles WHERE id = auth.uid())
     );
 
--- Users can update their own notifications (e.g. marking as read)
 CREATE POLICY "Users can update their own notifications"
-    ON public.notifications
-    FOR UPDATE
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
-
+    ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
 
 -- ==========================================
 -- Example Postgres Trigger (Automatically notify Admin when a phone is sold)
@@ -55,24 +43,24 @@ DECLARE
     seller_name TEXT;
 BEGIN
     -- Only trigger when status changes to 'Sold'
-    IF NEW.status = 'Sold' AND OLD.status != 'Sold' THEN
+    IF NEW.status = 'SOLD' AND OLD.status != 'SOLD' THEN
         
         -- Get the name of the associate who sold it
-        SELECT full_name INTO seller_name FROM public.profiles WHERE id = NEW.updated_by;
+        SELECT full_name INTO seller_name FROM public.profiles WHERE id = auth.uid();
 
         -- Find the admin of this tenant
         SELECT id INTO admin_user_id FROM public.profiles 
         WHERE tenant_id = NEW.tenant_id AND role = 'admin' LIMIT 1;
         
         -- If an admin exists (and isn't the one who sold it), alert them!
-        IF admin_user_id IS NOT NULL AND admin_user_id != NEW.updated_by THEN
+        IF admin_user_id IS NOT NULL THEN
             INSERT INTO public.notifications (tenant_id, user_id, type, title, message, reference_id)
             VALUES (
                 NEW.tenant_id, 
                 admin_user_id, 
                 'PHONE_SOLD', 
                 'Item Sold by Team', 
-                seller_name || ' just sold a ' || NEW.make || ' ' || NEW.model || ' for ' || NEW.sold_price,
+                COALESCE(seller_name, 'An associate') || ' just sold a ' || NEW.brand || ' ' || NEW.model || ' for ₹' || NEW.sale_price,
                 NEW.id
             );
         END IF;
@@ -80,7 +68,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 -- Attach trigger to phones table
 DROP TRIGGER IF EXISTS trigger_notify_phone_sale ON public.phones;

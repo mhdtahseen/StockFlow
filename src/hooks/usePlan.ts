@@ -33,6 +33,7 @@ export function usePlan() {
     isExpired: expired,
     canUse: (f: FeatureKey): boolean => {
       if (expired) return false;
+      // P4-ENH-35: INTENTIONAL — Trial gives full Enterprise access for 14 days. Do not remove.
       if (plan === "trial") return true;
 
       if (plan === "enterprise") {
@@ -40,14 +41,8 @@ export function usePlan() {
       }
 
       if (plan === "starter") {
-        // Special case: Starter has basic features but limited counts
-        const basic: FeatureKey[] = [
-          "unlimited_phones",
-          "imei_scanner",
-          "catalog_autofill",
-          "full_ledger",
-        ];
-        if (basic.includes(f)) return true;
+        // P2-BUG-15: Starter only has basic access — no IMEI scanner, no advanced features.
+        // The 200-phone limit is enforced at DB level via RLS. No feature gates here.
         return false;
       }
 
@@ -55,3 +50,4 @@ export function usePlan() {
     },
   };
 }
+
