@@ -15,6 +15,7 @@ import Verified from "@/pages/Verified";
 import Dashboard from "@/pages/Dashboard";
 import Inventory from "@/pages/Inventory";
 import AddPhone from "@/pages/AddPhone";
+import AddPhoneUpdate from "@/pages/AddPhoneUpdate";
 import PhoneDetail from "@/pages/PhoneDetail";
 import EditPhone from "@/pages/EditPhone";
 import Financials from "@/pages/Financials";
@@ -134,7 +135,7 @@ function App() {
             >
               <Route index element={<Dashboard />} />
               <Route path="inventory" element={<Inventory />} />
-              <Route path="add" element={<AddPhone />} />
+              <Route path="add" element={<AddPhoneUpdate />} />
               <Route path="inventory/:id" element={<PhoneDetail />} />
               <Route path="edit/:id" element={<EditPhone />} />
               <Route path="financials" element={<Financials />} />

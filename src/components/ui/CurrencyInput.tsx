@@ -10,6 +10,7 @@ interface CurrencyInputProps {
   disabled?: boolean;
   autoFocus?: boolean;
   className?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
@@ -58,6 +59,24 @@ function stripToNumeric(input: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+const sizeMap = {
+  sm: {
+    container: "h-10",
+    input: "pl-8 pr-3 text-sm rounded-lg border",
+    icon: "left-3 text-sm",
+  },
+  md: {
+    container: "h-12",
+    input: "pl-9 pr-4 text-base rounded-xl border-2",
+    icon: "left-3.5 text-base",
+  },
+  lg: {
+    container: "h-16",
+    input: "pl-11 pr-5 text-2xl rounded-2xl border-2",
+    icon: "left-4 text-xl",
+  },
+};
+
 export default function CurrencyInput({
   value,
   onChange,
@@ -65,6 +84,7 @@ export default function CurrencyInput({
   disabled = false,
   autoFocus = false,
   className,
+  size = "md",
 }: CurrencyInputProps) {
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,10 +95,16 @@ export default function CurrencyInput({
   );
 
   const displayValue = formatWithCommas(value);
+  const styles = sizeMap[size];
 
   return (
-    <div className="relative">
-      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-bold text-xl pointer-events-none">
+    <div className={clsx("relative w-full", styles.container)}>
+      <span
+        className={clsx(
+          "absolute top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-bold pointer-events-none transition-all",
+          styles.icon,
+        )}
+      >
         ₹
       </span>
       <input
@@ -90,10 +116,11 @@ export default function CurrencyInput({
         onChange={handleChange}
         placeholder={placeholder}
         className={clsx(
-          "w-full rounded-xl pl-10 pr-4 py-4 text-2xl font-black tracking-tight transition-all outline-none",
+          "w-full h-full font-black tracking-tight transition-all outline-none",
+          styles.input,
           disabled
-            ? "border-2 border-slate-100 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-            : "border-2 border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-primary-500 dark:focus:border-blue-500 text-slate-900 dark:text-slate-100 placeholder:font-bold placeholder:text-slate-300 dark:placeholder:text-slate-600",
+            ? "border-slate-100 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+            : "border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-primary-500 dark:focus:border-blue-500 text-slate-900 dark:text-slate-100 placeholder:font-bold placeholder:text-slate-300 dark:placeholder:text-slate-600",
           className,
         )}
       />

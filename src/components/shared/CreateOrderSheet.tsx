@@ -5,9 +5,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { X, Plus, Percent, Tag } from "lucide-react";
+import {
+  X,
+  Plus,
+  Percent,
+  Tag,
+  ShoppingCart,
+  DollarSign,
+  Check,
+  Smartphone,
+} from "lucide-react";
 import { useAppDispatch } from "@/app/hooks";
 import { addOrder } from "@/features/billing/slice";
 import { markAsSold, linkPhoneToTO } from "@/features/inventory/slice";
@@ -16,11 +23,14 @@ import { SaleOrder, OrderType, PayMode } from "@/features/billing/types";
 import { Phone } from "@/features/inventory/types";
 import { Customer } from "@/features/customers/types";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
+import CurrencyInput from "@/components/ui/CurrencyInput";
 import { PhoneSelectorSheet } from "./PhoneSelectorSheet";
 import { usePlan } from "@/hooks/usePlan";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { toast } from "sonner";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Props {
   open: boolean;
@@ -30,9 +40,14 @@ interface Props {
 
 interface OrderItemDraft {
   phone: Phone;
-  salePrice: number;
-  discountAmount: number;
+  salePrice: string;
+  discountAmount: string;
 }
+
+// Hybrid payment channels (mirrors AddPhoneUpdate pattern)
+type PayChannel = "CASH" | "UPI" | "BANK_TRANSFER";
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function CreateOrderSheet({
   open,
@@ -42,86 +57,109 @@ export function CreateOrderSheet({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("RETAIL");
   const [items, setItems] = useState<OrderItemDraft[]>([]);
-  const [payMode, setPayMode] = useState<PayMode>("CASH");
-  const [amountPaidStr, setAmountPaidStr] = useState<string>("");
-  const [dueDateStr, setDueDateStr] = useState<string>("");
-  const [notes, setNotes] = useState("");
   const [showDiscounts, setShowDiscounts] = useState(false);
-
   const [selectorOpen, setSelectorOpen] = useState(false);
+
+  // ── Hybrid payment state (same pattern as AddPhoneUpdate) ─────────────────
+  const [activePayTab, setActivePayTab] = useState<PayChannel>("CASH");
+  const [cashStr, setCashStr] = useState("");
+  const [upiStr, setUpiStr] = useState("");
+  const [bankStr, setBankStr] = useState("");
+  const [dueDateStr, setDueDateStr] = useState("");
+  const [notes, setNotes] = useState("");
+
   const { canUse } = usePlan();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
+  // ── Reset when sheet opens ─────────────────────────────────────────────────
   React.useEffect(() => {
     if (open) {
       setItems(
         initialPhones.map((p) => ({
           phone: p,
-          salePrice: p.salePrice || 0,
-          discountAmount: 0,
+          salePrice: p.salePrice ? String(p.salePrice) : "",
+          discountAmount: "",
         })),
       );
       setCustomer(null);
       setOrderType("RETAIL");
-      setPayMode("CASH");
-      setAmountPaidStr("");
+      setActivePayTab("CASH");
+      setCashStr("");
+      setUpiStr("");
+      setBankStr("");
       setDueDateStr("");
       setNotes("");
+      setShowDiscounts(false);
     }
   }, [open, initialPhones]);
 
+  // ── Derived amounts ────────────────────────────────────────────────────────
   const totalAmount = useMemo(
     () =>
-      items.reduce(
-        (sum, item) => sum + Math.max(0, item.salePrice - item.discountAmount),
-        0,
-      ),
+      items.reduce((sum, item) => {
+        const price = parseFloat(item.salePrice) || 0;
+        const discount = parseFloat(item.discountAmount) || 0;
+        return sum + Math.max(0, price - discount);
+      }, 0),
     [items],
   );
 
-  const amountPaid =
-    payMode === "CREDIT"
-      ? 0
-      : amountPaidStr === ""
-        ? totalAmount
-        : parseFloat(amountPaidStr) || 0;
-  const isCredit = payMode === "CREDIT" || amountPaid < totalAmount;
+  const cashPaid = parseFloat(cashStr) || 0;
+  const upiPaid = parseFloat(upiStr) || 0;
+  const bankPaid = parseFloat(bankStr) || 0;
+  const totalPaid = cashPaid + upiPaid + bankPaid;
+  const outstanding = Math.max(0, totalAmount - totalPaid);
+  // Credit due date is required automatically when there's an outstanding balance
+  const requiresDueDate = outstanding > 0;
 
+  // Determine dominant payment mode for the TO record
+  // (The TO only stores one paymentMode; individual channel amounts go to ledger)
+  const dominantPayMode: PayMode = (() => {
+    if (totalPaid === 0) return "CREDIT";
+    const amounts = { CASH: cashPaid, UPI: upiPaid, BANK_TRANSFER: bankPaid };
+    return (Object.entries(amounts).sort((a, b) => b[1] - a[1])[0][0] as PayMode);
+  })();
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customer) return toast.error("Please select a customer");
-    if (items.length === 0)
-      return toast.error("Please add at least one device");
-    if (isCredit && !dueDateStr)
-      return toast.error(
-        "Please provide a due date for the outstanding balance",
-      );
+    if (items.length === 0) return toast.error("Please add at least one device");
+    if (requiresDueDate && !dueDateStr)
+      return toast.error("A due date is required for the outstanding balance");
 
     const orderId = crypto.randomUUID();
+    const ts = new Date().toISOString();
+
     const order: SaleOrder = {
       id: orderId,
       counterpartyId: customer.id,
       orderType,
       totalAmount,
-      amountPaid,
+      amountPaid: totalPaid,
       status:
-        amountPaid >= totalAmount
+        totalPaid >= totalAmount
           ? "SETTLED"
-          : amountPaid > 0
+          : totalPaid > 0
             ? "PARTIAL"
             : "OPEN",
-      paymentMode: payMode,
-      dueDate: isCredit ? dueDateStr : undefined, // P3-BUG-24: raw string avoids UTC off-by-1 day in IST+5:30
+      // Store dominant mode for the TO record
+      paymentMode: dominantPayMode,
+      dueDate: requiresDueDate ? dueDateStr : undefined,
       notes: notes || undefined,
-      createdAt: new Date().toISOString(),
+      createdAt: ts,
       items: items.map((draft) => ({
         id: crypto.randomUUID(),
         saleOrderId: orderId,
         phoneId: draft.phone.id,
-        salePrice: draft.salePrice,
-        discountAmount: draft.discountAmount,
-        effectivePrice: Math.max(0, draft.salePrice - draft.discountAmount),
+        salePrice: parseFloat(draft.salePrice) || 0,
+        discountAmount: parseFloat(draft.discountAmount) || 0,
+        effectivePrice: Math.max(
+          0,
+          (parseFloat(draft.salePrice) || 0) -
+            (parseFloat(draft.discountAmount) || 0),
+        ),
         imeiSnapshot: draft.phone.imeis || [],
         brandSnapshot: draft.phone.brand,
         modelSnapshot: draft.phone.model,
@@ -130,93 +168,107 @@ export function CreateOrderSheet({
       })),
     };
 
+    // ── FK-safe dispatch order (mirrors AddPhoneUpdate) ────────────────────
+    // 1. Mark phones as sold (updates existing DB records — no FK issue)
+    order.items.forEach(
+      (item) =>
+        item.phoneId &&
+        dispatch(markAsSold({ id: item.phoneId, salePrice: item.effectivePrice })),
+    );
+
+    // 2. Create the trade order (sale_order_items reference phone IDs that now exist)
     dispatch(addOrder(order));
+
+    // 3. Link phones to the TO (both sides now exist in DB)
     order.items.forEach(
       (item) =>
         item.phoneId &&
-        dispatch(
-          markAsSold({ id: item.phoneId, salePrice: item.effectivePrice }),
-        ),
+        dispatch(linkPhoneToTO({ phoneId: item.phoneId, saleOrderId: order.id })),
     );
-    order.items.forEach(
-      (item) =>
-        item.phoneId &&
-        dispatch(
-          linkPhoneToTO({ phoneId: item.phoneId, saleOrderId: order.id }),
-        ),
-    );
-    if (amountPaid > 0) {
+
+    // 4. One ledger entry per payment channel with explicit payment mode
+    //    Each row is independently queryable: GROUP BY payment_mode
+    const channels = [
+      { amount: cashPaid, label: "Cash", mode: "CASH" as const },
+      { amount: upiPaid, label: "UPI", mode: "UPI" as const },
+      { amount: bankPaid, label: "Bank Transfer", mode: "BANK_TRANSFER" as const },
+    ].filter((c) => c.amount > 0);
+
+    channels.forEach((c) => {
       dispatch(
         addEntry({
           id: crypto.randomUUID(),
           type: "PHONE_SALE",
           referenceId: orderId,
-          amount: amountPaid,
-          note: `Initial downpayment for Trade Order ${orderId.slice(0, 8)}`,
-          createdAt: new Date().toISOString(),
+          amount: c.amount,
+          paymentMode: c.mode,
+          note: `${c.label} — ${customer.name} — TO:${orderId.slice(0, 8)}`,
+          createdAt: ts,
         }),
       );
-    }
+    });
 
     onOpenChange(false);
     navigate(`/orders/${order.id}`);
-    toast.success("Trade Order Created");
+    toast.success(`Trade order committed — ${items.length} device${items.length > 1 ? "s" : ""} sold`);
   };
 
-  const updateItem = (id: string, field: keyof OrderItemDraft, val: number) => {
-    setItems(
-      items.map((it) => (it.phone.id === id ? { ...it, [field]: val } : it)),
-    );
+  const updateItem = (id: string, field: "salePrice" | "discountAmount", val: string) => {
+    setItems(items.map((it) => (it.phone.id === id ? { ...it, [field]: val } : it)));
   };
 
   const removeItem = (id: string) => {
     setItems(items.filter((it) => it.phone.id !== id));
   };
 
-  const handleBulkAdd = () => {
-    if (!canUse("bulk_orders"))
+  const handleAddDevice = () => {
+    if (!canUse("bulk_orders") && items.length >= 1)
       return toast.error("Bulk orders require Pro plan");
     setSelectorOpen(true);
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
-          className="h-[85vh] flex flex-col p-0 rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-hidden"
+          className="h-[92vh] flex flex-col p-0 rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-hidden"
         >
           {/* Drag Handle */}
-          <div className="flex justify-center py-3 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full"></div>
+          <div className="flex justify-center pt-3 pb-0 shrink-0">
+            <div className="w-10 h-1 bg-slate-200 dark:bg-slate-700 rounded-full" />
           </div>
 
-          <SheetHeader className="p-4 sm:p-6 pb-2 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
-            <SheetTitle>Create Trade Order</SheetTitle>
+          {/* Header */}
+          <SheetHeader className="px-4 py-3 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 mt-2">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-xl bg-primary-500/10 flex items-center justify-center">
+                <ShoppingCart size={18} className="text-primary-500" strokeWidth={2.5} />
+              </div>
+              <div>
+                <SheetTitle className="text-base font-black text-slate-900 dark:text-slate-100 leading-tight">
+                  Create Trade Order
+                </SheetTitle>
+                <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                  Sell devices · multi-channel payment
+                </p>
+              </div>
+            </div>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto w-full p-4 sm:p-6 pb-24">
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto">
             <form
               id="order-form"
               onSubmit={handleSubmit}
-              className="flex flex-col gap-6 max-w-2xl mx-auto"
+              className="max-w-2xl mx-auto px-4 py-5 space-y-4 pb-28"
             >
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 block">
-                  Customer Counterparty
-                </label>
-                <CustomerPicker
-                  selectedId={customer?.id}
-                  onSelect={setCustomer}
-                />
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 block">
-                  Order Type Target
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["RETAIL", "BULK", "TRANSFER"].map((type) => {
+              {/* ─── Order Type + Customer ────────────────────────────── */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] overflow-hidden">
+                {/* Order type tabs */}
+                <div className="flex border-b border-slate-100 dark:border-slate-800">
+                  {(["RETAIL", "BULK", "TRANSFER"] as const).map((type) => {
                     const isLocked =
                       type === "BULK"
                         ? !canUse("bulk_orders")
@@ -232,15 +284,15 @@ export function CreateOrderSheet({
                             return toast.error(
                               `Upgrade to ${type === "BULK" ? "Pro" : "Enterprise"} to unlock.`,
                             );
-                          setOrderType(type as OrderType);
+                          setOrderType(type);
                         }}
                         className={clsx(
-                          "py-3 rounded-xl text-xs font-black tracking-wide transition-colors border",
+                          "flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all",
                           orderType === type
-                            ? "bg-primary-500 text-white border-primary-500 shadow-md shadow-primary-500/20"
+                            ? "bg-primary-500 text-white"
                             : isLocked
-                              ? "bg-slate-50 dark:bg-slate-950 text-slate-400 dark:text-slate-600 border-dashed border-slate-200 dark:border-slate-800 opacity-60"
-                              : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800",
+                              ? "bg-white dark:bg-slate-900 text-slate-300 dark:text-slate-600"
+                              : "bg-white dark:bg-slate-900 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
                         )}
                       >
                         {type} {isLocked && "🔒"}
@@ -248,208 +300,305 @@ export function CreateOrderSheet({
                     );
                   })}
                 </div>
+
+                <div className="p-4">
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                    Customer / Counterparty
+                  </label>
+                  <CustomerPicker selectedId={customer?.id} onSelect={setCustomer} />
+                </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block">
-                    Devices in Cart ({items.length})
-                  </label>
+              {/* ─── Devices in Cart ──────────────────────────────────── */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] overflow-hidden">
+                <div className="px-4 pt-4 pb-3 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-sm font-black text-slate-900 dark:text-slate-100">
+                    Devices
+                    {items.length > 0 && (
+                      <span className="ml-2 text-xs font-bold bg-primary-500/10 text-primary-500 px-2 py-0.5 rounded-md">
+                        {items.length}
+                      </span>
+                    )}
+                  </span>
                   <div className="flex items-center gap-2">
+                    {/* Discount toggle — compact */}
                     <button
                       type="button"
                       onClick={() => setShowDiscounts(!showDiscounts)}
                       className={clsx(
-                        "text-[11px] uppercase tracking-wider font-extrabold flex items-center gap-1 px-3 py-1.5 rounded-lg active:scale-95 transition-transform",
+                        "size-8 rounded-lg flex items-center justify-center transition-all active:scale-95",
                         showDiscounts
-                          ? "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400"
-                          : "bg-slate-100 text-slate-600 dark:bg-slate-900/40 dark:text-slate-400",
+                          ? "bg-rose-500/10 text-rose-500"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400",
                       )}
+                      title={showDiscounts ? "Hide discounts" : "Show discounts"}
                     >
-                      <Tag size={14} strokeWidth={3} />
-                      {showDiscounts ? "Hide" : "Show"} Discounts
+                      <Percent size={14} strokeWidth={2.5} />
                     </button>
+                    {/* Add device button */}
                     <button
                       type="button"
-                      onClick={handleBulkAdd}
-                      className="text-primary-500 dark:text-blue-400 text-[11px] uppercase tracking-wider font-extrabold flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
+                      onClick={handleAddDevice}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500/10 text-primary-500 text-[11px] font-bold active:scale-95 transition-all"
                     >
-                      <Plus size={14} strokeWidth={3} /> Add Matrix
+                      <Smartphone size={13} strokeWidth={2.5} />
+                      Add
                     </button>
                   </div>
                 </div>
 
-                {items.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 font-medium text-sm">
-                    No devices selected. Tap 'Add Matrix' to begin scan.
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {items.map((item) => (
-                      <div
-                        key={item.phone.id}
-                        className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 relative group"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.phone.id)}
-                          className="absolute top-2 right-2 p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-red-500 transition-colors"
-                        >
-                          <X size={16} />
-                        </button>
-                        <div className="font-bold text-slate-800 dark:text-slate-100 mb-0.5 pr-8">
-                          {item.phone.brand} {item.phone.model}
-                        </div>
-                        <div className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-4">
-                          {item.phone.storage} •{" "}
-                          {item.phone.imeis?.[0] || "No IMEI"}
-                        </div>
-                        <div
-                          className={clsx(
-                            "grid gap-3",
-                            showDiscounts ? "grid-cols-2" : "grid-cols-1",
-                          )}
-                        >
-                          <div>
-                            <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                              Base Sale Price (₹)
-                            </label>
-                            <Input
-                              type="number"
-                              value={item.salePrice || ""}
-                              onChange={(e) =>
-                                updateItem(
-                                  item.phone.id,
-                                  "salePrice",
-                                  parseFloat(e.target.value) || 0,
-                                )
-                              }
-                              className="h-10 text-sm font-black text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-lg shadow-sm"
-                            />
-                          </div>
-                          {showDiscounts && (
-                            <div>
-                              <label className="text-[10px] uppercase font-bold text-rose-400 block mb-1">
-                                Apply Discount (₹)
-                              </label>
-                              <div className="relative">
-                                <Percent
-                                  className="absolute left-2.5 top-3 text-rose-400"
-                                  size={14}
-                                />
-                                <Input
-                                  type="number"
-                                  value={item.discountAmount || ""}
-                                  onChange={(e) =>
-                                    updateItem(
-                                      item.phone.id,
-                                      "discountAmount",
-                                      parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  className="h-10 pl-8 text-sm font-black text-rose-600 dark:text-rose-400 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-lg shadow-sm"
-                                />
+                <div className="p-4">
+                  {items.length === 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleAddDevice}
+                      className="w-full py-8 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-slate-500 hover:border-primary-500/40 hover:text-primary-500 transition-all"
+                    >
+                      <Smartphone size={22} strokeWidth={1.5} />
+                      <span className="text-sm font-bold">Select devices to sell</span>
+                      <span className="text-xs font-medium opacity-60">Tap to open device picker</span>
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      {items.map((item, index) => {
+                        const price = parseFloat(item.salePrice) || 0;
+                        const discount = parseFloat(item.discountAmount) || 0;
+                        const effective = Math.max(0, price - discount);
+                        return (
+                          <div
+                            key={item.phone.id}
+                            className="bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700 overflow-hidden"
+                          >
+                            {/* Item header */}
+                            <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 dark:border-slate-700">
+                              <div className="flex items-center gap-2">
+                                <div className="size-6 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 rounded-md flex items-center justify-center text-[10px] font-black shrink-0">
+                                  {index + 1}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-black text-slate-800 dark:text-slate-200 leading-tight">
+                                    {item.phone.brand} {item.phone.model}
+                                  </p>
+                                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                                    {item.phone.storage} · {item.phone.color} ·{" "}
+                                    {item.phone.imeis?.[0]?.slice(-6) || "No IMEI"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {discount > 0 && (
+                                  <span className="text-[10px] font-bold bg-rose-50 dark:bg-rose-900/30 text-rose-500 px-1.5 py-0.5 rounded">
+                                    -₹{discount.toLocaleString("en-IN")}
+                                  </span>
+                                )}
+                                <span className="text-sm font-black text-primary-500">
+                                  ₹{effective.toLocaleString("en-IN")}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(item.phone.id)}
+                                  className="size-6 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-500 transition-all"
+                                >
+                                  <X size={12} />
+                                </button>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+
+                            {/* Price inputs */}
+                            <div
+                              className={clsx(
+                                "p-3 grid gap-3",
+                                showDiscounts ? "grid-cols-2" : "grid-cols-1",
+                              )}
+                            >
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                                  Sale Price
+                                </label>
+                                <CurrencyInput
+                                  size="sm"
+                                  value={item.salePrice}
+                                  onChange={(v) => updateItem(item.phone.id, "salePrice", v)}
+                                  placeholder="0"
+                                />
+                              </div>
+                              {showDiscounts && (
+                                <div>
+                                  <label className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1.5 block">
+                                    Discount (₹)
+                                  </label>
+                                  <CurrencyInput
+                                    size="sm"
+                                    value={item.discountAmount}
+                                    onChange={(v) => updateItem(item.phone.id, "discountAmount", v)}
+                                    placeholder="0"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 bg-primary-500 h-full" />
-                <div className="flex justify-between items-center mb-5 ml-2">
-                  <label className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-                    Total Valuation
-                  </label>
-                  <span className="text-3xl font-black text-primary-500 dark:text-blue-400 tracking-tighter">
-                    ₹{totalAmount.toLocaleString()}
+              {/* ─── Fiscal Settlement (Hybrid Multi-Channel) ─────────── */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] overflow-hidden">
+                <div className="px-4 pt-4 pb-3 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign size={16} className="text-primary-500" strokeWidth={2.5} />
+                    <span className="text-sm font-black text-slate-900 dark:text-slate-100">
+                      Fiscal Settlement
+                    </span>
+                  </div>
+                  <span className="text-xl font-black text-slate-900 dark:text-slate-100">
+                    ₹{totalAmount.toLocaleString("en-IN")}
                   </span>
                 </div>
 
-                <label className="text-xs uppercase font-extrabold tracking-wider text-slate-500 mb-2 block ml-2">
-                  Collection Mode
-                </label>
-                <div className="grid grid-cols-4 gap-2 mb-5 ml-2">
-                  {["CASH", "UPI", "BANK_TRANSFER", "CREDIT"].map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setPayMode(mode as PayMode)}
-                      className={clsx(
-                        "py-2.5 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-colors border text-center wrap-break-word",
-                        payMode === mode
-                          ? "bg-primary-500 text-white border-primary-500 shadow-md shadow-primary-500/20"
-                          : "bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800",
-                      )}
-                    >
-                      {mode.replace("_", "\n")}
-                    </button>
-                  ))}
-                </div>
+                <div className="p-4 space-y-4">
+                  {/* Payment channel tabs with dot badges */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                      Payment Channel
+                    </label>
+                    <div className="flex gap-2 bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-100 dark:border-slate-800">
+                      {(["CASH", "UPI", "BANK_TRANSFER"] as const).map((m) => {
+                        const channelVal =
+                          m === "CASH" ? cashPaid : m === "UPI" ? upiPaid : bankPaid;
+                        const hasValue = channelVal > 0;
+                        return (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setActivePayTab(m)}
+                            className={clsx(
+                              "flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all relative",
+                              activePayTab === m
+                                ? "bg-white dark:bg-slate-800 text-primary-500 shadow-sm"
+                                : "text-slate-400 hover:text-slate-600",
+                            )}
+                          >
+                            {m.replace("_", " ")}
+                            {/* Dot badge when channel has a value */}
+                            {hasValue && (
+                              <span className="absolute -top-0.5 -right-0.5 size-2 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-800" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                {payMode !== "CREDIT" && (
-                  <div className="mb-5 ml-2">
-                    <label className="text-xs uppercase font-extrabold tracking-wider text-slate-500 mb-2 block flex justify-between items-center">
-                      <span>Downpayment Received</span>
-                      {amountPaidStr !== "" && amountPaid < totalAmount && (
-                        <span className="text-rose-500 font-bold bg-rose-50 dark:bg-rose-900/20 px-2 py-0.5 rounded-sm">
-                          ₹{(totalAmount - amountPaid).toLocaleString()} pending
+                  {/* Active channel amount input */}
+                  <div className="animate-in fade-in duration-150">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                      {activePayTab.replace("_", " ")} Amount
+                    </label>
+                    {activePayTab === "CASH" && (
+                      <CurrencyInput size="md" value={cashStr} onChange={setCashStr} placeholder="0" />
+                    )}
+                    {activePayTab === "UPI" && (
+                      <CurrencyInput size="md" value={upiStr} onChange={setUpiStr} placeholder="0" />
+                    )}
+                    {activePayTab === "BANK_TRANSFER" && (
+                      <CurrencyInput size="md" value={bankStr} onChange={setBankStr} placeholder="0" />
+                    )}
+                  </div>
+
+                  {/* Channel breakdown — show active channels */}
+                  {totalPaid > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {cashPaid > 0 && (
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/40 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                          <Check size={10} strokeWidth={3} />
+                          Cash ₹{cashPaid.toLocaleString("en-IN")}
                         </span>
                       )}
+                      {upiPaid > 0 && (
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800/40 text-[10px] font-bold text-blue-700 dark:text-blue-400">
+                          <Check size={10} strokeWidth={3} />
+                          UPI ₹{upiPaid.toLocaleString("en-IN")}
+                        </span>
+                      )}
+                      {bankPaid > 0 && (
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-800/40 text-[10px] font-bold text-violet-700 dark:text-violet-400">
+                          <Check size={10} strokeWidth={3} />
+                          Bank ₹{bankPaid.toLocaleString("en-IN")}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                      Remarks / Notes
                     </label>
-                    <Input
-                      type="number"
-                      value={amountPaidStr}
-                      onChange={(e) => setAmountPaidStr(e.target.value)}
-                      placeholder={`Defaults to absolute total: ₹${totalAmount.toLocaleString()}`}
-                      max={totalAmount}
-                      className="h-14 font-black tracking-tight text-xl bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl"
+                    <input
+                      type="text"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Invoice remarks, special instructions…"
+                      className="w-full h-11 px-3 rounded-xl border-2 border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-primary-500 text-sm font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none transition-all"
                     />
                   </div>
-                )}
 
-                {isCredit && (
-                  <div className="mb-5 ml-2 animate-in fade-in slide-in-from-top-2">
-                    <label className="text-xs uppercase font-extrabold tracking-wider text-amber-600 dark:text-amber-500 mb-2 block">
-                      Dunning Schedule (Due Date)
-                    </label>
-                    <Input
-                      required
-                      type="date"
-                      value={dueDateStr}
-                      onChange={(e) => setDueDateStr(e.target.value)}
-                      className="h-14 font-black text-lg border-2 border-amber-300 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 rounded-xl shadow-sm"
-                    />
+                  {/* Summary row */}
+                  <div className="pt-2 border-t border-slate-50 dark:border-slate-800 space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <span>Amount Received</span>
+                      <span className="text-slate-700 dark:text-slate-300 font-bold">
+                        ₹{totalPaid.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                    {outstanding > 0 && (
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-amber-600 dark:text-amber-400">Outstanding</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-bold">
+                          ₹{outstanding.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm font-black border-t border-slate-100 dark:border-slate-800 pt-1.5 mt-1.5">
+                      <span className="text-slate-900 dark:text-slate-100">Grand Total</span>
+                      <span className="text-slate-900 dark:text-slate-100">
+                        ₹{totalAmount.toLocaleString("en-IN")}
+                      </span>
+                    </div>
                   </div>
-                )}
 
-                <div className="ml-2">
-                  <label className="text-xs uppercase font-extrabold tracking-wider text-slate-500 mb-2 block">
-                    Remarks / Notes
-                  </label>
-                  <Input
-                    placeholder="Additional invoice remarks..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="h-12 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium"
-                  />
+                  {/* Automatic credit due date — shows whenever outstanding > 0 */}
+                  {requiresDueDate && (
+                    <div className="animate-in slide-in-from-top-2 duration-200 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-800/40 rounded-xl p-3 space-y-2">
+                      <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                        Credit Settlement — Due Date Required
+                      </p>
+                      <input
+                        type="date"
+                        value={dueDateStr}
+                        onChange={(e) => setDueDateStr(e.target.value)}
+                        className="w-full h-11 px-3 rounded-xl border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:border-amber-500 outline-none transition-colors"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </form>
           </div>
 
-          <div className="p-4 sm:p-6 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0">
-            <Button
+          {/* Sticky Submit */}
+          <div className="px-4 py-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0">
+            <button
               type="submit"
               form="order-form"
-              className="w-full h-14 rounded-xl text-lg font-black tracking-wide bg-primary-500 hover:bg-blue-800 text-white shadow-xl shadow-primary-500/20 transition-all active:scale-[0.98]"
+              className="w-full bg-primary-500 hover:bg-blue-800 text-white py-4 rounded-2xl font-black text-base shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
             >
+              <ShoppingCart size={20} strokeWidth={2.5} />
               Commit Sales Ledger
-            </Button>
+            </button>
           </div>
         </SheetContent>
       </Sheet>
@@ -464,8 +613,8 @@ export function CreateOrderSheet({
             .filter((p) => !currentIds.has(p.id))
             .map((p) => ({
               phone: p,
-              salePrice: p.salePrice || 0,
-              discountAmount: 0,
+              salePrice: p.salePrice ? String(p.salePrice) : "",
+              discountAmount: "",
             }));
           const confirmIds = new Set(phones.map((p) => p.id));
           const retained = items.filter((it) => confirmIds.has(it.phone.id));

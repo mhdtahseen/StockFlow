@@ -8,11 +8,15 @@ export type LedgerEntryType =
   | "WITHDRAWAL"
   | "PROFIT_WITHDRAWAL";
 
+// Mirrors the DB CHECK constraint on ledger.payment_mode
+export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CREDIT";
+
 export interface LedgerEntry {
   id: string;
   type: LedgerEntryType;
   referenceId?: string;
   amount: number; // positive for income, negative for expense
+  paymentMode?: PaymentMode; // which channel the money moved through
   note?: string; // optional human-readable description (e.g. "Screen replacement")
   createdAt: string;
 }

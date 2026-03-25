@@ -5,7 +5,7 @@ export type PurchaseOrderStatus =
   | "SETTLED"
   | "CANCELLED";
 export type AcquisitionChannel = "DIRECT" | "PLATFORM" | "INTER_TENANT";
-export type PayMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CREDIT";
+export type PayMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CREDIT" | "SPLIT";
 export type POItemStatus = "PENDING_INSPECTION" | "ACCEPTED" | "REJECTED";
 
 export interface PurchaseOrderItem {

@@ -17,6 +17,8 @@ export default function BottomNav({ onMenuOpen }: Props) {
         <span className="text-[10px] mt-1 font-semibold">Dashboard</span>
       </NavLink>
 
+      {/* Original AddPhone Implementation - Preserved as requested */}
+      {/* 
       <NavLink to="/add"
         aria-label="Add new phone to inventory"
         className={({ isActive }) => clsx(
@@ -24,6 +26,17 @@ export default function BottomNav({ onMenuOpen }: Props) {
           isActive ? 'bg-blue-800' : 'bg-primary-500 hover:bg-blue-800'
         )}>
         <Plus size={28} strokeWidth={2.5} />
+      </NavLink>
+      */}
+
+      {/* New AddPhoneUpdate (Unified Inventory Engine) */}
+      <NavLink to="/add"
+        aria-label="Launch Unified Ingestion Engine"
+        className={({ isActive }) => clsx(
+          'flex items-center justify-center size-14 rounded-2xl -mt-8 shadow-2xl shadow-primary-500/40 text-white transition-all active:scale-90 border-2 border-white/20 group',
+          isActive ? 'bg-slate-900 rotate-45' : 'bg-primary-500 hover:bg-primary-600'
+        )}>
+        <Plus size={32} strokeWidth={3} className="group-hover:scale-110 transition-transform" />
       </NavLink>
 
       <button

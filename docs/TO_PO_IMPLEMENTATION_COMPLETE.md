@@ -165,3 +165,60 @@ All instances of "Wholesaler" have been updated to "Enterprise" throughout:
 ## 🚀 **FINAL STATUS**
 
 The TO & PO implementation is now **fully complete** with **Enterprise tier** branding and ready for immediate production use! 🎉
+
+---
+
+## 💳 **FINANCIAL LEDGER UPGRADE** — Payment Mode Tracking *(2026-03-25)*
+
+### What Changed
+
+The ledger has been upgraded from a purely **operational** ledger to a **financial + operational** ledger. Each payment channel (Cash, UPI, Bank Transfer) now produces its own discrete ledger row with an explicit `paymentMode` field.
+
+### Before
+
+```
+One TO → One ledger row → paymentMode = "CASH" (dominant only)
+  ❌ Cannot distinguish how much was Cash vs UPI in a hybrid payment
+  ❌ DB column existed but was never written or read
+```
+
+### After
+
+```
+One TO → N ledger rows (one per non-zero channel)
+  row 1: paymentMode=CASH,          amount=₹15,000
+  row 2: paymentMode=UPI,           amount=₹5,000
+  ✅ Each row independently queryable
+  ✅ GROUP BY payment_mode works cleanly for charts
+```
+
+### Files Changed
+
+| File | Change |
+|---|---|
+| `src/features/ledger/types.ts` | Added `PaymentMode` type + `paymentMode?: PaymentMode` to `LedgerEntry` |
+| `src/app/supabaseApi.ts` | Forward `payment_mode: payload.paymentMode ?? null` in ledger insert |
+| `src/app/useOfflineSyncManager.ts` | Map `e.payment_mode` during initial data hydration |
+| `src/pages/AddPhoneUpdate.tsx` | Tag each PO payment channel with `paymentMode: e.mode` on `addEntry` dispatch |
+| `src/components/shared/CreateOrderSheet.tsx` | Tag each TO payment channel with `paymentMode: c.mode` on `addEntry` dispatch |
+
+### Backward Compatibility
+
+Existing ledger rows hydrate with `paymentMode = undefined` (legacy/unknown). Filter with `WHERE payment_mode IS NOT NULL` in analytics queries for clean chart data.
+
+### Analytics Now Possible
+
+```sql
+-- Incoming by mode
+SELECT payment_mode, SUM(amount) FROM ledger
+WHERE type = 'PHONE_SALE' GROUP BY payment_mode;
+
+-- Outgoing by mode  
+SELECT payment_mode, SUM(ABS(amount)) FROM ledger
+WHERE type = 'FUNDS_CONSUMED' GROUP BY payment_mode;
+
+-- Net float per channel
+SELECT payment_mode, SUM(amount) AS net FROM ledger GROUP BY payment_mode;
+```
+
+> See full documentation: `docs/FINANCIAL_LEDGER_PAYMENT_MODE.md`

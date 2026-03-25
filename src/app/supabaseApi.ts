@@ -138,6 +138,7 @@ export const syncActionToSupabase = async (
           type: payload.type,
           reference_id: finalReferenceId,
           amount: payload.amount,
+          payment_mode: payload.paymentMode ?? null, // ← financial channel tracking
           note: payload.note ?? null,
           created_at: payload.createdAt,
         });

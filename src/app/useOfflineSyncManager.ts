@@ -177,6 +177,7 @@ export function useOfflineSyncManager() {
             type: e.type as any,
             referenceId: e.reference_id ?? undefined,
             amount: Number(e.amount),
+            paymentMode: e.payment_mode ?? undefined, // ← financial channel
             note: e.note ?? undefined,
             createdAt: e.created_at,
           }));

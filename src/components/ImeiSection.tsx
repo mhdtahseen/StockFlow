@@ -24,6 +24,7 @@ import ImeiScannerModal from "./ImeiScannerModal";
 interface ImeiSectionProps {
   imeis: ImeiEntry[];
   onChange: (imeis: ImeiEntry[]) => void;
+  showVerificationSection?: boolean;
 }
 
 // ─── Status labels & colors ──────────────────────────────────────────────────
@@ -53,7 +54,11 @@ function getStatusStyle(status: ImeiStatus) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ImeiSection({ imeis, onChange }: ImeiSectionProps) {
+export default function ImeiSection({
+  imeis,
+  onChange,
+  showVerificationSection = true,
+}: ImeiSectionProps) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanTarget, setScanTarget] = useState<number>(0); // Which IMEI slot to fill
 
@@ -119,7 +124,11 @@ export default function ImeiSection({ imeis, onChange }: ImeiSectionProps) {
     <>
       <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
         <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          <Fingerprint className="text-primary-500" size={18} strokeWidth={2.5} />
+          <Fingerprint
+            className="text-primary-500"
+            size={18}
+            strokeWidth={2.5}
+          />
           IMEI
         </h3>
 
@@ -249,20 +258,22 @@ export default function ImeiSection({ imeis, onChange }: ImeiSectionProps) {
         )}
 
         {/* Verify on CEIR */}
-        <div className="pt-3 border-t border-slate-50 dark:border-slate-800 space-y-2">
-          <a
-            href={CEIR_VERIFICATION_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 py-3 bg-primary-500 hover:bg-blue-800 text-white rounded-xl font-bold text-xs shadow-md shadow-blue-900/10 transition-all active:scale-[0.98]"
-          >
-            <ExternalLink size={14} />
-            Verify IMEI on CEIR
-          </a>
-          <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 text-center leading-relaxed">
-            Opens CEIR Gov portal. After verifying, update status above.
-          </p>
-        </div>
+        {showVerificationSection && (
+          <div className="pt-3 border-t border-slate-50 dark:border-slate-800 space-y-2">
+            <a
+              href={CEIR_VERIFICATION_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-primary-500 hover:bg-blue-800 text-white rounded-xl font-bold text-xs shadow-md shadow-blue-900/10 transition-all active:scale-[0.98]"
+            >
+              <ExternalLink size={14} />
+              Verify IMEI on CEIR
+            </a>
+            <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 text-center leading-relaxed">
+              Opens CEIR Gov portal. After verifying, update status above.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Scanner Modal */}
