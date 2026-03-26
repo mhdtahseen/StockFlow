@@ -43,3 +43,14 @@
 - **Type Safety**: Resolved all TypeScript compilation errors introduced during the Phase 4 bulk refactor across all UI elements (`AllocationSheet`, `BatchAddSheet`, `CreateOrderSheet`, `PhoneSelectorSheet`, `POConfirmSheet`, `RecordPaymentSheet`, `CustomerPicker`) and primary transaction pages (`OrderDetail`, `CustomerDetail`).
 - **Data Integrations**: Re-linked property mismatches tying Redux data accurately to the UI components (e.g. `amountAllocated` vs `amount`, `effectivePrice` usage, required fields on new stock creation).
 - **Control Consistency**: Normalized variable assignments (e.g. tracking toggle sheet visibility and explicit `target` mappings) matching the intended architectural state shapes.
+
+### Commit: feat(ux/perf): premium loader and database stabilization
+**Date:** 2026-03-27
+
+**Implemented Features & Changes:**
+- **Premium Loader**: Created a high-fidelity, reusable `Loader.tsx` with Framer Motion SVG draw animations, inside-out filling, and pulsating micro-animations for a premium brand experience during data hydration.
+- **Hydration Integration**: Integrated the new loader into `Profile.tsx` (and globally via sync manager) to provide visual feedback during offline-first state reconciliation.
+- **Database Hardening**: Applied critical RLS optimizations via **Subquery Inlining** to eliminate "InitPlan" performance bottlenecks in multi-tenant queries.
+- **Indexing**: Deployed b-tree indexes on `tenant_id` and `user_id` across 8 core tables to accelerate regional data fetching and relationship joins.
+- **Sync Manager Fixes**: Corrected field mapping errors in `useOfflineSyncManager.ts` (brand/model snapshots and acquisition channel) ensuring 100% data integrity between Redux and Supabase.
+- **Documentation**: Synchronized `redux_state.md` and SQL schema files with the live production environment.

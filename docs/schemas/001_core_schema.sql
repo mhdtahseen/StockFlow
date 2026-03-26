@@ -104,20 +104,52 @@ CREATE TABLE IF NOT EXISTS public.catalog_model_colors (
   UNIQUE(model_id, label)
 );
 
--- INDEXES
+-- INDEXES (Hardened for Multi-Tenancy)
 CREATE INDEX IF NOT EXISTS idx_tenants_slug ON public.tenants(slug);
 CREATE INDEX IF NOT EXISTS idx_profiles_tenant ON public.profiles(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_user ON public.profiles(id);
 CREATE INDEX IF NOT EXISTS idx_phones_tenant ON public.phones(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_phones_user ON public.phones(user_id);
 CREATE INDEX IF NOT EXISTS idx_phones_status ON public.phones(tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON public.ledger(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_user ON public.ledger(user_id);
+CREATE INDEX IF NOT EXISTS idx_master_data_tenant ON public.master_data(tenant_id);
 
--- HELPER FUNCTIONS
+-- HELPER FUNCTIONS (Performance Optimized)
 CREATE OR REPLACE FUNCTION get_user_tenant_id()
 RETURNS UUID AS $$
-  SELECT tenant_id FROM public.profiles WHERE id = auth.uid();
+  -- Inlined subquery for RLS performance (Avoids InitPlan traps)
+  SELECT tenant_id FROM public.profiles WHERE id = auth.uid() LIMIT 1;
 $$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = '';
 
 CREATE OR REPLACE FUNCTION get_user_role()
 RETURNS TEXT AS $$
-  SELECT role FROM public.profiles WHERE id = auth.uid();
+  SELECT role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
 $$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = '';
+
+-- UPDATED AT TRIGGER
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_tenants_updated_at BEFORE UPDATE ON public.tenants FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_phones_updated_at BEFORE UPDATE ON public.phones FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- RLS ENABLEMENT
+ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.phones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.master_data ENABLE ROW LEVEL SECURITY;
+
+-- BASE POLICIES
+CREATE POLICY "tenant_access" ON public.tenants FOR SELECT USING (id = get_user_tenant_id());
+CREATE POLICY "profile_access" ON public.profiles FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "phone_access" ON public.phones FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "ledger_access" ON public.ledger FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "master_data_access" ON public.master_data FOR ALL USING (tenant_id = get_user_tenant_id());

@@ -11,31 +11,16 @@ Below is a complete snapshot of the entire Redux state tree and the current stru
   "inventory": {
     "phones": [
       {
-        "id": "e4b3c2a1-1234-5678-abcd-9876543210ab",
+        "id": "e4b3c2a1...",
         "brand": "Apple",
         "model": "iPhone 13 Pro",
         "ram": "6GB",
         "storage": "256GB",
         "color": "Sierra Blue",
-        "imeis": ["352011234567890", "352011234567891"],
+        "imeis": ["352011234567890"],
         "purchasePrice": 45000,
-        "salePrice": 52000,
-        "status": "SOLD",
-        "issueTags": ["Minor Scratches"],
-        "createdAt": "2026-03-01T10:00:00.000Z"
-      },
-      {
-        "id": "f5c4d3b2-2345-6789-bcde-0987654321bc",
-        "brand": "Samsung",
-        "model": "Galaxy S23 Ultra",
-        "ram": "12GB",
-        "storage": "512GB",
-        "color": "Phantom Black",
-        "imeis": ["358123456789012"],
-        "purchasePrice": 72000,
         "status": "IN_STOCK",
-        "issueTags": [],
-        "createdAt": "2026-03-04T15:30:00.000Z"
+        "createdAt": "2026-03-01T10:00:00Z"
       }
     ]
   },
@@ -43,85 +28,67 @@ Below is a complete snapshot of the entire Redux state tree and the current stru
   "ledger": {
     "entries": [
       {
-        "id": "a1b2c3d4-3456-7890-cdef-1098765432cd",
+        "id": "a1b2c3d4...",
         "type": "MONEY_ADDED",
         "amount": 200000,
-        "note": "Initial Capital",
-        "createdAt": "2026-02-28T09:00:00.000Z"
-      },
-      {
-        "id": "b2c3d4e5-4567-8901-def0-2109876543de",
-        "type": "FUNDS_PLEDGED",
-        "referenceId": "e4b3c2a1-1234-5678-abcd-9876543210ab",
-        "amount": 45000,
-        "createdAt": "2026-03-01T10:00:00.000Z"
-      },
-      {
-        "id": "c3d4e5f6-5678-9012-ef01-3210987654ef",
-        "type": "REPAIR_COST",
-        "referenceId": "f5c4d3b2-2345-6789-bcde-0987654321bc",
-        "amount": -1500,
-        "note": "Screen Guard applied",
-        "createdAt": "2026-03-04T16:00:00.000Z"
-      },
-      {
-        "id": "d4e5f6g7-6789-0123-f012-4321098765f0",
-        "type": "PHONE_SALE",
-        "referenceId": "e4b3c2a1-1234-5678-abcd-9876543210ab",
-        "amount": 52000,
-        "createdAt": "2026-03-05T11:00:00.000Z"
+        "createdAt": "2026-02-28T09:00:00Z"
       }
     ]
   },
 
   "masterData": {
-    "brands": ["Apple", "Samsung", "OnePlus", "Google Pixel", "Nothing"],
-    "models": [
-      "iPhone 12",
-      "iPhone 13 Pro",
-      "iPhone 14 Pro Max",
-      "Galaxy S22",
-      "Galaxy S23 Ultra",
-      "Pixel 7 Pro",
-      "OnePlus 11"
+    "brands": ["Apple", "Samsung"],
+    "models": ["iPhone 13", "Galaxy S23"],
+    "ramOptions": ["4GB", "6GB", "8GB"],
+    "storageOptions": ["128GB", "256GB"],
+    "colorOptions": ["Sierra Blue", "Phantom Black"],
+    "issueTags": ["Minor Scratches"]
+  },
+
+  "customers": {
+    "customers": [
+      {
+        "id": "c1...",
+        "name": "Jane Doe",
+        "type": "CUSTOMER",
+        "phone": "9876543210"
+      }
     ],
-    "ramOptions": ["4GB", "6GB", "8GB", "12GB", "16GB", "N/A"],
-    "storageOptions": ["64GB", "128GB", "256GB", "512GB", "1TB"],
-    "colorOptions": [
-      "Midnight Black",
-      "Sierra Blue",
-      "Phantom Black",
-      "Space Grey",
-      "Alpine Green",
-      "Starlight"
-    ],
-    "issueTags": [
-      "Minor Scratches",
-      "Battery Replaced",
-      "Screen Damage",
-      "Camera Not Focusing",
-      "FaceID Not Working"
+    "payments": []
+  },
+
+  "billing": {
+    "orders": [
+      {
+        "id": "o1...",
+        "counterpartyId": "c1...",
+        "orderType": "RETAIL",
+        "totalAmount": 52000,
+        "amountPaid": 0,
+        "status": "OPEN",
+        "items": []
+      }
     ]
   },
 
-  "sync": {
-    "outbox": [
+  "purchasing": {
+    "orders": [],
+    "payments": []
+  },
+
+  "tenant": {
+    "teamMembers": [
       {
-        "id": "z9y8x7w6-1234-5678-abcd-0987654321aa",
-        "action": {
-          "type": "inventory/addPhone",
-          "payload": {
-            "id": "f5c4d3b2-2345-6789-bcde-0987654321bc",
-            "brand": "Samsung",
-            "model": "Galaxy S23 Ultra",
-            "status": "IN_STOCK"
-          }
-        },
-        "timestamp": 1709650000000,
-        "retryCount": 0,
-        "nextAttemptAt": 1709650000000
+        "id": "u1...",
+        "full_name": "Admin User",
+        "role": "admin"
       }
     ],
+    "lastUpdated": "2026-03-27T05:00:00Z"
+  },
+
+  "sync": {
+    "outbox": [],
     "isOnline": true
   }
 }
@@ -130,26 +97,34 @@ Below is a complete snapshot of the entire Redux state tree and the current stru
 ## Detailed Slice Breakdowns
 
 ### 1. `inventory` Slice
-
 - Maintains the core array of all `phones`.
-- Contains deeply-nested arrays like `issueTags` (strings) and `imeis` (strings).
-- `status` constraint heavily drives UI rendering (`"PENDING" | "IN_STOCK" | "SOLD"`).
+- Contains `imeis` and `issueTags` as string arrays.
+- Tracks `purchasePrice`, `salePrice`, and `status`.
 
 ### 2. `ledger` Slice
-
-- Stores a chronological list of all double-entry cashflow transactions.
-- Uses `referenceId` as a foreign key connecting back to a specific Phone ID.
-- Automatically recalculates vault cash and profit values.
-- Supported Types: `MONEY_ADDED`, `FUNDS_PLEDGED`, `FUNDS_RELEASED`, `FUNDS_CONSUMED`, `PHONE_SALE`, `REPAIR_COST`, `WITHDRAWAL`, `PROFIT_WITHDRAWAL`.
+- Stores chronological list of all cashflow transactions.
+- Recalculates vault cash and profit values on the fly.
 
 ### 3. `masterData` Slice
+- Localized dictionary for predictive text (brands, models, options).
 
-- Stores dynamically custom-added values directly generated by the user through auto-complete components.
-- Serves as the localized dictionary for predictive text across the app when dealing with dropdowns.
-- Includes isolated arrays for `brands`, `models`, `ramOptions`, `storageOptions`, `colorOptions`, and `issueTags`.
+### 4. `customers` Slice
+- Manages `counterparties` (customers, suppliers, wholesalers).
+- Stores recent payments received from customers.
 
-### 4. `sync` Slice
+### 5. `billing` Slice
+- Manages `sale_orders` and their embedded items (snapshots).
+- Handles open/partial payments for retail and bulk sales.
 
-- Acts as the Background Queue controller mechanism to speak with `Supabase`.
-- Holds offline transactions in the `outbox` array if `isOnline` correctly determines that the user is running the PWA without Cellular or Wifi.
-- Automatically handles intelligent `backoff` timing via `retryCount` and `nextAttemptAt` UNIX timestamps.
+### 6. `purchasing` Slice
+- Manages `purchase_orders` and `supplier_payments`.
+- Tracks phone-by-phone inspection status (`PENDING_INSPECTION`, `ACCEPTED`, `REJECTED`).
+
+### 7. `tenant` Slice
+- Stores `teamMembers` (profiles) for the current organization.
+- Updates `lastUpdated` whenever a role or member is changed.
+
+### 8. `sync` Slice
+- Background Queue mechanism for Supabase integration.
+- `outbox` persists actions while offline.
+- `isOnline` drives the synchronization logic.

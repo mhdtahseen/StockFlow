@@ -264,9 +264,8 @@ export function useOfflineSyncManager() {
               items: o.sale_order_items.map((i: any) => ({
                 id: i.id, saleOrderId: i.sale_order_id, phoneId: i.phone_id,
                 salePrice: i.sale_price, discountAmount: i.discount_amount,
-                effectivePrice: i.effective_price,
-                imeiSnapshot: i.imei_snapshot || [], brandSnapshot: i.brand,
-                modelSnapshot: i.model, storageSnapshot: i.storage, colorSnapshot: i.color
+                imeiSnapshot: i.imei_snapshot || [], brandSnapshot: i.brand_snapshot,
+                modelSnapshot: i.model_snapshot, storageSnapshot: i.storage_snapshot, colorSnapshot: i.color_snapshot
               }))
             })) });
           }
@@ -282,7 +281,7 @@ export function useOfflineSyncManager() {
             dispatch({
               type: "purchasing/setPurchaseOrders",
               payload: poData.map((o: any) => ({
-                id: o.id, counterpartyId: o.counterparty_id, acquisitionChannel: o.channel,
+                id: o.id, counterpartyId: o.counterparty_id, acquisitionChannel: o.acquisition_channel,
                 platformFee: o.platform_fee, phonesOrdered: o.phones_ordered,
                 phonesReceived: o.phones_received, totalAmount: o.total_amount,
                 amountPaid: o.amount_paid, status: o.status, paymentMode: o.payment_mode,

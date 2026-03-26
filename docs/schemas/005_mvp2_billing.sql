@@ -92,17 +92,71 @@ CREATE TABLE IF NOT EXISTS public.customer_payments (
   recorded_by      UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT
 );
 
--- Helper functions for Billing (Hardened)
+-- 7. Payment Allocations (Linking payments to orders)
+CREATE TABLE IF NOT EXISTS public.payment_allocations (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_payment_id UUID NOT NULL REFERENCES public.customer_payments(id) ON DELETE CASCADE,
+  sale_order_id    UUID NOT NULL REFERENCES public.sale_orders(id) ON DELETE CASCADE,
+  amount_allocated NUMERIC(12,2) NOT NULL CHECK (amount_allocated > 0),
+  note             TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 8. Supplier Payments
+CREATE TABLE IF NOT EXISTS public.supplier_payments (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  counterparty_id  UUID NOT NULL REFERENCES public.counterparties(id) ON DELETE RESTRICT,
+  total_paid       NUMERIC(12,2) NOT NULL CHECK (total_paid > 0),
+  mode             TEXT NOT NULL CHECK (mode IN ('CASH','UPI','BANK_TRANSFER','CREDIT')),
+  paid_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  note             TEXT,
+  recorded_by      UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT
+);
+
+-- 9. Supplier Allocations
+CREATE TABLE IF NOT EXISTS public.supplier_allocations (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  supplier_payment_id UUID NOT NULL REFERENCES public.supplier_payments(id) ON DELETE CASCADE,
+  purchase_order_id UUID NOT NULL REFERENCES public.purchase_orders(id) ON DELETE CASCADE,
+  amount_allocated NUMERIC(12,2) NOT NULL CHECK (amount_allocated > 0),
+  note             TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- INDEXES (Hardened)
+CREATE INDEX IF NOT EXISTS idx_sale_orders_tenant ON public.sale_orders(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_tenant ON public.purchase_orders(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_customer_payments_tenant ON public.customer_payments(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_payments_tenant ON public.supplier_payments(tenant_id);
+
+-- Helper functions for Billing (Hardened & Optimized)
 CREATE OR REPLACE FUNCTION public.get_tenant_plan()
 RETURNS TEXT AS $$
-  SELECT plan FROM public.tenants WHERE id = get_user_tenant_id();
+  -- Performance optimized via subquery inlining
+  SELECT plan FROM public.tenants WHERE id = (SELECT tenant_id FROM public.profiles WHERE id = auth.uid() LIMIT 1);
 $$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = '';
 
 CREATE OR REPLACE FUNCTION public.get_tenant_member_count()
 RETURNS INT AS $$
   SELECT COUNT(*)::INT FROM public.profiles
-  WHERE tenant_id = get_user_tenant_id() AND is_active = true;
+  WHERE tenant_id = (SELECT tenant_id FROM public.profiles WHERE id = auth.uid() LIMIT 1) AND is_active = true;
 $$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = '';
+
+-- RLS POLICY RE-INIT
+ALTER TABLE public.counterparties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sale_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sale_order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.supplier_payments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "cp_access" ON public.counterparties FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "so_access" ON public.sale_orders FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "po_access" ON public.purchase_orders FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "cp_pay_access" ON public.customer_payments FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "sp_pay_access" ON public.supplier_payments FOR ALL USING (tenant_id = get_user_tenant_id());
 
 -- Trade Order RPC (Hardened)
 CREATE OR REPLACE FUNCTION public.create_trade_order(
