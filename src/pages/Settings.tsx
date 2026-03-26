@@ -17,12 +17,27 @@ import ExportModal from "@/components/shared/ExportModal";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+
 export default function Settings() {
   const { mode, setMode } = useTheme();
   const [showExportModal, setShowExportModal] = useState(false);
-  const [notifsEnabled, setNotifsEnabled] = useState(true);
+  const [notifsEnabled, setNotifsEnabled] = useState(Notification.permission === 'granted');
   const [offlineSyncEnabled, setOfflineSyncEnabled] = useState(true);
   const [hapticFeedback, setHapticFeedback] = useState(true);
+
+  const { togglePushNotifications } = usePushNotifications();
+
+  const handleTogglePush = async (checked: boolean) => {
+    setNotifsEnabled(checked);
+    const success = await togglePushNotifications(checked);
+    if (!success && checked) {
+      toast.error('Failed to enable push notifications');
+      setNotifsEnabled(false);
+    } else if (success && checked) {
+      toast.success('Push notifications enabled');
+    }
+  };
 
 
   const themeOptions: {
@@ -101,7 +116,7 @@ export default function Settings() {
               </div>
               <Switch
                 checked={notifsEnabled}
-                onCheckedChange={setNotifsEnabled}
+                onCheckedChange={handleTogglePush}
               />
             </div>
             <div className="flex items-center justify-between p-4">

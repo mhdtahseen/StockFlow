@@ -7,12 +7,16 @@ import { Toaster } from "@/components/ui/sonner";
 import { useOfflineSyncManager } from "@/app/useOfflineSyncManager";
 import { usePlan } from "@/hooks/usePlan";
 import TrialExpiredPaywall from "@/components/shared/TrialExpiredPaywall";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Initialize offline background syncing
   useOfflineSyncManager();
+
+  // Initialize push notifications
+  usePushNotifications();
 
   const { isExpired } = usePlan();
 
