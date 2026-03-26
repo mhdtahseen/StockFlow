@@ -7,13 +7,19 @@ import {
   Banknote,
   CalendarClock,
   Phone,
+  Edit,
+  Filter,
+  ShoppingCart,
+  ShoppingBag,
 } from "lucide-react";
+import HeaderActions from "@/components/layout/HeaderActions";
 import { format, parseISO, compareDesc } from "date-fns";
 import clsx from "clsx";
 import { SaleOrder } from "@/features/billing/types";
 import { CustomerPayment } from "@/features/customers/types";
 import { AllocationSheet } from "@/components/shared/AllocationSheet";
 import { SupplierAllocationSheet } from "@/components/shared/SupplierAllocationSheet";
+import { CustomerEditSheet } from "@/components/shared/CustomerEditSheet";
 
 type Tab = "orders" | "payments" | "timeline";
 
@@ -25,12 +31,23 @@ export default function CustomerDetail() {
     state.customers.customers.find((c) => c.id === id),
   );
   const allSaleOrders = useAppSelector((state) => state.billing.orders) || [];
-  const allPurchaseOrders = useAppSelector((state) => state.purchasing.orders) || [];
-  const allCustomerPayments = useAppSelector((state) => state.customers.payments) || [];
-  const allSupplierPayments = useAppSelector((state) => state.purchasing.payments) || [];
+  const allPurchaseOrders =
+    useAppSelector((state) => state.purchasing.orders) || [];
+  const allCustomerPayments =
+    useAppSelector((state) => state.customers.payments) || [];
+  const allSupplierPayments =
+    useAppSelector((state) => state.purchasing.payments) || [];
+
+  const [activeTab, setActiveTab] = useState<Tab>("orders");
+  const [arOpen, setArOpen] = useState(false);
+  const [apOpen, setApOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [orderTypeFilter, setOrderTypeFilter] = useState<"ALL" | "SALE" | "PURCHASE">("ALL");
 
   const orders = React.useMemo(() => {
-    const saleOrders = allSaleOrders.filter((o) => o.counterpartyId === id).map(o => ({ ...o, isPurchaseOrder: false }));
+    const saleOrders = allSaleOrders
+      .filter((o) => o.counterpartyId === id)
+      .map((o) => ({ ...o, isPurchaseOrder: false }));
     const purchaseOrders = allPurchaseOrders
       .filter((o) => o.counterpartyId === id)
       .map((o) => ({ ...o, isPurchaseOrder: true }));
@@ -39,6 +56,13 @@ export default function CustomerDetail() {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }, [allSaleOrders, allPurchaseOrders, id]);
+
+  const filteredOrders = React.useMemo(() => {
+    if (orderTypeFilter === "ALL") return orders;
+    return orders.filter(o => 
+      orderTypeFilter === "PURCHASE" ? (o as any).isPurchaseOrder : !(o as any).isPurchaseOrder
+    );
+  }, [orders, orderTypeFilter]);
 
   const payments = React.useMemo(() => {
     const arPayments = allCustomerPayments
@@ -54,10 +78,6 @@ export default function CustomerDetail() {
     });
   }, [allCustomerPayments, allSupplierPayments, id]);
 
-  const [activeTab, setActiveTab] = useState<Tab>("orders");
-  const [arOpen, setArOpen] = useState(false);
-  const [apOpen, setApOpen] = useState(false);
-
   if (!customer) {
     return (
       <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 p-4 justify-center items-center text-red-500 font-bold">
@@ -72,75 +92,130 @@ export default function CustomerDetail() {
     );
   }
 
-  const outstanding = orders
-    .filter((o) => o.status !== "SETTLED" && o.status !== "RETURNED")
+  const totalReceivable = allSaleOrders
+    .filter(
+      (o) =>
+        o.counterpartyId === id &&
+        o.status !== "SETTLED" &&
+        o.status !== "RETURNED",
+    )
     .reduce((s, o) => s + (o.totalAmount - o.amountPaid), 0);
 
+  const totalPayable = allPurchaseOrders
+    .filter(
+      (o) =>
+        o.counterpartyId === id &&
+        o.status !== "SETTLED" &&
+        o.status !== "CANCELLED",
+    )
+    .reduce((s, o) => s + (o.totalAmount - o.amountPaid), 0);
   const mergedTimeline = [...orders, ...payments].sort((a, b) => {
     const dateA =
       "createdAt" in a
         ? (a as SaleOrder).createdAt
-        : (a as CustomerPayment).receivedAt;
+        : (a as any).receivedAt || (a as any).paidAt;
     const dateB =
       "createdAt" in b
         ? (b as SaleOrder).createdAt
-        : (b as CustomerPayment).receivedAt;
+        : (b as any).receivedAt || (b as any).paidAt;
     return compareDesc(parseISO(dateA), parseISO(dateB));
   });
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
+      <HeaderActions>
+        <button
+          onClick={() => setEditOpen(true)}
+          className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 flex items-center justify-center transition-colors shadow-sm active:scale-95"
+          aria-label="Edit Customer"
+        >
+          <Edit size={18} />
+        </button>
+      </HeaderActions>
+
       {/* Header */}
       <div className="px-4 pb-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-4">
-
-        {/* Balance Card */}
-        <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 relative overflow-hidden flex justify-between items-center">
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-500"></div>
-          <div>
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-0.5">
-              Net Outstanding
-            </span>
-            <span
-              className={clsx(
-                "text-2xl font-black tracking-tight",
-                outstanding > 0
-                  ? "text-amber-600 dark:text-amber-500"
-                  : "text-emerald-600 dark:text-emerald-500",
-              )}
-            >
-              ₹{outstanding.toLocaleString()}
-            </span>
+        {/* Customer Header */}
+        <div className="flex justify-between items-start mt-2">
+          <div className="flex flex-col pr-4">
+            <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 leading-tight">
+              {customer.name}
+            </h1>
+            {customer.phone && (
+              <span className="text-sm font-semibold text-slate-500 mt-1">
+                {customer.phone}
+              </span>
+            )}
+            {customer.aadhaarLast4 && (
+              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-500 mt-0.5">
+                Aadhaar: XXXX {customer.aadhaarLast4}
+              </span>
+            )}
+            {customer.address && (
+              <span className="text-xs font-medium text-slate-400 mt-1 line-clamp-2 leading-snug">
+                {customer.address}
+              </span>
+            )}
           </div>
-          <div className="flex gap-2">
-            {outstanding > 0 &&
-              (customer.type === "CUSTOMER" ||
-                customer.type === "RETAILER") && (
-                <button
-                  onClick={() => setArOpen(true)}
-                  className="px-3 py-1.5 bg-primary-500 text-white text-[10px] font-black uppercase tracking-tighter rounded-lg shadow-lg shadow-blue-500/20 active:scale-95 transition-transform"
-                >
-                  Log Batch AR
-                </button>
-              )}
-            {outstanding > 0 &&
-              (customer.type === "WHOLESALER" ||
-                customer.type === "PLATFORM") && (
-                <button
-                  onClick={() => setApOpen(true)}
-                  className="px-3 py-1.5 bg-rose-600 text-white text-[10px] font-black uppercase tracking-tighter rounded-lg shadow-lg shadow-rose-500/20 active:scale-95 transition-transform"
-                >
-                  Apply Payout
-                </button>
-              )}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <span className="text-[10px] uppercase tracking-wider font-extrabold text-primary-600 bg-primary-50 dark:text-primary-400 dark:bg-primary-900/20 px-2 py-1 rounded border border-primary-100 dark:border-primary-900/30">
+              {customer.type}
+            </span>
             {customer.phone && (
               <a
                 href={`tel:${customer.phone}`}
-                className="size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary-500 dark:text-blue-400 flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                className="size-8 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary-500 dark:text-blue-400 flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors shadow-sm"
               >
-                <Phone size={18} fill="currentColor" />
+                <Phone size={14} fill="currentColor" />
               </a>
             )}
           </div>
+        </div>
+
+        {/* Balance Card */}
+        <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 relative overflow-hidden flex flex-col gap-3">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-500"></div>
+
+          <div className="flex justify-between items-center w-full">
+            <div>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-0.5">
+                Receivable (AR)
+              </span>
+              <span className="text-2xl font-black tracking-tight text-emerald-600 dark:text-emerald-500">
+                ₹{totalReceivable.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="text-right">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-0.5">
+                Payable (AP)
+              </span>
+              <span className="text-2xl font-black tracking-tight text-amber-600 dark:text-amber-500">
+                ₹{totalPayable.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {(totalReceivable > 0 || totalPayable > 0) && (
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              {totalReceivable > 0 && (
+                <button
+                  onClick={() => setArOpen(true)}
+                  className="px-3 py-1.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-tighter rounded-lg shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform"
+                >
+                  Log Receipt
+                </button>
+              )}
+              {totalPayable > 0 && (
+                <button
+                  onClick={() => setApOpen(true)}
+                  className="px-3 py-1.5 bg-amber-600 text-white text-[10px] font-black uppercase tracking-tighter rounded-lg shadow-lg shadow-amber-500/20 active:scale-95 transition-transform"
+                >
+                  Log Payout
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -168,22 +243,58 @@ export default function CustomerDetail() {
       </div>
 
       {/* Content */}
-      <div className="p-4 flex-1 overflow-y-auto pb-24">
+      <div className="p-4 flex-1 overflow-y-auto pb-2">
         {activeTab === "orders" && (
           <div className="space-y-3">
-            {orders.length === 0 ? (
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
+              {[
+                { id: "ALL", label: "All Orders", icon: <Filter size={14} /> },
+                { id: "SALE", label: "Sales", icon: <ShoppingCart size={14} /> },
+                { id: "PURCHASE", label: "Purchases", icon: <ShoppingBag size={14} /> },
+              ].map((pill) => (
+                <button
+                  key={pill.id}
+                  onClick={() => setOrderTypeFilter(pill.id as any)}
+                  className={clsx(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 border",
+                    orderTypeFilter === pill.id
+                      ? "bg-primary-500 text-white border-primary-500 shadow-sm shadow-primary-500/20"
+                      : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                  )}
+                >
+                  {pill.icon}
+                  {pill.label}
+                </button>
+              ))}
+            </div>
+
+            {filteredOrders.length === 0 ? (
               <div className="text-center py-12 text-slate-400 font-medium">
                 No orders found.
               </div>
             ) : (
-              orders.map((o) => (
+              filteredOrders.map((o) => (
                 <div
                   key={o.id}
-                  onClick={() => navigate(`/orders/${o.id}`)}
-                  className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex justify-between items-center cursor-pointer hover:border-primary-500/30 active:scale-[0.98] transition-all"
+                  onClick={() =>
+                    navigate(
+                      (o as any).isPurchaseOrder
+                        ? `/purchase-orders/${o.id}`
+                        : `/orders/${o.id}`,
+                    )
+                  }
+                  className={clsx(
+                    "bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex justify-between items-center cursor-pointer hover:border-primary-500/30 active:scale-[0.98] transition-all relative overflow-hidden",
+                    (o as any).isPurchaseOrder ? "border-l-4 border-l-amber-500" : "border-l-4 border-l-blue-500"
+                  )}
                 >
-                  <div>
-                    <div className="flex items-center gap-2 mb-1 border-slate-50">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 mb-1">
+                      {/* ORDER ID */}
+                      <span className="text-[14px] font-black text-slate-500 uppercase tracking-widest">
+                        #{o.id.substring(0, 6)}
+                      </span>
+                      {/* STATUS */}
                       <span
                         className={clsx(
                           "text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm",
@@ -191,19 +302,24 @@ export default function CustomerDetail() {
                             ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400"
                             : o.status === "PARTIAL"
                               ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400"
-                              : o.status === "OPEN"
+                              : o.status === "OPEN" ||
+                                  o.status === "AWAITING_RECEIPT" ||
+                                  o.status === "RECEIVED"
                                 ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400"
                                 : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400",
                         )}
                       >
                         {o.status}
                       </span>
+                    </div>
+                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex flex-col gap-1">
+                      {/* <span>
+                        {o.items.length} item{o.items.length !== 1 ? "s" : ""}
+                      </span> */}
+                      {/* DATE */}
                       <span className="text-[10px] font-bold text-slate-400">
                         {format(parseISO(o.createdAt), "MMM d, yyyy")}
                       </span>
-                    </div>
-                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      {o.items.length} item{o.items.length !== 1 ? "s" : ""}
                     </div>
                   </div>
                   <div className="text-right flex flex-col items-end">
@@ -235,11 +351,21 @@ export default function CustomerDetail() {
                   className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800"
                 >
                   <div className="flex justify-between items-center mb-2">
-                    <span className={clsx("font-black", p.isAr ? "text-emerald-600 dark:text-emerald-500" : "text-amber-600 dark:text-amber-500")}>
+                    <span
+                      className={clsx(
+                        "font-black",
+                        p.isAr
+                          ? "text-emerald-600 dark:text-emerald-500"
+                          : "text-amber-600 dark:text-amber-500",
+                      )}
+                    >
                       ₹{(p.totalReceived || p.totalPaid || 0).toLocaleString()}
                     </span>
                     <span className="text-xs font-bold text-slate-400">
-                      {format(parseISO(p.receivedAt || p.paidAt), "MMM d, h:mm a")}
+                      {format(
+                        parseISO(p.receivedAt || p.paidAt),
+                        "MMM d, h:mm a",
+                      )}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -249,17 +375,35 @@ export default function CustomerDetail() {
                   </div>
                   {p.allocations && p.allocations.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1">
-                      {p.allocations.map((a: any, i: number) => (
-                        <div
-                          key={i}
-                          className="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400"
-                        >
-                          <span className="truncate">Applied to Order</span>
-                          <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0">
-                            ₹{a.amountAllocated.toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
+                      {p.allocations.map((a: any, i: number) => {
+                        const orderId = a.saleOrderId || a.purchaseOrderId;
+                        return (
+                          <div
+                            key={i}
+                            className="flex justify-between items-center text-xs font-medium text-slate-600 dark:text-slate-400"
+                          >
+                            <span className="truncate flex items-center gap-1.5">
+                              Applied to Order
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(
+                                    p.isAr
+                                      ? `/orders/${orderId}`
+                                      : `/purchase-orders/${orderId}`,
+                                  );
+                                }}
+                                className="font-extrabold uppercase text-primary-500 hover:text-primary-600 hover:underline cursor-pointer"
+                              >
+                                #{orderId.substring(0, 6)}
+                              </span>
+                            </span>
+                            <span className="font-black text-slate-700 dark:text-slate-300 shrink-0">
+                              ₹{a.amountAllocated.toLocaleString()}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -297,10 +441,20 @@ export default function CustomerDetail() {
                       </p>
                       <div
                         className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm cursor-pointer hover:border-primary-500/30 transition-all"
-                        onClick={() => navigate(`/orders/${o.id}`)}
+                        onClick={() =>
+                          navigate(
+                            (o as any).isPurchaseOrder
+                              ? `/purchase-orders/${o.id}`
+                              : `/orders/${o.id}`,
+                          )
+                        }
                       >
                         <span className="font-bold text-slate-800 dark:text-slate-200 text-sm block mb-1">
-                          Created {(o as any).isPurchaseOrder ? "Purchase" : (o.orderType || "Sale")} Order
+                          Created{" "}
+                          {(o as any).isPurchaseOrder
+                            ? "Purchase"
+                            : o.orderType || "Sale"}{" "}
+                          Order
                         </span>
                         <div className="flex justify-between text-xs text-slate-500 font-medium">
                           <span>{o.items.length} items</span>
@@ -315,34 +469,60 @@ export default function CustomerDetail() {
                   const p = item as any;
                   return (
                     <div key={`payment-${p.id}`} className="relative">
-                      <div className={clsx(
-                        "absolute -left-[23px] top-1 rounded-full border border-white dark:border-slate-950 p-1",
-                        p.isAr ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-amber-100 dark:bg-amber-900/40"
-                      )}>
-                        <div className={clsx("size-2 rounded-full", p.isAr ? "bg-emerald-500" : "bg-amber-500")}></div>
+                      <div
+                        className={clsx(
+                          "absolute -left-[23px] top-1 rounded-full border border-white dark:border-slate-950 p-1",
+                          p.isAr
+                            ? "bg-emerald-100 dark:bg-emerald-900/40"
+                            : "bg-amber-100 dark:bg-amber-900/40",
+                        )}
+                      >
+                        <div
+                          className={clsx(
+                            "size-2 rounded-full",
+                            p.isAr ? "bg-emerald-500" : "bg-amber-500",
+                          )}
+                        ></div>
                       </div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
                         {dateHeader}
                       </p>
-                      <div className={clsx(
-                        "p-3 rounded-xl border shadow-sm",
-                        p.isAr 
-                          ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/30"
-                          : "bg-amber-50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30"
-                      )}>
-                        <span className={clsx(
-                          "font-bold text-sm block mb-1",
-                          p.isAr ? "text-emerald-800 dark:text-emerald-400" : "text-amber-800 dark:text-amber-400"
-                        )}>
+                      <div
+                        className={clsx(
+                          "p-3 rounded-xl border shadow-sm",
+                          p.isAr
+                            ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/30"
+                            : "bg-amber-50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30",
+                        )}
+                      >
+                        <span
+                          className={clsx(
+                            "font-bold text-sm block mb-1",
+                            p.isAr
+                              ? "text-emerald-800 dark:text-emerald-400"
+                              : "text-amber-800 dark:text-amber-400",
+                          )}
+                        >
                           {p.isAr ? "Payment Received" : "Payment Sent (PO)"}
                         </span>
                         <div className="flex justify-between text-xs font-medium">
-                          <span className="text-slate-500 capitalize">Via {p.mode.toLowerCase()}</span>
-                          <span className={clsx(
-                            "font-black",
-                            p.isAr ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"
-                          )}>
-                            ₹{(p.totalReceived || p.totalPaid || 0).toLocaleString()}
+                          <span className="text-slate-500 capitalize">
+                            Via {p.mode.toLowerCase()}
+                          </span>
+                          <span
+                            className={clsx(
+                              "font-black",
+                              p.isAr
+                                ? "text-emerald-700 dark:text-emerald-400"
+                                : "text-amber-700 dark:text-amber-400",
+                            )}
+                          >
+                            ₹
+                            {(
+                              p.totalReceived ||
+                              p.totalPaid ||
+                              0
+                            ).toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -364,6 +544,11 @@ export default function CustomerDetail() {
         open={apOpen}
         onOpenChange={setApOpen}
         supplierId={customer.id}
+      />
+      <CustomerEditSheet
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        customer={customer}
       />
     </div>
   );

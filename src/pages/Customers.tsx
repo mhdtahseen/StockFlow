@@ -2,14 +2,22 @@ import React, { useState } from "react";
 import { useAppSelector } from "@/app/hooks";
 import { useNavigate } from "react-router-dom";
 import Fuse from "fuse.js";
-import { Search, Users, ChevronRight, UserPlus } from "lucide-react";
+import { Search, Users, ChevronRight, UserPlus, Filter } from "lucide-react";
 import { selectCustomers } from "@/features/customers/selectors";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Customers() {
   const customers = useAppSelector(selectCustomers);
   const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<string>("ALL");
   const navigate = useNavigate();
 
   const fuse = new Fuse(customers, {
@@ -17,9 +25,13 @@ export default function Customers() {
     threshold: 0.3,
   });
 
-  const filtered = search.trim()
+  const searched = search.trim()
     ? fuse.search(search).map((r) => r.item)
     : customers;
+
+  const filtered = filterType === "ALL" 
+    ? searched 
+    : searched.filter(c => c.type === filterType);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
@@ -35,21 +47,38 @@ export default function Customers() {
         />
       </HeaderActions>
 
-      {/* Search Bar */}
+      {/* Search Bar & Filter */}
 
       <div className="p-4">
-        <div className="relative mb-6">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder="Search by name or phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-12 pl-10 pr-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-semibold shadow-sm focus:border-primary-500 outline-none transition-colors"
-          />
+        <div className="flex items-center gap-2 mb-6">
+          <div className="relative flex-1">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Search by name or phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-12 pl-10 pr-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-semibold shadow-sm focus:border-primary-500 outline-none transition-colors"
+            />
+          </div>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[140px] h-12 px-3 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-semibold focus:ring-0">
+              <div className="flex items-center gap-2">
+                <Filter size={14} className="text-slate-400 shrink-0" />
+                <SelectValue placeholder="Type" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Types</SelectItem>
+              <SelectItem value="CUSTOMER">Customer</SelectItem>
+              <SelectItem value="RETAILER">Retailer</SelectItem>
+              <SelectItem value="WHOLESALER">Wholesaler</SelectItem>
+              <SelectItem value="PLATFORM">Platform</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-3 pb-24">

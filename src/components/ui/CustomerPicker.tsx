@@ -393,7 +393,7 @@ export function CustomerPicker({
                 value={newType}
                 onValueChange={(v) => setNewType(v as CustomerType)}
               >
-                <SelectTrigger className="w-full h-12 rounded-xl mt-  border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 font-semibold">
+                <SelectTrigger className="w-full h-12 px-4 text-left rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 font-semibold">
                   <SelectValue placeholder="Select type..." />
                 </SelectTrigger>
                 <SelectContent>
