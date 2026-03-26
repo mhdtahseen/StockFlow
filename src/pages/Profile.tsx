@@ -16,6 +16,7 @@ import {
   ClipboardCheck,
   LogOut,
 } from "lucide-react";
+import { Loader } from "@/components/shared/Loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,8 +77,9 @@ export default function ProfilePage() {
     async function loadProfileData() {
       if (!session?.user.id) return;
       
-      // Load personal profile (from profiles table)
+      setIsLoading(true);
       try {
+        // Load personal profile (from profiles table)
         const { data, error } = await supabase
           .from("profiles")
           .select("full_name, avatar_url, email")
@@ -103,6 +105,8 @@ export default function ProfilePage() {
         setPhone(session.user.user_metadata?.phone || "");
       } catch (err: any) {
         console.error("Profile load catch:", err);
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -114,28 +118,37 @@ export default function ProfilePage() {
     }
 
     loadProfileData();
-    setIsLoading(false);
   }, [session, tenant]);
 
   const handleUpdateProfile = async () => {
     if (!session?.user.id) return;
-    setIsSaving(true);
+    const trimmedFullName = fullName.trim();
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedFullName) {
+      toast.error("Full name is required");
+      setIsSaving(false);
+      return;
+    }
+
     try {
+      // Use upsert to ensure the profile record exists
       const { error } = await supabase
         .from("profiles")
-        .update({
-          full_name: fullName,
+        .upsert({
+          id: session.user.id,
+          full_name: trimmedFullName,
           avatar_url: avatarUrl,
-        })
-        .eq("id", session.user.id);
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
 
       if (error) throw error;
 
       const { error: authError } = await supabase.auth.updateUser({
         data: {
-          full_name: fullName,
+          full_name: trimmedFullName,
           avatar_url: avatarUrl,
-          phone: phone,
+          phone: trimmedPhone,
         },
       });
 
@@ -143,15 +156,20 @@ export default function ProfilePage() {
 
       // Also sync to tenant if it exists
       if (tenant?.id) {
-        await supabase
+        const { error: tenantError } = await supabase
           .from("tenants")
-          .update({ phone: phone })
+          .update({ phone: trimmedPhone })
           .eq("id", tenant.id);
+        
+        if (tenantError) {
+          console.warn("Could not update phone in tenant table (likely RLS), but auth metadata updated.", tenantError);
+        }
       }
 
       await refreshTenant();
       toast.success("Profile updated successfully");
     } catch (err: any) {
+      console.error("Update profile error:", err);
       toast.error("Failed to update profile", { description: err.message });
     } finally {
       setIsSaving(false);
@@ -159,9 +177,18 @@ export default function ProfilePage() {
   };
 
   const handleUpdateBusiness = async () => {
-    if (!tenant?.id) return;
-    if (!storeName || !storeAddress || !phone) {
+    const trimmedStoreName = storeName.trim();
+    const trimmedStoreAddress = storeAddress.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedGSTIN = storeGSTIN.trim().toUpperCase();
+
+    if (!trimmedStoreName || !trimmedStoreAddress || !trimmedPhone) {
       toast.error("Please fill in all mandatory fields (Name, Address, Phone)");
+      return;
+    }
+
+    if (!tenant?.id) {
+      toast.error("No business account associated with your profile.");
       return;
     }
 
@@ -170,10 +197,10 @@ export default function ProfilePage() {
       const { error } = await supabase
         .from("tenants")
         .update({
-          name: storeName,
-          address: storeAddress,
-          phone: phone,
-          gstin: storeGSTIN || null,
+          name: trimmedStoreName,
+          address: trimmedStoreAddress,
+          phone: trimmedPhone,
+          gstin: trimmedGSTIN || null,
         })
         .eq("id", tenant.id);
 
@@ -182,8 +209,8 @@ export default function ProfilePage() {
       // Also sync to auth metadata
       await supabase.auth.updateUser({
         data: {
-          phone: phone,
-          org_name: storeName,
+          phone: trimmedPhone,
+          org_name: trimmedStoreName,
         },
       });
 
@@ -235,16 +262,9 @@ export default function ProfilePage() {
     setIsAvatarModalOpen(false);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-950 p-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-500 dark:text-blue-500" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
+      <Loader isLoading={isLoading} />
 
       <main className="flex-1 p-4 max-w-lg mx-auto w-full space-y-6">
         <div className="flex flex-col items-center pt-2">
