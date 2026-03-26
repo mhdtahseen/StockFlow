@@ -390,7 +390,7 @@ export default function OrderDetail() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-24">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-4">
       <HeaderActions>
         <FeatureGate feature="pdf_invoice">
           {!isPurchaseOrder && (
@@ -405,7 +405,7 @@ export default function OrderDetail() {
         </FeatureGate>
       </HeaderActions>
 
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shrink-0 z-20">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shrink-0 z-20 relative">
         <div className="px-4 py-4 flex justify-between items-start">
           <div>
             <div className="flex items-baseline gap-2 mb-1.5">
@@ -421,7 +421,9 @@ export default function OrderDetail() {
             </div>
             <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
               <Calendar size={12} className="opacity-70" />
-              <span>{format(new Date(order.createdAt), "dd MMM yyyy, h:mm a")}</span>
+              <span>
+                {format(new Date(order.createdAt), "dd MMM yyyy, h:mm a")}
+              </span>
             </div>
           </div>
           <span
@@ -439,6 +441,38 @@ export default function OrderDetail() {
             {order.status}
           </span>
         </div>
+        {!isPurchaseOrder && totalSaleProfit !== 0 && (
+          <div className="absolute bottom-3 right-3 flex items-center gap-1 px-1.5 py-0.5 rounded overflow-hidden">
+            <div
+              className={clsx(
+                "absolute inset-0 opacity-10",
+                totalSaleProfit > 0 ? "bg-emerald-500" : "bg-rose-500",
+              )}
+            />
+            {totalSaleProfit > 0 ? (
+              <TrendingUp
+                size={12}
+                className="relative z-10 text-emerald-600 dark:text-emerald-400"
+              />
+            ) : (
+              <TrendingDown
+                size={12}
+                className="relative z-10 text-rose-600 dark:text-rose-400"
+              />
+            )}
+            <span
+              className={clsx(
+                "relative z-10 text-[10px] font-black tracking-wider uppercase",
+                totalSaleProfit > 0
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : "text-rose-700 dark:text-rose-400",
+              )}
+            >
+              {totalSaleProfit > 0 ? "+" : ""}₹
+              {Math.abs(totalSaleProfit).toLocaleString()}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="shrink-0 flex flex-col bg-slate-50 dark:bg-slate-950">
@@ -448,19 +482,7 @@ export default function OrderDetail() {
             {outstanding > 0 && order.status !== "RETURNED" && (
               <div className="absolute top-0 left-0 w-full h-1 bg-amber-500" />
             )}
-            {!isPurchaseOrder && totalSaleProfit !== 0 && (
-              <div className="absolute top-3 right-3 flex items-center gap-1 px-1.5 py-0.5 rounded overflow-hidden">
-                <div className={clsx("absolute inset-0 opacity-10", totalSaleProfit > 0 ? "bg-emerald-500" : "bg-rose-500")} />
-                {totalSaleProfit > 0 ? (
-                  <TrendingUp size={12} className="relative z-10 text-emerald-600 dark:text-emerald-400" />
-                ) : (
-                  <TrendingDown size={12} className="relative z-10 text-rose-600 dark:text-rose-400" />
-                )}
-                <span className={clsx("relative z-10 text-[10px] font-black tracking-wider uppercase", totalSaleProfit > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400")}>
-                  {totalSaleProfit > 0 ? "+" : ""}₹{Math.abs(totalSaleProfit).toLocaleString()}
-                </span>
-              </div>
-            )}
+
             <div>
               <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">
                 Total
@@ -545,7 +567,7 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-28">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-10">
         {/* --- ITEMS TAB --- */}
         {activeTab === "items" && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -651,12 +673,12 @@ export default function OrderDetail() {
             </div>
 
             {order.status === "SETTLED" && !isPurchaseOrder && (
-               <button
-                  onClick={handleReturn}
-                  className="w-full py-4 border-2 border-dashed border-rose-100 dark:border-rose-900/30 text-rose-500 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
-                >
-                  <RotateCcw size={14} /> Full Order Return
-                </button>
+              <button
+                onClick={handleReturn}
+                className="w-full py-4 border-2 border-dashed border-rose-100 dark:border-rose-900/30 text-rose-500 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+              >
+                <RotateCcw size={14} /> Full Order Return
+              </button>
             )}
           </div>
         )}

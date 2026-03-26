@@ -21,12 +21,14 @@ export const BrandIcon = ({ brand }: { brand: string }) => {
 
   // Square/Icon-dominant logos (Smaller size works)
   if (b.includes("apple") || b.includes("iphone")) return <SiApple size={18} />;
-  if (b.includes("google") || b.includes("pixel")) return <SiGoogle size={18} />;
+  if (b.includes("google") || b.includes("pixel"))
+    return <SiGoogle size={18} />;
   if (b.includes("xiaomi") || b.includes("redmi") || b.includes("mi "))
     return <SiXiaomi size={20} />;
   if (b.includes("nothing")) return <Smartphone size={18} />;
   if (b.includes("oneplus")) return <SiOneplus size={18} />;
-  if (b.includes("motorola") || b.includes("moto")) return <SiMotorola size={18} />;
+  if (b.includes("motorola") || b.includes("moto"))
+    return <SiMotorola size={18} />;
 
   // Text-dominant/Wide logos (Needs larger size to be readable)
   if (b.includes("samsung")) return <SiSamsung size={26} />;
@@ -81,7 +83,7 @@ export function DeviceListItem({
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-baseline mb-0.5">
-          <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2 text-sm uppercase italic tracking-tight">
+          <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2 text-sm  tracking-tight">
             {brand} {model}
           </h4>
           <span className="font-black text-slate-900 dark:text-slate-100 whitespace-nowrap text-sm tracking-tight">
@@ -119,8 +121,8 @@ export function DeviceListItem({
                     : "text-rose-500 bg-rose-50",
                 )}
               >
-                {unitProfit > 0 ? "+" : ""}
-                ₹{Math.abs(unitProfit).toLocaleString()}
+                {unitProfit > 0 ? "+" : ""}₹
+                {Math.abs(unitProfit).toLocaleString()}
               </span>
             )}
             <span
