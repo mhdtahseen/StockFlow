@@ -1,29 +1,46 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAppSelector, useAppDispatch } from "@/app/hooks";
-import {
-  FileText,
+import { 
+  CheckCircle2, 
+  Package, 
+  Clock, 
+  AlertCircle, 
+  ArrowRight, 
+  TrendingUp, 
+  TrendingDown,
+  ArrowLeft,
   Share,
-  AlertTriangle,
-  User,
-  ShieldAlert,
-  Package,
+  History,
+  Circle,
+  CreditCard,
   CheckCircle,
   XCircle,
+  AlertTriangle,
+  RotateCcw,
+  User,
+  PhoneCall,
+  Calendar,
+  IndianRupee,
+  FileText,
+  BadgeCheck,
+  BadgeAlert,
   Loader2,
+  ShieldAlert
 } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import { usePlan } from "@/hooks/usePlan";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { addOrder, returnOrder } from "@/features/billing/slice";
+import { markAsInStock } from "@/features/inventory/slice";
+import { addEntry } from "@/features/ledger/slice";
+import { generateInvoicePDF } from "@/utils/generateInvoice";
+import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import clsx from "clsx";
-import { returnOrder, addOrder } from "@/features/billing/slice";
-import { addEntry } from "@/features/ledger/slice";
-import { markAsInStock } from "@/features/inventory/slice";
-import { toast } from "sonner";
-import { RecordPaymentSheet } from "@/components/shared/RecordPaymentSheet";
-import { usePlan } from "@/hooks/usePlan";
 import { FeatureGate } from "@/components/shared/FeatureGate";
-import { useAuth } from "@/context/AuthContext";
-import { generateInvoicePDF } from "@/utils/generateInvoice";
-import { supabase } from "@/lib/supabase";
+import { RecordPaymentSheet } from "@/components/shared/RecordPaymentSheet";
+import { POConfirmSheet } from "@/components/shared/POConfirmSheet";
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +65,7 @@ export default function OrderDetail() {
   );
 
   const [showPayment, setShowPayment] = useState(false);
+  const [showConfirmSheet, setShowConfirmSheet] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchFailed, setFetchFailed] = useState(false);
 
@@ -58,14 +76,56 @@ export default function OrderDetail() {
     async function fetchOrder() {
       setIsFetching(true);
       try {
-        const { data, error } = await supabase
+        // Try Sales first
+        let { data, error } = await supabase
           .from('sale_orders')
           .select('*, sale_order_items(*)')
           .eq('id', id)
           .single();
+        
+        // If not found in Sales, try Purchases
+        if (error || !data) {
+          const { data: poData, error: poError } = await supabase
+            .from('purchase_orders')
+            .select('*, purchase_order_items(*)')
+            .eq('id', id)
+            .single();
+          
+          if (poError || !poData) {
+            if (mounted) setFetchFailed(true);
+            return;
+          }
+          
+          if (!mounted) return;
+          
+          // Map PO to Order shape
+          dispatch(addOrder({
+            id: poData.id,
+            counterpartyId: poData.counterparty_id,
+            orderType: 'PURCHASE',
+            status: poData.status,
+            totalAmount: poData.total_amount,
+            amountPaid: poData.amount_paid,
+            createdAt: poData.created_at,
+            items: (poData.purchase_order_items || []).map((i: any) => ({
+              id: i.id,
+              phoneId: i.phone_id,
+              brandSnapshot: i.brand_snapshot,
+              modelSnapshot: i.model_snapshot,
+              storageSnapshot: i.storage_snapshot,
+              colorSnapshot: i.color_snapshot,
+              imeiSnapshot: i.imei_snapshot || [],
+              purchasePrice: i.purchase_price ?? 0,
+              effectivePrice: i.purchase_price ?? 0,
+              status: i.status
+            })),
+          } as any));
+          return;
+        }
+
         if (!mounted) return;
-        if (error || !data) { setFetchFailed(true); return; }
-        // Map snake_case to camelCase and dispatch into Redux
+
+        // Map sale_case to camelCase
         dispatch(addOrder({
           id: data.id,
           counterpartyId: data.counterparty_id,
@@ -137,16 +197,40 @@ export default function OrderDetail() {
     );
   }
 
-  const outstanding = (order.totalAmount || 0) - (order.amountPaid || 0);
+  const poAcceptedTotal = isPurchaseOrder ? order.items
+    .filter((item: any) => item.status === "ACCEPTED")
+    .reduce((sum: number, item: any) => sum + (item.purchasePrice || 0), 0) : 0;
+
+  const poPendingCount = isPurchaseOrder ? order.items.filter((i: any) => i.status === "PENDING_INSPECTION").length : 0;
+  
+  const outstanding = isPurchaseOrder 
+    ? (poAcceptedTotal - (order.amountPaid || 0))
+    : (order.totalAmount || 0) - (order.amountPaid || 0);
+
+  const totalSaleProfit = !isPurchaseOrder ? order.items.reduce((sum, item) => {
+    const phone = phones.find(p => p.id === item.phoneId);
+    if (!phone) return sum;
+    const repairs = ledgerEntries
+      .filter(e => e.type === "REPAIR_COST" && e.referenceId === item.phoneId)
+      .reduce((s, e) => s + Math.abs(e.amount), 0);
+    return sum + (((item as any).effectivePrice || 0) - (phone.purchasePrice + repairs));
+  }, 0) : 0;
 
   // Get order allocations based on order type
   const orderAllocations = isPurchaseOrder
-    ? [] // Purchase orders don't have customer payment allocations
+    ? ledgerEntries
+        .filter((e) => e.referenceId === order.id && e.type === "FUNDS_CONSUMED")
+        .map((e) => ({
+          paymentId: e.id,
+          amountAllocated: Math.abs(e.amount),
+          receivedAt: e.createdAt,
+          mode: e.paymentMode || "UNKNOWN",
+        }))
     : payments
         .flatMap((p) =>
           (p.allocations || [])
             .filter((a) => a.saleOrderId === order.id)
-            .map((a) => ({
+            .map((a: any) => ({
               ...a,
               paymentId: p.id,
               receivedAt: p.receivedAt,
@@ -191,7 +275,7 @@ export default function OrderDetail() {
             type: "PHONE_SALE",
             referenceId: order.id,
             amount: -order.totalAmount, // Negative amount
-            note: `Refund for returned item(s) for Trade Order ${order.id.slice(
+            note: `Refund for returned item(s) for Sales Order ${order.id.slice(
               0,
               8,
             )}`,
@@ -287,6 +371,27 @@ export default function OrderDetail() {
       </div>
 
       <main className="p-4 space-y-6">
+        {/* Inspect Phones Banner (PO Only) */}
+        {isPurchaseOrder &&
+          order.status === "AWAITING_RECEIPT" && (
+            <div className="bg-amber-50 dark:bg-amber-950 rounded-xl p-4 border border-amber-100 dark:border-amber-800 flex items-center gap-3">
+              <Package size={20} className="text-amber-600" />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                  Ready to inspect?
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Confirm or reject devices for this order
+                </p>
+              </div>
+              <button
+                onClick={() => setShowConfirmSheet(true)}
+                className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-bold active:scale-95 transition-transform"
+              >
+                Inspect Now
+              </button>
+            </div>
+          )}
         {/* Payment Summary */}
         <section>
           <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-3 ml-1 flex items-center gap-2">
@@ -295,7 +400,7 @@ export default function OrderDetail() {
             ) : (
               <FileText size={16} className="text-primary-500" />
             )}
-            {isPurchaseOrder ? "Purchase Order" : "Financials"}
+            {isPurchaseOrder ? "Purchase Order" : "Sales Order Financials"}
           </h2>
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 grid grid-cols-3 gap-4 shadow-sm relative overflow-hidden">
             {outstanding > 0 && order.status !== "RETURNED" && (
@@ -371,24 +476,27 @@ export default function OrderDetail() {
             {order.items.map((item) => {
               // Handle different item structures for PO vs Sale orders
               const isPOItem = isPurchaseOrder;
+              const phone = phones.find((p) => p.id === item.phoneId);
+              
               const itemData = {
-                brand: isPOItem ? "Unknown" : (item as any).brandSnapshot || "Unknown",
+                brand: isPOItem 
+                  ? (phone?.brand || "Unknown") 
+                  : (item as any).brandSnapshot || "Unknown",
                 model: isPOItem 
-                  ? `Item ${(item as any).id?.slice(0, 8) || "Unknown"}`
+                  ? (phone?.model || `Item ${(item as any).id?.slice(0, 8) || "Unknown"}`)
                   : (item as any).modelSnapshot || "Unknown",
-                storage: isPOItem ? "N/A" : (item as any).storageSnapshot || "N/A",
-                color: isPOItem ? "N/A" : (item as any).colorSnapshot || "N/A",
+                storage: isPOItem ? (phone?.storage || "N/A") : (item as any).storageSnapshot || "N/A",
+                color: isPOItem ? (phone?.color || "N/A") : (item as any).colorSnapshot || "N/A",
                 price: isPOItem ? (item as any).purchasePrice || 0 : (item as any).salePrice || 0,
                 effectivePrice: isPOItem 
                   ? (item as any).purchasePrice || 0 
                   : (item as any).effectivePrice || (item as any).salePrice || 0,
                 discountAmount: isPOItem ? 0 : (item as any).discountAmount || 0,
-                imeiSnapshot: isPOItem ? [] : (item as any).imeiSnapshot || [],
+                imeiSnapshot: isPOItem ? (phone?.imeis || []) : (item as any).imeiSnapshot || [],
                 status: (item as any).status,
                 rejectionReason: (item as any).rejectionReason,
               };
 
-                const phone = phones.find(p => p.id === item.phoneId);
                 const repairs = ledgerEntries
                   .filter(e => e.type === "REPAIR_COST" && e.referenceId === item.phoneId)
                   .reduce((sum, e) => sum + Math.abs(e.amount), 0);
@@ -507,6 +615,14 @@ export default function OrderDetail() {
         totalAmount={order.totalAmount}
         type={isPurchaseOrder ? "AP" : "AR"}
       />
+
+      {isPurchaseOrder && (
+        <POConfirmSheet
+          open={showConfirmSheet}
+          onOpenChange={setShowConfirmSheet}
+          order={order as any}
+        />
+      )}
     </div>
   );
 }

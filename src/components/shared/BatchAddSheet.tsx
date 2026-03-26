@@ -526,21 +526,21 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                         <CurrencyInput
                           value={cashAmountStr}
                           onChange={setCashAmountStr}
-                          className="h-16 !text-2xl !py-0 rounded-2xl"
+                          className="h-16 text-2xl! py-0! rounded-2xl"
                         />
                      )}
                      {selectedTab === "UPI" && (
                         <CurrencyInput
                           value={upiAmountStr}
                           onChange={setUpiAmountStr}
-                          className="h-16 !text-2xl !py-0 rounded-2xl"
+                          className="h-16 text-2xl! py-0! rounded-2xl"
                         />
                      )}
                      {selectedTab === "BANK_TRANSFER" && (
                         <CurrencyInput
                           value={bankAmountStr}
                           onChange={setBankAmountStr}
-                          className="h-16 !text-2xl !py-0 rounded-2xl"
+                          className="h-16 text-2xl! py-0! rounded-2xl"
                         />
                      )}
                   </div>

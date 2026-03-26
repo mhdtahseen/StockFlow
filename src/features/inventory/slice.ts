@@ -52,7 +52,7 @@ const inventorySlice = createSlice({
       if (phone)
         (phone as any).purchaseOrderId = action.payload.purchaseOrderId;
     },
-    linkPhoneToTO: (
+    linkPhoneToSO: (
       state,
       action: PayloadAction<{ phoneId: string; saleOrderId: string }>,
     ) => {
@@ -70,6 +70,6 @@ export const {
   markAsInStock,
   markAsSold,
   linkPhoneToPO,
-  linkPhoneToTO,
+  linkPhoneToSO,
 } = inventorySlice.actions;
 export default inventorySlice.reducer;

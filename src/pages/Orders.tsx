@@ -1,20 +1,20 @@
 import React, { useState, useMemo } from "react";
 import { useAppSelector } from "@/app/hooks";
 import { useNavigate } from "react-router-dom";
-import { FileText, Search, ChevronRight, Plus } from "lucide-react";
+import { FileText, Search, ChevronRight, Plus, Filter, Package } from "lucide-react";
 import { parseISO, format } from "date-fns";
 import clsx from "clsx";
 import { SaleOrder } from "@/features/billing/types";
 import { selectCustomers } from "@/features/customers/selectors";
 import { CreateOrderSheet } from "@/components/shared/CreateOrderSheet";
+import HeaderActions from "@/components/layout/HeaderActions";
 
 export default function Orders() {
   const navigate = useNavigate();
   const saleOrders = useAppSelector((state) => state.billing.orders);
-  const purchaseOrders = useAppSelector((state) => state.purchasing.orders);
   const customers = useAppSelector(selectCustomers);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"TRADE" | "PURCHASE">("TRADE");
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'OPEN' | 'PARTIAL' | 'SETTLED' | 'RETURNED'>('ALL');
   const [showCreateOrder, setShowCreateOrder] = useState(false);
 
   const customerMap = useMemo(() => {
@@ -23,221 +23,159 @@ export default function Orders() {
     return map;
   }, [customers]);
 
-  const filteredTrade = useMemo(() => {
+  const filteredOrders = useMemo(() => {
     return saleOrders
       .map((o: SaleOrder) => ({
         ...o,
         customerName: customerMap[o.counterpartyId] || "Unknown",
       }))
-      .filter((o) =>
-        o.customerName.toLowerCase().includes(search.toLowerCase()),
-      )
+      .filter((o) => {
+        const searchLower = search.toLowerCase();
+        const matchesName = o.customerName.toLowerCase().includes(searchLower);
+        const matchesImei = o.items.some(item => 
+          item.imeiSnapshot?.some(imei => imei.toLowerCase().includes(searchLower))
+        );
+        const matchesFilter = activeFilter === 'ALL' || o.status === activeFilter;
+        return (matchesName || matchesImei) && matchesFilter;
+      })
       .sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
-  }, [saleOrders, customerMap, search]);
+  }, [saleOrders, customerMap, search, activeFilter]);
 
-  const filteredPurchase = useMemo(() => {
-    return purchaseOrders
-      .map((o: any) => ({
-        ...o,
-        customerName: customerMap[o.counterpartyId] || "Unknown",
-      }))
-      .filter((o) =>
-        o.customerName.toLowerCase().includes(search.toLowerCase()),
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
-  }, [purchaseOrders, customerMap, search]);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'OPEN': return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400";
+      case 'PARTIAL': return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400";
+      case 'SETTLED': return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400";
+      case 'RETURNED': return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400";
+      default: return "bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-400";
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
-      <div className="px-4 pb-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 shrink-0">
-        <div className="flex gap-4 pt-4">
-          <button
-            onClick={() => setActiveTab("TRADE")}
-            className={clsx(
-              "text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-colors",
-              activeTab === "TRADE"
-                ? "border-primary-500 text-primary-500"
-                : "border-transparent text-slate-400",
-            )}
-          >
-            Sales ({saleOrders.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("PURCHASE")}
-            className={clsx(
-              "text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-colors",
-              activeTab === "PURCHASE"
-                ? "border-primary-500 text-primary-500"
-                : "border-transparent text-slate-400",
-            )}
-          >
-            Purchases ({purchaseOrders.length})
-          </button>
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="relative mb-6">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder="Search by customer name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-12 pl-10 pr-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-semibold shadow-sm focus:border-primary-500 outline-none transition-colors"
-          />
-        </div>
-
-        <div className="space-y-3 pb-24">
-          {activeTab === "TRADE" ? (
-            filteredTrade.length === 0 ? (
-              <div className="text-center py-12 px-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
-                <p className="text-slate-500 font-semibold mb-2">
-                  No trade orders found.
-                </p>
-                <p className="text-xs text-slate-400 font-medium">
-                  Create a trade order from the device detail screen.
-                </p>
-              </div>
-            ) : (
-              filteredTrade.map((o) => (
-                <div
-                  key={o.id}
-                  onClick={() => navigate(`/orders/${o.id}`)}
-                  className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 cursor-pointer hover:border-primary-500/30 active:scale-[0.98] transition-all group"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className={clsx(
-                          "text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm shrink-0",
-                          o.status === "SETTLED"
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400"
-                            : o.status === "PARTIAL"
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400"
-                              : o.status === "OPEN"
-                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400"
-                                : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400",
-                        )}
-                      >
-                        {o.status}
-                      </span>
-                      <span className="text-[10px] font-bold text-slate-400 truncate">
-                        {format(parseISO(o.createdAt), "MMM d, yyyy · h:mm a")}
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                      {o.customerName}
-                    </h3>
-                    <div className="text-xs font-semibold text-slate-500 mt-0.5">
-                      {o.items.length} item{o.items.length !== 1 ? "s" : ""} •{" "}
-                      {o.orderType}
-                    </div>
-                  </div>
-                  <div className="text-right flex flex-col items-end shrink-0">
-                    <span className="font-black text-slate-900 dark:text-slate-100">
-                      ₹{o.totalAmount.toLocaleString()}
-                    </span>
-                    {o.status !== "SETTLED" && o.status !== "RETURNED" && (
-                      <span className="text-xs font-bold text-amber-600 dark:text-amber-500 block mt-0.5">
-                        Bal: ₹{(o.totalAmount - o.amountPaid).toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                  <ChevronRight
-                    size={18}
-                    className="text-slate-300 group-hover:text-primary-500 transition-colors shrink-0 -mr-1"
-                  />
-                </div>
-              ))
-            )
-          ) : filteredPurchase.length === 0 ? (
-            <div className="text-center py-12 px-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
-              <p className="text-slate-500 font-semibold mb-2">
-                No purchase orders found.
-              </p>
-              <p className="text-xs text-slate-400 font-medium">
-                Use 'Stock Up' to create new purchase orders.
-              </p>
-            </div>
-          ) : (
-            filteredPurchase.map((o) => (
-              <div
-                key={o.id}
-                onClick={() => navigate(`/orders/${o.id}`)}
-                className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 cursor-pointer hover:border-primary-500/30 active:scale-[0.98] transition-all group"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={clsx(
-                        "text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm shrink-0",
-                        o.status === "SETTLED"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400"
-                          : o.status === "PARTIAL"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400"
-                            : "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400",
-                      )}
-                    >
-                      {o.status}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-400 truncate">
-                      {format(parseISO(o.createdAt), "MMM d, yyyy · h:mm a")}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                    {o.customerName}
-                  </h3>
-                  <div className="text-xs font-semibold text-slate-500 mt-0.5">
-                    {o.phonesOrdered}{" "}
-                    {o.phonesOrdered === 1 ? "device" : "devices"} •{" "}
-                    {o.acquisitionChannel}
-                  </div>
-                </div>
-                <div className="text-right flex flex-col items-end shrink-0">
-                  <span className="font-black text-rose-600 dark:text-rose-400">
-                    ₹{o.totalAmount.toLocaleString()}
-                  </span>
-                  {o.status !== "SETTLED" && o.status !== "CANCELLED" && (
-                    <span className="text-xs font-bold text-rose-500/60 block mt-0.5">
-                      Owed: ₹{(o.totalAmount - o.amountPaid).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-                <ChevronRight
-                  size={18}
-                  className="text-slate-300 group-hover:text-primary-500 transition-colors shrink-0 -mr-1"
-                />
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* New Order FAB - Only show on Trade tab */}
-      {activeTab === "TRADE" && (
+    <div className="flex-1 bg-slate-50 dark:bg-slate-950 min-h-screen pb-20 font-sans">
+      <HeaderActions>
         <button
           onClick={() => setShowCreateOrder(true)}
-          className="fixed bottom-24 right-4 w-14 h-14 bg-primary-500 hover:bg-blue-800 text-white rounded-full shadow-lg shadow-blue-900/20 flex items-center justify-center active:scale-[0.98] transition-all z-40"
+          className="size-10 rounded-full bg-primary-500 text-white flex items-center justify-center transition-all shadow-lg shadow-blue-500/20 active:scale-95"
         >
-          <Plus size={24} />
+          <Plus size={20} />
         </button>
-      )}
+      </HeaderActions>
+
+      {/* Header Search */}
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-4 py-3">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-3.5 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search customers..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all shadow-inner"
+          />
+        </div>
+      </div>
+
+      {/* Filter Chips */}
+      <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
+        {(['ALL', 'OPEN', 'PARTIAL', 'SETTLED', 'RETURNED'] as const).map((filter) => (
+          <button
+            key={filter}
+            onClick={() => setActiveFilter(filter)}
+            className={clsx(
+              "px-5 py-2 rounded-xl text-[11px] font-black tracking-widest uppercase whitespace-nowrap transition-all",
+              activeFilter === filter
+                ? "bg-primary-500 text-white shadow-md shadow-blue-500/20"
+                : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-800"
+            )}
+          >
+            {filter}
+          </button>
+        ))}
+      </div>
+
+      {/* Orders List */}
+      <div className="px-4">
+        {filteredOrders.length === 0 ? (
+          <div className="text-center flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 mt-2 shadow-sm">
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-full mb-4">
+              <FileText size={32} className="text-slate-300 dark:text-slate-600" />
+            </div>
+            <p className="font-bold text-slate-700 dark:text-slate-300">No sales orders found</p>
+            <p className="text-xs mt-1 text-slate-500 dark:text-slate-400 max-w-[200px] leading-relaxed">
+              {search || activeFilter !== 'ALL' ? "Adjust your search or status filter to see more orders." : "Start by creating your first sales order today."}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3 mt-2">
+            {filteredOrders.map((order) => (
+              <div
+                key={order.id}
+                onClick={() => navigate(`/orders/${order.id}`)}
+                className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary-500/20 transition-all cursor-pointer group active:scale-[0.99]"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0 pr-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span
+                        className={clsx(
+                          "px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider",
+                          getStatusColor(order.status)
+                        )}
+                      >
+                        {order.status}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {(order as any).orderType || 'SALES'}
+                      </span>
+                    </div>
+                    <h3 className="font-black text-slate-900 dark:text-slate-100 truncate text-base leading-tight">
+                      {order.customerName}
+                    </h3>
+                  </div>
+                  <div className="text-right flex flex-col items-end shrink-0">
+                    <span className="font-black text-slate-900 dark:text-slate-100 text-lg">
+                      ₹{order.totalAmount.toLocaleString()}
+                    </span>
+                    {order.status !== 'SETTLED' && order.status !== 'RETURNED' && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Bal:</span>
+                        <span className="text-xs font-black text-amber-600 dark:text-amber-500">
+                          ₹{(order.totalAmount - order.amountPaid).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between pt-3 border-t border-slate-50 dark:border-slate-800/50">
+                   <div className="flex items-center gap-3">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                        <Package size={12} />
+                        {order.items.length} {order.items.length === 1 ? 'Item' : 'Items'}
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-300 dark:text-slate-700">|</div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {format(parseISO(order.createdAt), "MMM d, h:mm a")}
+                      </div>
+                   </div>
+                   <ChevronRight size={18} className="text-slate-300 group-hover:text-primary-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Create Order Sheet */}
       <CreateOrderSheet
         open={showCreateOrder}
         onOpenChange={setShowCreateOrder}
-        initialPhones={[]} // Empty for manual order creation
+        initialPhones={[]}
       />
     </div>
   );

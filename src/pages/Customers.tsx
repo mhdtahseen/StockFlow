@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import { useAppSelector } from "@/app/hooks";
 import { useNavigate } from "react-router-dom";
 import Fuse from "fuse.js";
-import { Search, Users, ChevronRight } from "lucide-react";
+import { Search, Users, ChevronRight, UserPlus } from "lucide-react";
 import { selectCustomers } from "@/features/customers/selectors";
+import HeaderActions from "@/components/layout/HeaderActions";
+import { CustomerPicker } from "@/components/ui/CustomerPicker";
 
 export default function Customers() {
   const customers = useAppSelector(selectCustomers);
@@ -21,6 +23,18 @@ export default function Customers() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
+      <HeaderActions>
+        <CustomerPicker
+          mode="add"
+          onSelect={(c) => navigate(`/customers/${c.id}`)}
+          trigger={
+            <button className="size-10 rounded-full bg-primary-500 text-white flex items-center justify-center transition-all shadow-lg shadow-blue-500/20 active:scale-95">
+              <UserPlus size={20} />
+            </button>
+          }
+        />
+      </HeaderActions>
+
       {/* Search Bar */}
 
       <div className="p-4">
@@ -45,7 +59,7 @@ export default function Customers() {
                 No customers found.
               </p>
               <p className="text-xs text-slate-400 font-medium">
-                Create trade orders to add customers to the directory
+                Create sales orders to add customers to the directory
                 automatically.
               </p>
             </div>

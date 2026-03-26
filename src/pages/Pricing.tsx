@@ -53,7 +53,7 @@ export default function Pricing() {
       description: "Full suite of tools for growing mobile retail stores.",
       features: [
         "Unlimited inventory capacity",
-        "Customer directory & trade orders",
+        "Customer directory & sales orders",
         "Receipt & invoice generation",
         "Advanced financial analytics",
         "Camera barcode & IMEI scanner",

@@ -16,10 +16,12 @@ interface CatalogAutocompleteProps {
   options: OptionItem[];
   value: string;
   onChange: (value: string) => void;
+  label?: string;
   placeholder?: string;
   icon?: React.ReactNode;
   disabled?: boolean;
   error?: string;
+  optional?: boolean;
   onSelect?: (val: string) => void;
 }
 
@@ -44,10 +46,12 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
   options,
   value,
   onChange,
+  label,
   placeholder = "Type to search…",
   icon,
   disabled = false,
   error,
+  optional,
   onSelect,
 }) => {
   const [query, setQuery] = useState(value);
@@ -150,6 +154,16 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
 
   return (
     <div ref={containerRef} className="relative group w-full">
+      {label && (
+        <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-2 block ml-1 transition-colors group-focus-within:text-primary-500">
+          {label}
+          {optional && (
+            <span className="ml-1 text-[8px] text-slate-400 font-bold lowercase italic">
+              (optional)
+            </span>
+          )}
+        </label>
+      )}
       <div className="relative">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none z-10">
           {icon || <Search size={18} />}

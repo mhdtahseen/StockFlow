@@ -5,6 +5,9 @@ export interface Customer {
   type: CustomerType;
   phone?: string;
   email?: string;
+  aadhaarEncrypted?: string; // AES-GCM encrypted full Aadhaar (Web Crypto), base64-encoded
+  aadhaarLast4?: string;     // Last 4 digits only — safe to display without decryption
+  address?: string;
   platformName?: string;
   linkedTenantId?: string;
   notes?: string;

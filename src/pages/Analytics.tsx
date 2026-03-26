@@ -41,6 +41,8 @@ import clsx from "clsx";
 import { TrendingUp, Clock, Package, Calendar } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
+import HeaderActions from "@/components/layout/HeaderActions";
+import { ChevronDown } from "lucide-react";
 
 export default function Analytics() {
   const [period, setPeriod] = useState<TimePeriod>("monthly");
@@ -257,24 +259,49 @@ export default function Analytics() {
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
 
-      <main className="flex-1 overflow-y-auto px-4 pb-12 space-y-4 pt-4">
-        {/* Period Selector — Concept A pill toggle */}
-        <div className="bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-xl flex">
-          {periods.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => setPeriod(p.value)}
-              className={clsx(
-                "flex-1 py-2 text-xs font-medium rounded-lg transition-all",
-                period === p.value
-                  ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm font-bold"
-                  : "text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700/50",
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
+      <HeaderActions>
+        <div className="relative group">
+          <button
+            className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 border border-slate-200 dark:border-slate-700"
+            onClick={() => {
+              // Toggle logic if needed, but for now we'll just show the menu on hover or click
+              const el = document.getElementById('analytics-period-menu');
+              if (el) el.classList.toggle('hidden');
+            }}
+          >
+            <Calendar size={16} className="text-primary-500" />
+            <span className="capitalize">{period}</span>
+            <ChevronDown size={14} />
+          </button>
+
+          <div
+            id="analytics-period-menu"
+            className="hidden absolute top-12 right-0 z-50 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-100 dark:border-slate-800 p-1.5 min-w-[140px]"
+          >
+            {periods.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => {
+                  setPeriod(p.value);
+                  document
+                    .getElementById("analytics-period-menu")
+                    ?.classList.add("hidden");
+                }}
+                className={clsx(
+                  "w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors",
+                  period === p.value
+                    ? "bg-primary-500 text-white"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800",
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
+      </HeaderActions>
+
+      <main className="flex-1 overflow-y-auto px-4 pb-12 space-y-4 pt-4">
 
         {/* Hero Period Summary Card — Concept A blue card */}
         <div className="bg-primary-500 dark:bg-[#0a3a7a] rounded-xl p-6 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative overflow-hidden">

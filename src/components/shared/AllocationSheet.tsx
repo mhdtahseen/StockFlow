@@ -105,7 +105,7 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
                 {allocations.map((a, i) => (
                    <div key={a.orderId} className={clsx("p-4 rounded-xl border-2 flex justify-between items-center transition-colors", a.allocated > 0 ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200/50 dark:border-emerald-800/50 shadow-sm" : "bg-white dark:bg-slate-900 border-transparent")}>
                       <div>
-                        <div className={clsx("font-bold text-sm", a.allocated > 0 ? "text-emerald-800 dark:text-emerald-300" : "text-slate-800 dark:text-slate-100")}>Trade Order #{a.orderId.slice(0, 5).toUpperCase()}</div>
+                        <div className={clsx("font-bold text-sm", a.allocated > 0 ? "text-emerald-800 dark:text-emerald-300" : "text-slate-800 dark:text-slate-100")}>Sales Order #{a.orderId.slice(0, 5).toUpperCase()}</div>
                         <div className="text-[10px] font-bold text-slate-400 tracking-wider">Owed: ₹{a.owed.toLocaleString()}</div>
                       </div>
                       <div className={clsx("text-lg font-black tracking-tight", a.allocated > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-300 dark:text-slate-600")}>

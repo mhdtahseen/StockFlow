@@ -26,6 +26,7 @@ import {
   format,
 } from "date-fns";
 import { CreateOrderSheet } from "../components/shared/CreateOrderSheet";
+import HeaderActions from "@/components/layout/HeaderActions";
 
 export type TabOption = PhoneStatus | "ALL";
 const VALID_TABS: TabOption[] = ["ALL", "IN_STOCK", "PENDING", "SOLD"];
@@ -41,7 +42,6 @@ export default function Inventory() {
   const activeTab: TabOption =
     tabParam && VALID_TABS.includes(tabParam) ? tabParam : "ALL";
 
-  const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
@@ -60,10 +60,8 @@ export default function Inventory() {
   );
 
   useEffect(() => {
-    if (showSearch && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [showSearch]);
+    // Search input focus is no longer needed as the bar is static
+  }, []);
 
   // Long press handlers
   const handleTouchStart = (phone: Phone) => {
@@ -267,81 +265,47 @@ export default function Inventory() {
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-0 relative transition-colors duration-300">
       <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 shrink-0">
-        {/* Title row / Search row */}
-        <div className="px-4 py-3 flex items-center justify-between gap-3">
-          {showSearch ? (
-            <div className="flex-1 flex items-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 border border-slate-200 dark:border-slate-700 transition-all">
-              <Search
-                size={18}
-                className="text-slate-400 dark:text-slate-500 shrink-0"
-              />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search brand, model, color, tags..."
-                className="flex-1 bg-transparent outline-none text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              />
-              {query && (
-                <button
-                  onClick={() => setQuery("")}
-                  className="text-slate-400 dark:text-slate-500"
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="flex-1" />
-          )}
-          <div className="flex gap-1.5 shrink-0">
-            {activeTab === "IN_STOCK" && (
+        {/* Row 1: Search & Filter Actions */}
+        <div className="px-4 pt-3 pb-3 flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-3.5 text-slate-400" size={18} />
+            <input
+              type="text"
+              value={query}
+              ref={searchInputRef}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search brand, model, color..."
+              className="w-full pl-11 pr-10 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/50 rounded-2xl text-sm font-semibold focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all shadow-inner"
+            />
+            {query && (
               <button
-                onClick={() => {
-                  setIsMultiSelect(!isMultiSelect);
-                  setSelectedIds([]);
-                }}
-                className={clsx(
-                  "px-3 py-2 rounded-xl text-xs font-bold transition-colors",
-                  isMultiSelect
-                    ? "bg-primary-500 text-white"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold",
-                )}
+                onClick={() => setQuery("")}
+                className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
               >
-                {isMultiSelect ? "Cancel" : "Select"}
+                <X size={18} />
               </button>
             )}
-            <button
-              onClick={() => {
-                setShowSearch(!showSearch);
-                if (showSearch) setQuery("");
-              }}
-              className={clsx(
-                "size-10 rounded-full flex items-center justify-center transition-colors",
-                showSearch
-                  ? "bg-primary-500 text-white"
-                  : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400",
-              )}
-            >
-              {showSearch ? <X size={20} /> : <Search size={20} />}
-            </button>
-            <button
-              onClick={() => setShowFilter(!showFilter)}
-              className={clsx(
-                "size-10 rounded-full flex items-center justify-center transition-colors relative",
-                showFilter
-                  ? "bg-primary-500 text-white"
-                  : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400",
-              )}
-            >
-              <SlidersHorizontal size={20} />
-              {activeFilterCount > 0 && !showFilter && (
-                <span className="absolute -top-0.5 -right-0.5 size-4 bg-primary-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
+          </div>
+
+          <div className="shrink-0">
+            <HeaderActions>
+              <button
+                onClick={() => setShowFilter(!showFilter)}
+                className={clsx(
+                  "size-10 rounded-full flex items-center justify-center transition-all relative active:scale-95 shadow-sm",
+                  showFilter
+                    ? "bg-primary-500 text-white"
+                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800",
+                )}
+              >
+                <SlidersHorizontal size={20} />
+                {activeFilterCount > 0 && !showFilter && (
+                  <span className="absolute -top-0.5 -right-0.5 size-4 bg-primary-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </HeaderActions>
           </div>
         </div>
 
@@ -532,13 +496,35 @@ export default function Inventory() {
 
         {/* List */}
         <section className="flex flex-col gap-3">
-          <div className="flex justify-between items-end mb-1 px-1">
-            <h2 className="text-slate-800 dark:text-slate-200 font-bold tracking-tight text-sm uppercase">
+          <div className="flex justify-between items-center mb-1.5 px-1">
+            <h2 className="text-slate-800 dark:text-slate-200 font-bold tracking-tight text-xs uppercase">
               {activeTab === "ALL" && "All Tracker"}
               {activeTab === "IN_STOCK" && "Active Assets"}
               {activeTab === "PENDING" && "Units in Verification"}
               {activeTab === "SOLD" && "Trading History"}
             </h2>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800/50 px-2 py-0.5 rounded">
+                {count} Units
+              </span>
+              {activeTab === "IN_STOCK" && (
+                <button
+                  onClick={() => {
+                    setIsMultiSelect(!isMultiSelect);
+                    setSelectedIds([]);
+                  }}
+                  className={clsx(
+                    "text-[10px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg transition-all active:scale-95 shadow-sm",
+                    isMultiSelect
+                      ? "bg-primary-500 text-white"
+                      : "text-primary-500 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800",
+                  )}
+                >
+                  {isMultiSelect ? "Cancel" : "Select"}
+                </button>
+              )}
+            </div>
           </div>
 
           <div
@@ -594,7 +580,7 @@ export default function Inventory() {
                 >
                   {/* Checkbox overlay for multi-select mode */}
                   {isMultiSelect && phone.status === "IN_STOCK" && (
-                    <div className="absolute top-3 left-3 z-10">
+                    <div className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 z-10 shadow-sm rounded-lg">
                       <div
                         className={clsx(
                           "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",

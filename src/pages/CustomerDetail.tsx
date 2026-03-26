@@ -24,17 +24,35 @@ export default function CustomerDetail() {
   const customer = useAppSelector((state) =>
     state.customers.customers.find((c) => c.id === id),
   );
-  const allOrders = useAppSelector((state) => state.billing.orders);
-  const allPayments = useAppSelector((state) => state.customers.payments);
+  const allSaleOrders = useAppSelector((state) => state.billing.orders) || [];
+  const allPurchaseOrders = useAppSelector((state) => state.purchasing.orders) || [];
+  const allCustomerPayments = useAppSelector((state) => state.customers.payments) || [];
+  const allSupplierPayments = useAppSelector((state) => state.purchasing.payments) || [];
 
-  const orders = React.useMemo(
-    () => allOrders.filter((o) => o.counterpartyId === id),
-    [allOrders, id],
-  );
-  const payments = React.useMemo(
-    () => allPayments.filter((p) => p.counterpartyId === id),
-    [allPayments, id],
-  );
+  const orders = React.useMemo(() => {
+    const saleOrders = allSaleOrders.filter((o) => o.counterpartyId === id).map(o => ({ ...o, isPurchaseOrder: false }));
+    const purchaseOrders = allPurchaseOrders
+      .filter((o) => o.counterpartyId === id)
+      .map((o) => ({ ...o, isPurchaseOrder: true }));
+    return [...saleOrders, ...purchaseOrders].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [allSaleOrders, allPurchaseOrders, id]);
+
+  const payments = React.useMemo(() => {
+    const arPayments = allCustomerPayments
+      .filter((p) => p.counterpartyId === id)
+      .map((p) => ({ ...p, isAr: true }));
+    const apPayments = allSupplierPayments
+      .filter((p) => p.counterpartyId === id)
+      .map((p) => ({ ...p, isAp: true }));
+    return [...arPayments, ...apPayments].sort((a, b) => {
+      const dateA = (a as any).receivedAt || (a as any).paidAt;
+      const dateB = (b as any).receivedAt || (b as any).paidAt;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+  }, [allCustomerPayments, allSupplierPayments, id]);
 
   const [activeTab, setActiveTab] = useState<Tab>("orders");
   const [arOpen, setArOpen] = useState(false);
@@ -208,30 +226,30 @@ export default function CustomerDetail() {
           <div className="space-y-3">
             {payments.length === 0 ? (
               <div className="text-center py-12 text-slate-400 font-medium">
-                No payments received.
+                No payments found.
               </div>
             ) : (
-              payments.map((p) => (
+              payments.map((p: any) => (
                 <div
                   key={p.id}
                   className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800"
                 >
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-black text-emerald-600 dark:text-emerald-500">
-                      ₹{p.totalReceived.toLocaleString()}
+                    <span className={clsx("font-black", p.isAr ? "text-emerald-600 dark:text-emerald-500" : "text-amber-600 dark:text-amber-500")}>
+                      ₹{(p.totalReceived || p.totalPaid || 0).toLocaleString()}
                     </span>
                     <span className="text-xs font-bold text-slate-400">
-                      {format(parseISO(p.receivedAt), "MMM d, h:mm a")}
+                      {format(parseISO(p.receivedAt || p.paidAt), "MMM d, h:mm a")}
                     </span>
                   </div>
                   <div className="flex gap-2">
                     <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                      {p.mode}
+                      {p.isAr ? "RECEIVED" : "PAID"} · {p.mode}
                     </span>
                   </div>
                   {p.allocations && p.allocations.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1">
-                      {p.allocations.map((a, i) => (
+                      {p.allocations.map((a: any, i: number) => (
                         <div
                           key={i}
                           className="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400"
@@ -258,10 +276,10 @@ export default function CustomerDetail() {
               </div>
             ) : (
               mergedTimeline.map((item) => {
-                const isOrder = "orderType" in item;
+                const isOrder = "createdAt" in item;
                 const timestamp = isOrder
-                  ? (item as SaleOrder).createdAt
-                  : (item as CustomerPayment).receivedAt;
+                  ? (item as any).createdAt
+                  : (item as any).receivedAt || (item as any).paidAt;
                 const dateHeader = format(
                   parseISO(timestamp),
                   "MMM d, yyyy · h:mm a",
@@ -282,7 +300,7 @@ export default function CustomerDetail() {
                         onClick={() => navigate(`/orders/${o.id}`)}
                       >
                         <span className="font-bold text-slate-800 dark:text-slate-200 text-sm block mb-1">
-                          Created {o.orderType} Order
+                          Created {(o as any).isPurchaseOrder ? "Purchase" : (o.orderType || "Sale")} Order
                         </span>
                         <div className="flex justify-between text-xs text-slate-500 font-medium">
                           <span>{o.items.length} items</span>
@@ -294,23 +312,37 @@ export default function CustomerDetail() {
                     </div>
                   );
                 } else {
-                  const p = item as CustomerPayment;
+                  const p = item as any;
                   return (
                     <div key={`payment-${p.id}`} className="relative">
-                      <div className="absolute -left-[23px] top-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 border border-white dark:border-slate-950 p-1">
-                        <div className="size-2 rounded-full bg-emerald-500"></div>
+                      <div className={clsx(
+                        "absolute -left-[23px] top-1 rounded-full border border-white dark:border-slate-950 p-1",
+                        p.isAr ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-amber-100 dark:bg-amber-900/40"
+                      )}>
+                        <div className={clsx("size-2 rounded-full", p.isAr ? "bg-emerald-500" : "bg-amber-500")}></div>
                       </div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
                         {dateHeader}
                       </p>
-                      <div className="bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
-                        <span className="font-bold text-emerald-800 dark:text-emerald-400 text-sm block mb-1">
-                          Payment Received
+                      <div className={clsx(
+                        "p-3 rounded-xl border shadow-sm",
+                        p.isAr 
+                          ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/30"
+                          : "bg-amber-50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30"
+                      )}>
+                        <span className={clsx(
+                          "font-bold text-sm block mb-1",
+                          p.isAr ? "text-emerald-800 dark:text-emerald-400" : "text-amber-800 dark:text-amber-400"
+                        )}>
+                          {p.isAr ? "Payment Received" : "Payment Sent (PO)"}
                         </span>
-                        <div className="flex justify-between text-xs text-emerald-600/80 dark:text-emerald-500/80 font-medium">
-                          <span>Via {p.mode}</span>
-                          <span className="font-black text-emerald-700 dark:text-emerald-400">
-                            ₹{p.totalReceived.toLocaleString()}
+                        <div className="flex justify-between text-xs font-medium">
+                          <span className="text-slate-500 capitalize">Via {p.mode.toLowerCase()}</span>
+                          <span className={clsx(
+                            "font-black",
+                            p.isAr ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"
+                          )}>
+                            ₹{(p.totalReceived || p.totalPaid || 0).toLocaleString()}
                           </span>
                         </div>
                       </div>

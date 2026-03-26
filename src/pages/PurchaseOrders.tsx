@@ -7,11 +7,13 @@ import clsx from "clsx";
 import { PurchaseOrder } from "@/features/purchasing/types";
 import { selectCustomers } from "@/features/customers/selectors";
 import { BatchAddSheet } from "@/components/shared/BatchAddSheet";
+import HeaderActions from "@/components/layout/HeaderActions";
 
 export default function PurchaseOrders() {
   const navigate = useNavigate();
   const purchaseOrders = useAppSelector((state) => state.purchasing.orders);
   const customers = useAppSelector(selectCustomers);
+  const phones = useAppSelector((state) => state.inventory.phones);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'AWAITING_RECEIPT' | 'RECEIVED' | 'PARTIAL' | 'SETTLED'>('ALL');
   const [showBatchAdd, setShowBatchAdd] = useState(false);
@@ -26,12 +28,20 @@ export default function PurchaseOrders() {
     return purchaseOrders
       .map((o: PurchaseOrder) => ({ ...o, customerName: customerMap[o.counterpartyId] || "Unknown" }))
       .filter((o) => {
-        const matchesSearch = o.customerName.toLowerCase().includes(search.toLowerCase());
+        const searchLower = search.toLowerCase();
+        const matchesName = o.customerName.toLowerCase().includes(searchLower);
+        
+        // Use a more performant way to check IMEIs across all items in the order
+        const matchesImei = o.items.some(item => {
+          const phone = phones.find(p => p.id === item.phoneId);
+          return phone?.imeis?.some(imei => imei.toLowerCase().includes(searchLower));
+        });
+
         const matchesFilter = activeFilter === 'ALL' || o.status === activeFilter;
-        return matchesSearch && matchesFilter;
+        return (matchesName || matchesImei) && matchesFilter;
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [purchaseOrders, customerMap, search, activeFilter]);
+  }, [purchaseOrders, customerMap, search, activeFilter, phones]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -55,18 +65,17 @@ export default function PurchaseOrders() {
 
   return (
     <div className="flex-1 bg-slate-50 dark:bg-slate-950 min-h-screen pb-20">
-      {/* Header */}
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-4 py-3">
-        <div className="flex items-center justify-end mb-3">
-          <button
-            onClick={() => setShowBatchAdd(true)}
-            className="bg-primary-500 hover:bg-blue-800 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-[0.98] transition-all"
-          >
-            <Package size={16} />
-            New PO
-          </button>
-        </div>
+      <HeaderActions>
+        <button
+          onClick={() => setShowBatchAdd(true)}
+          className="size-10 rounded-full bg-primary-500 text-white flex items-center justify-center transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+        >
+          <Package size={20} />
+        </button>
+      </HeaderActions>
 
+      {/* Header Search */}
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-4 py-3">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-3 text-slate-400" size={16} />

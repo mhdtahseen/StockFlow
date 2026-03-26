@@ -147,7 +147,7 @@ function App() {
               <Route path="purchase-orders" element={<PurchaseOrders />} />
               <Route
                 path="purchase-orders/:id"
-                element={<PurchaseOrderDetail />}
+                element={<OrderDetail />}
               />
               <Route path="pricing" element={<Pricing />} />
               <Route

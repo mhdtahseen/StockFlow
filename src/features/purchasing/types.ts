@@ -45,7 +45,7 @@ export interface SupplierPayment {
   id: string;
   counterpartyId: string;
   totalPaid: number;
-  mode: "CASH" | "UPI" | "BANK_TRANSFER";
+  mode: "CASH" | "UPI" | "BANK_TRANSFER" | "SPLIT";
   paidAt: string;
   note?: string;
   recordedBy: string;

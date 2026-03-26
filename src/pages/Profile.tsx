@@ -14,6 +14,7 @@ import {
   Building2,
   MapPin,
   ClipboardCheck,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,7 +51,7 @@ const generateRandomAvatars = () => {
 };
 
 export default function ProfilePage() {
-  const { session, tenant, refreshTenant } = useAuth();
+  const { session, tenant, refreshTenant, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingBusiness, setIsSavingBusiness] = useState(false);
@@ -247,6 +248,15 @@ export default function ProfilePage() {
 
       <main className="flex-1 p-4 max-w-lg mx-auto w-full space-y-6">
         <div className="flex flex-col items-center pt-2">
+          {tenant?.name && (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-primary-500/10 dark:bg-blue-500/10 text-primary-500 dark:text-blue-400 rounded-full border border-primary-500/10 dark:border-blue-500/10 mb-5">
+              <Building2 size={12} className="fill-current/10" />
+              <span className="text-[10px] font-black uppercase tracking-[0.15em] leading-none">
+                {tenant.name}
+              </span>
+            </div>
+          )}
+          
           <div
             className="relative mb-4 group cursor-pointer"
             onClick={handleOpenAvatarModal}
@@ -265,7 +275,7 @@ export default function ProfilePage() {
             <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="text-white" size={24} />
             </div>
-            <div className="absolute bottom-0 right-0 bg-primary-500 dark:bg-blue-600 p-2 rounded-full border-2 border-white dark:border-slate-900 text-white shadow-md">
+            <div className="absolute bottom-0 right-0 bg-primary-500 dark:bg-blue-600 p-2 rounded-full border-2 border-white dark:border-slate-900 text-white shadow-md transition-transform hover:scale-110">
               <Pencil size={14} />
             </div>
           </div>
@@ -479,6 +489,15 @@ export default function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Button
+          onClick={() => signOut()}
+          variant="ghost"
+          className="w-full h-14 rounded-2xl text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-950/40 border border-rose-100 dark:border-rose-900/30 shadow-xs mt-4 transition-all active:scale-[0.98]"
+        >
+          <LogOut className="mr-3 h-5 w-5" />
+          Sign Out of Account
+        </Button>
       </main>
 
       <Dialog open={isAvatarModalOpen} onOpenChange={setIsAvatarModalOpen}>

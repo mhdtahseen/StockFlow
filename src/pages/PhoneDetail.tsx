@@ -651,7 +651,7 @@ export default function PhoneDetail() {
                   onClick={() => setShowSaleModal(true)}
                   className="flex-1 bg-primary-500 hover:bg-blue-800 dark:hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all text-sm"
                 >
-                  Create Trade Order
+                  Create Sales Order
                 </button>
               </div>
             </div>

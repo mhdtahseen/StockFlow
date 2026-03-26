@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { useAppDispatch } from "@/app/hooks";
 import { addOrder } from "@/features/billing/slice";
-import { markAsSold, linkPhoneToTO } from "@/features/inventory/slice";
+import {
+  markAsSold,
+  linkPhoneToSO,
+  addPhone,
+} from "@/features/inventory/slice";
 import { addEntry } from "@/features/ledger/slice";
 import { SaleOrder, OrderType, PayMode } from "@/features/billing/types";
 import { Phone } from "@/features/inventory/types";
@@ -95,15 +99,13 @@ export function CreateOrderSheet({
   }, [open, initialPhones]);
 
   // ── Derived amounts ────────────────────────────────────────────────────────
-  const totalAmount = useMemo(
-    () =>
-      items.reduce((sum, item) => {
-        const price = parseFloat(item.salePrice) || 0;
-        const discount = parseFloat(item.discountAmount) || 0;
-        return sum + Math.max(0, price - discount);
-      }, 0),
-    [items],
-  );
+  const totalAmount = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const price = parseFloat(item.salePrice) || 0;
+      const discount = parseFloat(item.discountAmount) || 0;
+      return sum + Math.max(0, price - discount);
+    }, 0);
+  }, [items]);
 
   const cashPaid = parseFloat(cashStr) || 0;
   const upiPaid = parseFloat(upiStr) || 0;
@@ -118,14 +120,15 @@ export function CreateOrderSheet({
   const dominantPayMode: PayMode = (() => {
     if (totalPaid === 0) return "CREDIT";
     const amounts = { CASH: cashPaid, UPI: upiPaid, BANK_TRANSFER: bankPaid };
-    return (Object.entries(amounts).sort((a, b) => b[1] - a[1])[0][0] as PayMode);
+    return Object.entries(amounts).sort((a, b) => b[1] - a[1])[0][0] as PayMode;
   })();
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customer) return toast.error("Please select a customer");
-    if (items.length === 0) return toast.error("Please add at least one device");
+    if (items.length === 0)
+      return toast.error("Please add at least one device");
     if (requiresDueDate && !dueDateStr)
       return toast.error("A due date is required for the outstanding balance");
 
@@ -173,17 +176,21 @@ export function CreateOrderSheet({
     order.items.forEach(
       (item) =>
         item.phoneId &&
-        dispatch(markAsSold({ id: item.phoneId, salePrice: item.effectivePrice })),
+        dispatch(
+          markAsSold({ id: item.phoneId, salePrice: item.effectivePrice }),
+        ),
     );
 
     // 2. Create the trade order (sale_order_items reference phone IDs that now exist)
     dispatch(addOrder(order));
 
-    // 3. Link phones to the TO (both sides now exist in DB)
+    // 3. Link phones to the SO (both sides now exist in DB)
     order.items.forEach(
       (item) =>
         item.phoneId &&
-        dispatch(linkPhoneToTO({ phoneId: item.phoneId, saleOrderId: order.id })),
+        dispatch(
+          linkPhoneToSO({ phoneId: item.phoneId, saleOrderId: order.id }),
+        ),
     );
 
     // 4. One ledger entry per payment channel with explicit payment mode
@@ -191,7 +198,11 @@ export function CreateOrderSheet({
     const channels = [
       { amount: cashPaid, label: "Cash", mode: "CASH" as const },
       { amount: upiPaid, label: "UPI", mode: "UPI" as const },
-      { amount: bankPaid, label: "Bank Transfer", mode: "BANK_TRANSFER" as const },
+      {
+        amount: bankPaid,
+        label: "Bank Transfer",
+        mode: "BANK_TRANSFER" as const,
+      },
     ].filter((c) => c.amount > 0);
 
     channels.forEach((c) => {
@@ -202,7 +213,7 @@ export function CreateOrderSheet({
           referenceId: orderId,
           amount: c.amount,
           paymentMode: c.mode,
-          note: `${c.label} — ${customer.name} — TO:${orderId.slice(0, 8)}`,
+          note: `${c.label} — ${customer.name} — SO:${orderId.slice(0, 8)}`,
           createdAt: ts,
         }),
       );
@@ -210,11 +221,19 @@ export function CreateOrderSheet({
 
     onOpenChange(false);
     navigate(`/orders/${order.id}`);
-    toast.success(`Trade order committed — ${items.length} device${items.length > 1 ? "s" : ""} sold`);
+    toast.success(
+      `Sales order committed — ${items.length} device${items.length > 1 ? "s" : ""} sold`,
+    );
   };
 
-  const updateItem = (id: string, field: "salePrice" | "discountAmount", val: string) => {
-    setItems(items.map((it) => (it.phone.id === id ? { ...it, [field]: val } : it)));
+  const updateItem = (
+    id: string,
+    field: "salePrice" | "discountAmount",
+    val: string,
+  ) => {
+    setItems(
+      items.map((it) => (it.phone.id === id ? { ...it, [field]: val } : it)),
+    );
   };
 
   const removeItem = (id: string) => {
@@ -244,11 +263,15 @@ export function CreateOrderSheet({
           <SheetHeader className="px-4 py-3 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 mt-2">
             <div className="flex items-center gap-3">
               <div className="size-9 rounded-xl bg-primary-500/10 flex items-center justify-center">
-                <ShoppingCart size={18} className="text-primary-500" strokeWidth={2.5} />
+                <ShoppingCart
+                  size={18}
+                  className="text-primary-500"
+                  strokeWidth={2.5}
+                />
               </div>
               <div>
                 <SheetTitle className="text-base font-black text-slate-900 dark:text-slate-100 leading-tight">
-                  Create Trade Order
+                  Create Sales Order
                 </SheetTitle>
                 <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                   Sell devices · multi-channel payment
@@ -305,7 +328,10 @@ export function CreateOrderSheet({
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
                     Customer / Counterparty
                   </label>
-                  <CustomerPicker selectedId={customer?.id} onSelect={setCustomer} />
+                  <CustomerPicker
+                    selectedId={customer?.id}
+                    onSelect={setCustomer}
+                  />
                 </div>
               </div>
 
@@ -331,7 +357,9 @@ export function CreateOrderSheet({
                           ? "bg-rose-500/10 text-rose-500"
                           : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400",
                       )}
-                      title={showDiscounts ? "Hide discounts" : "Show discounts"}
+                      title={
+                        showDiscounts ? "Hide discounts" : "Show discounts"
+                      }
                     >
                       <Percent size={14} strokeWidth={2.5} />
                     </button>
@@ -347,108 +375,120 @@ export function CreateOrderSheet({
                   </div>
                 </div>
 
-                <div className="p-4">
-                  {items.length === 0 ? (
-                    <button
-                      type="button"
-                      onClick={handleAddDevice}
-                      className="w-full py-8 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-slate-500 hover:border-primary-500/40 hover:text-primary-500 transition-all"
-                    >
-                      <Smartphone size={22} strokeWidth={1.5} />
-                      <span className="text-sm font-bold">Select devices to sell</span>
-                      <span className="text-xs font-medium opacity-60">Tap to open device picker</span>
-                    </button>
-                  ) : (
-                    <div className="space-y-3">
-                      {items.map((item, index) => {
-                        const price = parseFloat(item.salePrice) || 0;
-                        const discount = parseFloat(item.discountAmount) || 0;
-                        const effective = Math.max(0, price - discount);
-                        return (
-                          <div
-                            key={item.phone.id}
-                            className="bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700 overflow-hidden"
-                          >
-                            {/* Item header */}
-                            <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 dark:border-slate-700">
-                              <div className="flex items-center gap-2">
-                                <div className="size-6 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 rounded-md flex items-center justify-center text-[10px] font-black shrink-0">
-                                  {index + 1}
-                                </div>
-                                <div>
-                                  <p className="text-xs font-black text-slate-800 dark:text-slate-200 leading-tight">
-                                    {item.phone.brand} {item.phone.model}
-                                  </p>
-                                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                                    {item.phone.storage} · {item.phone.color} ·{" "}
-                                    {item.phone.imeis?.[0]?.slice(-6) || "No IMEI"}
-                                  </p>
-                                </div>
+                {items.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={handleAddDevice}
+                    className="w-full py-8 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-slate-500 hover:border-primary-500/40 hover:text-primary-500 transition-all"
+                  >
+                    <Smartphone size={22} strokeWidth={1.5} />
+                    <span className="text-sm font-bold">
+                      Select devices to sell
+                    </span>
+                    <span className="text-xs font-medium opacity-60">
+                      Tap to open device picker
+                    </span>
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    {items.map((item, index) => {
+                      const price = parseFloat(item.salePrice) || 0;
+                      const discount = parseFloat(item.discountAmount) || 0;
+                      const effective = Math.max(0, price - discount);
+                      return (
+                        <div
+                          key={item.phone.id}
+                          className="bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700 overflow-hidden"
+                        >
+                          <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 dark:border-slate-700">
+                            <div className="flex items-center gap-2">
+                              <div className="size-6 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 rounded-md flex items-center justify-center text-[10px] font-black shrink-0">
+                                {index + 1}
                               </div>
-                              <div className="flex items-center gap-2">
-                                {discount > 0 && (
-                                  <span className="text-[10px] font-bold bg-rose-50 dark:bg-rose-900/30 text-rose-500 px-1.5 py-0.5 rounded">
-                                    -₹{discount.toLocaleString("en-IN")}
-                                  </span>
-                                )}
-                                <span className="text-sm font-black text-primary-500">
-                                  ₹{effective.toLocaleString("en-IN")}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => removeItem(item.phone.id)}
-                                  className="size-6 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-500 transition-all"
-                                >
-                                  <X size={12} />
-                                </button>
+                              <div>
+                                <p className="text-xs font-black text-slate-800 dark:text-slate-200 leading-tight">
+                                  {item.phone.brand} {item.phone.model}
+                                </p>
+                                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                                  {item.phone.storage} · {item.phone.color} ·{" "}
+                                  {item.phone.imeis?.[0]?.slice(-6) ||
+                                    "No IMEI"}
+                                </p>
                               </div>
                             </div>
-
-                            {/* Price inputs */}
-                            <div
-                              className={clsx(
-                                "p-3 grid gap-3",
-                                showDiscounts ? "grid-cols-2" : "grid-cols-1",
+                            <div className="flex items-center gap-2">
+                              {discount > 0 && (
+                                <span className="text-[10px] font-bold bg-rose-50 dark:bg-rose-900/30 text-rose-500 px-1.5 py-0.5 rounded">
+                                  -₹{discount.toLocaleString("en-IN")}
+                                </span>
                               )}
-                            >
+                              <span className="text-sm font-black text-primary-500">
+                                ₹{effective.toLocaleString("en-IN")}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeItem(item.phone.id)}
+                                className="size-6 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-500 transition-all"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          </div>
+                          <div
+                            className={clsx(
+                              "p-3 grid gap-3",
+                              showDiscounts ? "grid-cols-2" : "grid-cols-1",
+                            )}
+                          >
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                                Sale Price
+                              </label>
+                              <CurrencyInput
+                                size="sm"
+                                value={item.salePrice}
+                                onChange={(v) =>
+                                  updateItem(item.phone.id, "salePrice", v)
+                                }
+                                placeholder="0"
+                              />
+                            </div>
+                            {showDiscounts && (
                               <div>
-                                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
-                                  Sale Price
+                                <label className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1.5 block">
+                                  Discount (₹)
                                 </label>
                                 <CurrencyInput
                                   size="sm"
-                                  value={item.salePrice}
-                                  onChange={(v) => updateItem(item.phone.id, "salePrice", v)}
+                                  value={item.discountAmount}
+                                  onChange={(v) =>
+                                    updateItem(
+                                      item.phone.id,
+                                      "discountAmount",
+                                      v,
+                                    )
+                                  }
                                   placeholder="0"
                                 />
                               </div>
-                              {showDiscounts && (
-                                <div>
-                                  <label className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1.5 block">
-                                    Discount (₹)
-                                  </label>
-                                  <CurrencyInput
-                                    size="sm"
-                                    value={item.discountAmount}
-                                    onChange={(v) => updateItem(item.phone.id, "discountAmount", v)}
-                                    placeholder="0"
-                                  />
-                                </div>
-                              )}
-                            </div>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* ─── Fiscal Settlement (Hybrid Multi-Channel) ─────────── */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] overflow-hidden">
                 <div className="px-4 pt-4 pb-3 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <DollarSign size={16} className="text-primary-500" strokeWidth={2.5} />
+                    <DollarSign
+                      size={16}
+                      className="text-primary-500"
+                      strokeWidth={2.5}
+                    />
                     <span className="text-sm font-black text-slate-900 dark:text-slate-100">
                       Fiscal Settlement
                     </span>
@@ -467,7 +507,11 @@ export function CreateOrderSheet({
                     <div className="flex gap-2 bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-100 dark:border-slate-800">
                       {(["CASH", "UPI", "BANK_TRANSFER"] as const).map((m) => {
                         const channelVal =
-                          m === "CASH" ? cashPaid : m === "UPI" ? upiPaid : bankPaid;
+                          m === "CASH"
+                            ? cashPaid
+                            : m === "UPI"
+                              ? upiPaid
+                              : bankPaid;
                         const hasValue = channelVal > 0;
                         return (
                           <button
@@ -498,13 +542,28 @@ export function CreateOrderSheet({
                       {activePayTab.replace("_", " ")} Amount
                     </label>
                     {activePayTab === "CASH" && (
-                      <CurrencyInput size="md" value={cashStr} onChange={setCashStr} placeholder="0" />
+                      <CurrencyInput
+                        size="md"
+                        value={cashStr}
+                        onChange={setCashStr}
+                        placeholder="0"
+                      />
                     )}
                     {activePayTab === "UPI" && (
-                      <CurrencyInput size="md" value={upiStr} onChange={setUpiStr} placeholder="0" />
+                      <CurrencyInput
+                        size="md"
+                        value={upiStr}
+                        onChange={setUpiStr}
+                        placeholder="0"
+                      />
                     )}
                     {activePayTab === "BANK_TRANSFER" && (
-                      <CurrencyInput size="md" value={bankStr} onChange={setBankStr} placeholder="0" />
+                      <CurrencyInput
+                        size="md"
+                        value={bankStr}
+                        onChange={setBankStr}
+                        placeholder="0"
+                      />
                     )}
                   </div>
 
@@ -556,14 +615,18 @@ export function CreateOrderSheet({
                     </div>
                     {outstanding > 0 && (
                       <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-amber-600 dark:text-amber-400">Outstanding</span>
+                        <span className="text-amber-600 dark:text-amber-400">
+                          Outstanding
+                        </span>
                         <span className="text-amber-600 dark:text-amber-400 font-bold">
                           ₹{outstanding.toLocaleString("en-IN")}
                         </span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm font-black border-t border-slate-100 dark:border-slate-800 pt-1.5 mt-1.5">
-                      <span className="text-slate-900 dark:text-slate-100">Grand Total</span>
+                      <span className="text-slate-900 dark:text-slate-100">
+                        Grand Total
+                      </span>
                       <span className="text-slate-900 dark:text-slate-100">
                         ₹{totalAmount.toLocaleString("en-IN")}
                       </span>

@@ -1,19 +1,19 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import BottomNav from './BottomNav';
-import AppDrawer from './AppDrawer';
-import AppHeader from './AppHeader';
-import { Toaster } from '@/components/ui/sonner';
-import { useOfflineSyncManager } from '@/app/useOfflineSyncManager';
-import { usePlan } from '@/hooks/usePlan';
-import TrialExpiredPaywall from '@/components/shared/TrialExpiredPaywall';
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
+import BottomNav from "./BottomNav";
+import AppDrawer from "./AppDrawer";
+import AppHeader from "./AppHeader";
+import { Toaster } from "@/components/ui/sonner";
+import { useOfflineSyncManager } from "@/app/useOfflineSyncManager";
+import { usePlan } from "@/hooks/usePlan";
+import TrialExpiredPaywall from "@/components/shared/TrialExpiredPaywall";
 
 export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  
+
   // Initialize offline background syncing
   useOfflineSyncManager();
-  
+
   const { isExpired } = usePlan();
 
   return (

@@ -1,13 +1,21 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+export interface TeamMember {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  tenant_id: string;
+}
+
 export interface TenantState {
-  // We don't necessarily need to store the whole tenant here if AuthContext has it,
-  // but we need the action to be trackable and syncable.
   lastUpdated: string | null;
+  teamMembers: TeamMember[];
 }
 
 const initialState: TenantState = {
   lastUpdated: null,
+  teamMembers: [],
 };
 
 const tenantSlice = createSlice({
@@ -22,8 +30,18 @@ const tenantSlice = createSlice({
     }>) => {
       state.lastUpdated = new Date().toISOString();
     },
+    setTeam: (state, action: PayloadAction<TeamMember[]>) => {
+      state.teamMembers = action.payload;
+    },
+    updateMemberRole: (state, action: PayloadAction<{ id: string; role: string }>) => {
+      const member = state.teamMembers.find(m => m.id === action.payload.id);
+      if (member) {
+        member.role = action.payload.role;
+      }
+      state.lastUpdated = new Date().toISOString();
+    },
   },
 });
 
-export const { updateTenant } = tenantSlice.actions;
+export const { updateTenant, setTeam, updateMemberRole } = tenantSlice.actions;
 export default tenantSlice.reducer;

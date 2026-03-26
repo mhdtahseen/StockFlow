@@ -248,7 +248,7 @@ export function useOfflineSyncManager() {
             });
           }
 
-          // Open + Partial trade orders (with items)
+          // Open + Partial sales orders (with items)
           const { data: soData } = await supabase
             .from("sale_orders")
             .select("*, sale_order_items(*)")

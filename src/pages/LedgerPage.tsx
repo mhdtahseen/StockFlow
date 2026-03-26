@@ -31,8 +31,9 @@ import {
   Wrench,
 } from "lucide-react";
 import clsx from "clsx";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import CurrencyInput from "../components/ui/CurrencyInput";
+import HeaderActions from "@/components/layout/HeaderActions";
 
 export default function LedgerPage() {
   const dispatch = useAppDispatch();
@@ -341,24 +342,7 @@ export default function LedgerPage() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      {/* Header with calendar icon dropdown */}
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
-        <div>
-          {dateRangeLabel && (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[10px] font-bold text-primary-500 dark:text-blue-400 uppercase tracking-wider">
-                {dateRangeLabel}
-              </span>
-              <button
-                onClick={clearDateRange}
-                className="text-slate-400 dark:text-slate-500 hover:text-rose-500"
-              >
-                <X size={10} />
-              </button>
-            </div>
-          )}
-        </div>
-
+      <HeaderActions>
         <div className="relative">
           <button
             onClick={() => {
@@ -469,9 +453,24 @@ export default function LedgerPage() {
             </>
           )}
         </div>
-      </div>
+      </HeaderActions>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-12">
+      <main className="flex-1 overflow-y-auto px-4 pb-12 space-y-4">
+        {dateRangeLabel && (
+          <div className="flex items-center justify-between pt-4 -mb-2">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-primary-50 dark:bg-blue-900/20 rounded-full border border-primary-100 dark:border-blue-900/30">
+              <span className="text-[10px] font-black text-primary-500 dark:text-blue-400 uppercase tracking-widest">
+                {dateRangeLabel}
+              </span>
+              <button
+                onClick={clearDateRange}
+                className="text-primary-400 hover:text-rose-500 transition-colors"
+              >
+                <X size={12} strokeWidth={3} />
+              </button>
+            </div>
+          </div>
+        )}
         {/* Hero Card */}
         <section className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm pt-4 pb-2 -mx-4 px-4">
           <div className="bg-primary-500 dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative flex flex-col justify-between h-32 overflow-hidden">

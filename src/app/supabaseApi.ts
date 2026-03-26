@@ -234,14 +234,6 @@ export const syncActionToSupabase = async (
         if (error) throw error;
         break;
       }
-      case "inventory/linkPhoneToTO": {
-        const { error } = await supabase.rpc("link_phone_to_to", {
-          p_phone_id: payload.phoneId,
-          p_sale_order_id: payload.saleOrderId,
-        });
-        if (error) throw error;
-        break;
-      }
       // ─── PURCHASING ─────────────────────────────────────────────────
       case "purchasing/addPurchaseOrder": {
         const { error } = await supabase.rpc("create_purchase_order", {
@@ -384,6 +376,18 @@ export const syncActionToSupabase = async (
             phone: payload.phone,
           })
           .eq("id", tenant_id);
+        if (error) throw error;
+        break;
+      }
+      case "tenant/updateMemberRole": {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            role: payload.role,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", payload.id)
+          .eq("tenant_id", tenant_id);
         if (error) throw error;
         break;
       }

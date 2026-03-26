@@ -33,6 +33,7 @@ import {
 import clsx from "clsx";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import CurrencyInput from "../components/ui/CurrencyInput";
+import HeaderActions from "@/components/layout/HeaderActions";
 
 export default function Financials() {
   const dispatch = useAppDispatch();
@@ -372,24 +373,7 @@ export default function Financials() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      {/* Header with calendar icon dropdown */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-2 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 shrink-0">
-        <div>
-          {dateRangeLabel && (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[10px] font-bold text-primary-500 dark:text-blue-400 uppercase tracking-wider">
-                {dateRangeLabel}
-              </span>
-              <button
-                onClick={clearDateRange}
-                className="text-slate-400 dark:text-slate-500 hover:text-rose-500"
-              >
-                <X size={10} />
-              </button>
-            </div>
-          )}
-        </div>
-
+      <HeaderActions>
         <div className="relative">
           <button
             onClick={() => {
@@ -500,9 +484,24 @@ export default function Financials() {
             </>
           )}
         </div>
-      </div>
+      </HeaderActions>
 
       <main className="flex-1 overflow-y-auto px-4 pb-12">
+        {dateRangeLabel && (
+          <div className="flex items-center justify-between pt-4 -mb-2">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-primary-50 dark:bg-blue-900/20 rounded-full border border-primary-100 dark:border-blue-900/30">
+              <span className="text-[10px] font-black text-primary-500 dark:text-blue-400 uppercase tracking-widest">
+                {dateRangeLabel}
+              </span>
+              <button
+                onClick={clearDateRange}
+                className="text-primary-400 hover:text-rose-500 transition-colors"
+              >
+                <X size={12} strokeWidth={3} />
+              </button>
+            </div>
+          </div>
+        )}
         {/* New Top Cards (EOD, AR, AP) */}
         <section className="pt-4 pb-4 space-y-3">
           {/* EOD Summary */}
