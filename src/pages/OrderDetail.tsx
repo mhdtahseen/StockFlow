@@ -405,16 +405,23 @@ export default function OrderDetail() {
         </FeatureGate>
       </HeaderActions>
 
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 sticky top-0 z-20">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shrink-0 z-20">
         <div className="px-4 py-4 flex justify-between items-start">
           <div>
-            <div className="font-black text-xl leading-tight mb-1 text-slate-900 dark:text-slate-100">
+            <div className="flex items-baseline gap-2 mb-1.5">
+              <span className="font-black text-2xl tracking-tighter text-slate-900 dark:text-slate-100">
+                #{order.id.slice(0, 8).toUpperCase()}
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 rounded-md border border-primary-100 dark:border-primary-800/50">
+                {isPurchaseOrder ? "PO" : (order as any).orderType}
+              </span>
+            </div>
+            <div className="font-bold text-sm text-slate-600 dark:text-slate-400 mb-1.5">
               {customer?.name || "Unknown Customer"}
             </div>
-            <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-              <span>{isPurchaseOrder ? "PO" : (order as any).orderType}</span>
-              <span className="size-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-              <span>{order.id.slice(0, 8).toUpperCase()}</span>
+            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+              <Calendar size={12} className="opacity-70" />
+              <span>{format(new Date(order.createdAt), "dd MMM yyyy, h:mm a")}</span>
             </div>
           </div>
           <span
@@ -434,12 +441,25 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto pb-32">
+      <div className="shrink-0 flex flex-col bg-slate-50 dark:bg-slate-950">
         {/* Master Summary Card - Reverted Structure */}
         <div className="px-5 py-4 space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-5 grid grid-cols-3 gap-4 shadow-sm relative overflow-hidden">
             {outstanding > 0 && order.status !== "RETURNED" && (
               <div className="absolute top-0 left-0 w-full h-1 bg-amber-500" />
+            )}
+            {!isPurchaseOrder && totalSaleProfit !== 0 && (
+              <div className="absolute top-3 right-3 flex items-center gap-1 px-1.5 py-0.5 rounded overflow-hidden">
+                <div className={clsx("absolute inset-0 opacity-10", totalSaleProfit > 0 ? "bg-emerald-500" : "bg-rose-500")} />
+                {totalSaleProfit > 0 ? (
+                  <TrendingUp size={12} className="relative z-10 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <TrendingDown size={12} className="relative z-10 text-rose-600 dark:text-rose-400" />
+                )}
+                <span className={clsx("relative z-10 text-[10px] font-black tracking-wider uppercase", totalSaleProfit > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400")}>
+                  {totalSaleProfit > 0 ? "+" : ""}₹{Math.abs(totalSaleProfit).toLocaleString()}
+                </span>
+              </div>
             )}
             <div>
               <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">
@@ -494,8 +514,8 @@ export default function OrderDetail() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="sticky top-0 bg-slate-50 dark:bg-slate-950 z-10 border-b border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/20 dark:shadow-black/20">
-          <div className="flex px-4 overflow-x-auto no-scrollbar gap-6">
+        <div className="bg-slate-50 dark:bg-slate-950 z-10 border-b border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/20 dark:shadow-black/20 mt-2 shrink-0">
+          <div className="flex px-4 w-full">
             {[
               { id: "financials", label: "Financials", icon: IndianRupee },
               { id: "items", label: "Items", icon: Package },
@@ -505,25 +525,27 @@ export default function OrderDetail() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={clsx(
-                  "flex items-center gap-2 py-3 border-b-2 transition-all shrink-0",
+                  "flex-1 flex justify-center items-center gap-1.5 sm:gap-2 py-3 border-b-2 transition-all shrink-0",
                   activeTab === tab.id
                     ? "border-primary-500 text-primary-500 font-bold"
                     : "border-transparent text-slate-400 hover:text-slate-600 font-medium",
                 )}
               >
                 <tab.icon
-                  size={16}
+                  size={14}
+                  className="sm:size-4 shrink-0"
                   strokeWidth={activeTab === tab.id ? 2.5 : 2}
                 />
-                <span className="text-xs uppercase tracking-wider">
+                <span className="text-[10px] sm:text-xs uppercase tracking-tighter sm:tracking-wider">
                   {tab.label}
                 </span>
               </button>
             ))}
           </div>
         </div>
+      </div>
 
-        <div className="p-4 sm:p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-28">
         {/* --- ITEMS TAB --- */}
         {activeTab === "items" && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
