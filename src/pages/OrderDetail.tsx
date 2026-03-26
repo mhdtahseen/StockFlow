@@ -802,7 +802,6 @@ export default function OrderDetail() {
             </div>
           </div>
         )}
-        </div>
       </main>
 
       <RecordPaymentSheet
