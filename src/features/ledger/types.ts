@@ -18,6 +18,8 @@ export interface LedgerEntry {
   amount: number; // positive for income, negative for expense
   paymentMode?: PaymentMode; // which channel the money moved through
   note?: string; // optional human-readable description (e.g. "Screen replacement")
+  customerPaymentId?: string; // Link to FIFO settlement master record
+  supplierPaymentId?: string; // Link to supplier FIFO settlement record
   createdAt: string;
 }
 

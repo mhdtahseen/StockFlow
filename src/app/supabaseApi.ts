@@ -254,6 +254,16 @@ export const syncActionToSupabase = async (
         break;
       }
       // ─── CUSTOMERS ──────────────────────────────────────────────────
+      case "customers/addCustomerSettlement": {
+        const { error } = await supabase.rpc("record_customer_settlement_fifo", {
+          p_counterparty_id: payload.counterpartyId,
+          p_amount: payload.amount,
+          p_mode: payload.mode,
+          p_note: payload.note ?? null,
+        });
+        if (error) throw error;
+        break;
+      }
       case "customers/addCustomerPayment": {
         const { error } = await supabase.rpc("record_customer_payment", {
           p_counterparty_id: payload.counterpartyId,
@@ -264,6 +274,16 @@ export const syncActionToSupabase = async (
             amountAllocated: a.amountAllocated,
             note: a.note,
           })),
+          p_note: payload.note ?? null,
+        });
+        if (error) throw error;
+        break;
+      }
+      case "purchasing/addSupplierSettlement": {
+        const { error } = await supabase.rpc("record_supplier_settlement_fifo", {
+          p_counterparty_id: payload.counterpartyId,
+          p_amount: payload.amount,
+          p_mode: payload.mode,
           p_note: payload.note ?? null,
         });
         if (error) throw error;

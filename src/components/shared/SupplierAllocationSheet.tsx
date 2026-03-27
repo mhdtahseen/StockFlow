@@ -3,7 +3,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppSelector, useAppDispatch } from '@/app/hooks';
-import { addSupplierPayment, updatePOPayment } from '@/features/purchasing/slice';
+import { addSupplierSettlement } from '@/features/purchasing/slice';
+import { addEntry } from '@/features/ledger/slice';
 import type { PayMode } from '@/features/purchasing/types';
 import clsx from 'clsx';
 import { toast } from 'sonner';
@@ -43,27 +44,24 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
     e.preventDefault();
     if (totalPaid <= 0 || totalPaid > maxOwed) return toast.error(`Invalid amount max is ${maxOwed}`);
     
-    const allocationsToApply = allocations.filter(a => a.allocated > 0);
-    const paymentId = crypto.randomUUID();
-
-    dispatch(addSupplierPayment({
-       id: paymentId,
+    // Using the optimized FIFO Settlement RPC flow for AP
+    dispatch(addSupplierSettlement({
        counterpartyId: supplierId,
-       totalPaid,
+       amount: totalPaid,
        mode,
-       paidAt: new Date().toISOString(),
-       recordedBy: 'system',
-       allocations: allocationsToApply.map(a => ({ purchaseOrderId: a.orderId, amountAllocated: a.allocated }))
+       note: `Supplier lump-sum settlement for ${orders.length} orders`
     }));
 
-    allocationsToApply.forEach(a => {
-       const o = orders.find(ord => ord.id === a.orderId)!;
-       const newAmount = o.amountPaid + a.allocated;
-       const status = newAmount >= o.totalAmount ? 'SETTLED' : 'PARTIAL';
-       dispatch(updatePOPayment({ id: o.id, amountPaid: newAmount, status }));
-    });
+    // Optimistic Ledger entry for immediate Wallet balance update
+    dispatch(addEntry({
+       id: crypto.randomUUID(),
+       type: 'WITHDRAWAL',
+       amount: totalPaid,
+       note: `Supplier Settlement (FIFO)`,
+       createdAt: new Date().toISOString(),
+    }));
     
-    toast.success("Accounts Payable Batch Processed");
+    toast.success("Accounts Payable Settlement Dispatched");
     onOpenChange(false);
   };
 

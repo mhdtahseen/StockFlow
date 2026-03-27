@@ -32,12 +32,14 @@ import {
   X,
   Wrench,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Check
 } from "lucide-react";
 import clsx from "clsx";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import CurrencyInput from "../components/ui/CurrencyInput";
 import HeaderActions from "@/components/layout/HeaderActions";
+import { supabase } from "../lib/supabase";
 
 export default function LedgerPage() {
   const dispatch = useAppDispatch();
@@ -62,10 +64,39 @@ export default function LedgerPage() {
       ? (initialFilter as any)
       : "All",
   );
+  const [dashboardCardIndex, setDashboardCardIndex] = useState(0);
   const [showDateMenu, setShowDateMenu] = useState(false);
   const [showCustomDates, setShowCustomDates] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  // FIFO Settlement Expansion State
+  const [expandedSettlementId, setExpandedSettlementId] = useState<string | null>(null);
+  const [allocations, setAllocations] = useState<Record<string, any[]>>({});
+  const [loadingAllocations, setLoadingAllocations] = useState<string | null>(null);
+
+  const fetchAllocations = async (entryId: string, paymentId: string, isCustomer: boolean) => {
+    if (allocations[entryId]) return;
+    setLoadingAllocations(entryId);
+    
+    try {
+      const table = isCustomer ? "payment_allocations" : "supplier_allocations";
+      const idField = isCustomer ? "customer_payment_id" : "supplier_payment_id";
+      const orderField = isCustomer ? "sale_order_id" : "purchase_order_id";
+
+      const { data, error } = await supabase
+        .from(table)
+        .select(`amount_allocated, ${orderField}`)
+        .eq(idField, paymentId);
+
+      if (error) throw error;
+      setAllocations(prev => ({ ...prev, [entryId]: data || [] }));
+    } catch (err) {
+      console.error("Failed to fetch allocations:", err);
+    } finally {
+      setLoadingAllocations(null);
+    }
+  };
 
   const hasDateFilter = dateFrom || dateTo;
 
@@ -123,7 +154,15 @@ export default function LedgerPage() {
     setShowCustomDates(false);
   };
 
-  const { arMetrics, apMetrics, dailyVelocity, rangeStats } = useFinancialData({
+  const { 
+    arMetrics, 
+    apMetrics, 
+    dailyVelocity, 
+    performance, 
+    liquidity,
+    runningBalances,
+    buckets: financialBuckets 
+  } = useFinancialData({
     from: dateFrom,
     to: dateTo,
   });
@@ -132,24 +171,6 @@ export default function LedgerPage() {
     from: dateFrom,
     to: dateTo,
   });
-
-  const runningBalances = useMemo(() => {
-    // Re-calculate running balance for the full ledger context
-    const balances: Record<string, number> = {};
-    let current = 0;
-    [...ledgerEntries]
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      .forEach(e => {
-        // Sign-aware logic matching the hook
-        if (["MONEY_ADDED", "PHONE_SALE", "FUNDS_RELEASED"].includes(e.type)) {
-          current += e.amount;
-        } else if (["FUNDS_PLEDGED", "WITHDRAWAL", "PROFIT_WITHDRAWAL", "REPAIR_COST"].includes(e.type)) {
-          current -= Math.abs(e.amount);
-        }
-        balances[e.id] = current;
-      });
-    return balances;
-  }, [ledgerEntries]);
 
   const handleManualTransaction = (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,6 +206,15 @@ export default function LedgerPage() {
   const getTransactionDetails = (entry: (typeof ledgerEntries)[0]) => {
     switch (entry.type) {
       case "MONEY_ADDED":
+        if (entry.customerPaymentId) {
+          return {
+            label: "Bill Settlement (FIFO)",
+            icon: <Check size={20} strokeWidth={3} />,
+            color: "bg-emerald-500 text-white shadow-emerald-200/50",
+            note: "FIFO Debt Clear",
+            isSettlement: true
+          };
+        }
         return {
           label: "Bank Transfer Deposit",
           icon: <Landmark size={20} />,
@@ -192,6 +222,15 @@ export default function LedgerPage() {
           note: "Top Up",
         };
       case "WITHDRAWAL":
+        if (entry.supplierPaymentId) {
+          return {
+            label: "Supplier Settlement",
+            icon: <Check size={20} strokeWidth={3} />,
+            color: "bg-emerald-500 text-white shadow-emerald-200/50",
+            note: "FIFO Payout",
+            isSettlement: true
+          };
+        }
         return {
           label: "Owner Withdrawal",
           icon: <Banknote size={20} />,
@@ -278,7 +317,7 @@ export default function LedgerPage() {
             className={clsx(
               "size-10 rounded-full flex items-center justify-center transition-colors relative",
               hasDateFilter
-                ? "bg-[#064a98] text-white"
+                ? "bg-primary-500 text-white"
                 : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400",
             )}
           >
@@ -320,7 +359,7 @@ export default function LedgerPage() {
                 <div className="border-t border-slate-100 dark:border-slate-800">
                   <button
                     onClick={() => setShowCustomDates(!showCustomDates)}
-                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#064a98] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-primary-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                   >
                     Custom Range...
                   </button>
@@ -385,7 +424,7 @@ export default function LedgerPage() {
         {dateRangeLabel && (
           <div className="flex items-center justify-between pt-4 -mb-2">
             <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-900/30">
-              <span className="text-[10px] font-black text-[#064a98] dark:text-blue-400 uppercase tracking-widest">
+              <span className="text-[10px] font-black text-primary-500 dark:text-blue-400 uppercase tracking-widest">
                 {dateRangeLabel}
               </span>
               <button
@@ -398,53 +437,152 @@ export default function LedgerPage() {
           </div>
         )}
 
-        {/* Existing Wallet Card (Hero) - Sticky */}
-        <section className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm pt-4 pb-2 -mx-4 px-4 overflow-visible">
-          <div className="bg-[#064a98] dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative flex flex-col justify-between h-32 overflow-hidden">
-            <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 dark:bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-            <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-white/10 dark:bg-white/5 rounded-full blur-xl pointer-events-none"></div>
+        {/* High-Momentum Carousel Slider Section (iOS Paging Style) */}
+        <section className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md pt-4 pb-3 -mx-4 px-4 overflow-hidden border-b border-slate-100 dark:border-slate-800/50 shadow-sm">
+          <div className="relative h-[140px] w-full overflow-hidden rounded-xl">
+            <motion.div
+              drag="x"
+              dragConstraints={{ left: -340, right: 0 }}
+              dragElastic={0.05}
+              animate={{ x: dashboardCardIndex === 0 ? "0%" : "-100%" }}
+              onDragEnd={(_, info) => {
+                const swipeThreshold = 40;
+                if (info.offset.x < -swipeThreshold) setDashboardCardIndex(1);
+                else if (info.offset.x > swipeThreshold) setDashboardCardIndex(0);
+              }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 300, 
+                damping: 35,
+                mass: 0.8
+              }}
+              className="flex w-full h-[140px] cursor-grab active:cursor-grabbing"
+            >
+              {/* Card 1 Wrapper */}
+              <div className="w-full shrink-0">
+                <div
+                  className="w-full h-full bg-primary-500 dark:bg-primary-600 rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative flex flex-col justify-between overflow-hidden select-none"
+                >
+                  <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 dark:bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+                  <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-white/10 dark:bg-white/5 rounded-full blur-xl pointer-events-none"></div>
 
-            <div className="flex justify-between items-start relative z-10 w-full">
-              <div>
-                <p className="text-white/80 text-xs font-medium mb-1 uppercase tracking-wide">
-                  Available Balance
-                </p>
-                <h2 className="text-3xl font-bold tracking-tight">
-                  {formatCurrency(buckets.wallet)}
-                </h2>
-              </div>
-              <div
-                className="bg-white/20 dark:bg-white/10 rounded-full p-2 backdrop-blur-sm cursor-pointer shadow-sm hover:bg-white/30 dark:hover:bg-white/20 transition-colors"
-                onClick={() => {
-                  setActionType("ADD");
-                  setShowAddModal(true);
-                }}
-              >
-                <WalletIcon size={24} className="text-white" />
-              </div>
-            </div>
+                  <div className="flex justify-between items-start relative z-10 w-full">
+                    <div>
+                      <p className="text-white/80 text-[10px] font-bold mb-0.5 uppercase tracking-widest">
+                        Available Balance
+                      </p>
+                      <h2 className="text-3xl font-black tracking-tighter leading-none">
+                        {formatCurrency(buckets.wallet)}
+                      </h2>
+                    </div>
+                    <div
+                      className="bg-white/20 dark:bg-white/10 rounded-full p-2 backdrop-blur-sm cursor-pointer shadow-sm hover:bg-white/30 dark:hover:bg-white/20 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActionType("ADD");
+                        setShowAddModal(true);
+                      }}
+                    >
+                      <WalletIcon size={22} className="text-white" />
+                    </div>
+                  </div>
 
-            <div className="flex gap-3 relative z-10 mt-auto w-full">
-              <div
-                onClick={() => {
-                  setActionType("ADD");
-                  setShowAddModal(true);
-                }}
-                className="cursor-pointer flex items-center gap-1 text-emerald-300 text-xs font-medium bg-black/20 px-2 py-1.5 rounded-lg backdrop-blur-sm hover:bg-black/30 transition-colors"
-              >
-                <ArrowUp size={14} /> {formatCurrency(rangeStats.income)}{" "}
-                {hasDateFilter ? "(Range)" : "(Mo)"}
+                  <div className="flex gap-3 relative z-10 mt-auto w-full">
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActionType("ADD");
+                        setShowAddModal(true);
+                      }}
+                      className="cursor-pointer flex items-center gap-1.5 text-emerald-300 text-[10px] font-bold bg-black/20 px-2.5 py-1.5 rounded-lg backdrop-blur-sm hover:bg-black/30 transition-colors"
+                    >
+                      <ArrowUp size={14} /> {formatCurrency(performance.inflow)}
+                    </div>
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActionType("WITHDRAW");
+                        setShowAddModal(true);
+                      }}
+                      className="cursor-pointer flex items-center gap-1.5 text-rose-300 text-[10px] font-bold bg-black/20 px-2.5 py-1.5 rounded-lg backdrop-blur-sm hover:bg-black/30 transition-colors"
+                    >
+                      <ArrowDown size={14} /> {formatCurrency(performance.outflow)}
+                    </div>
+                  </div>
+
+                  {/* Swipe Indicator */}
+                  {dashboardCardIndex === 0 && (
+                    <motion.div 
+                      animate={{ x: [0, 2, 0], opacity: [0.2, 0.5, 0.2] }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30"
+                    >
+                      <ChevronRight size={16} />
+                    </motion.div>
+                  )}
+                </div>
               </div>
-              <div
-                onClick={() => {
-                  setActionType("WITHDRAW");
-                  setShowAddModal(true);
-                }}
-                className="cursor-pointer flex items-center gap-1 text-rose-300 text-xs font-medium bg-black/20 px-2 py-1.5 rounded-lg backdrop-blur-sm hover:bg-black/30 transition-colors"
-              >
-                <ArrowDown size={14} /> {formatCurrency(rangeStats.expense)}{" "}
-                {hasDateFilter ? "(Range)" : "(Mo)"}
+
+              {/* Card 2 Wrapper */}
+              <div className="w-full shrink-0 px-0.5">
+                <div
+                  className="w-full h-full bg-slate-900 dark:bg-slate-800 rounded-xl pt-7 pb-3 px-5 shadow-xl shadow-slate-900/10 text-white relative flex flex-col justify-between overflow-hidden border border-white/5 select-none"
+                >
+                  <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                  
+                  <div className="flex justify-between items-start mb-2 absolute top-4 left-5 right-5">
+                    <p className="text-slate-500 text-[9px] font-black uppercase tracking-widest leading-none">BUSINESS HEALTH</p>
+                    <div className="bg-primary-500/10 text-primary-400 text-[8px] font-black px-1.5 py-0.5 rounded">A+C+B HYBRID</div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-0 mt-1 flex-1 items-center">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">Profit</span>
+                      <span className={clsx(
+                        "text-sm font-bold tracking-tight",
+                        performance.netProfit >= 0 ? "text-emerald-400" : "text-rose-400"
+                      )}>{formatCurrency(performance.netProfit)}</span>
+                    </div>
+                    <div className="flex flex-col border-x border-white/5 px-3">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">Stock</span>
+                      <span className="text-sm font-bold tracking-tight text-white">{formatCurrency(liquidity.stockValue)}</span>
+                    </div>
+                    <div className="flex flex-col pl-3">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">Burn</span>
+                      <span className="text-sm font-bold tracking-tight text-rose-400">{formatCurrency(performance.operationalCosts)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto flex flex-col gap-1 pt-1.5 border-t border-white/5">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                       <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-emerald-500"></div> Liquid</span>
+                       <span className="text-white text-xs">{formatCurrency(liquidity.availableToSpend)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                       <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-amber-500"></div> Lien</span>
+                       <span className="text-amber-400 text-xs">{formatCurrency(liquidity.lockedInPledges)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
+            </motion.div>
+            
+            {/* iOS System Pagination Indicators */}
+            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2 pb-1 pointer-events-none z-30">
+              <motion.div 
+                animate={{ 
+                  opacity: dashboardCardIndex === 0 ? 1 : 0.3,
+                  scale: dashboardCardIndex === 0 ? 1.1 : 1
+                }}
+                className="w-1.5 h-1.5 bg-white rounded-full shadow-sm" 
+              />
+              <motion.div 
+                animate={{ 
+                  opacity: dashboardCardIndex === 1 ? 1 : 0.3,
+                  scale: dashboardCardIndex === 1 ? 1.1 : 1
+                }}
+                className="w-1.5 h-1.5 bg-white rounded-full shadow-sm" 
+              />
             </div>
           </div>
         </section>
@@ -550,163 +688,254 @@ export default function LedgerPage() {
               key={f}
               onClick={() => setFilter(f as any)}
               className={clsx(
-                "px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors",
+                "relative px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors",
                 filter === f
-                  ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
+                  ? "text-white dark:text-slate-900"
                   : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700",
               )}
             >
-              {f}
+              {filter === f && (
+                <motion.div
+                  layoutId="activeFilter"
+                  className="absolute inset-0 bg-slate-900 dark:bg-slate-100 rounded-full shadow-sm"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10">{f}</span>
             </button>
           ))}
         </section>
 
         {/* Transaction List */}
-        <section className="space-y-6 pt-2 pb-10">
-          {groupedTransactions.length === 0 ? (
-            <div className="text-center text-slate-500 dark:text-slate-400 py-10 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center gap-2">
-              <Calendar
-                size={32}
-                strokeWidth={1}
-                className="text-slate-300 dark:text-slate-600"
-              />
-              <p className="font-bold text-slate-700 dark:text-slate-300">
-                No transactions found
-              </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {hasDateFilter
-                  ? "Try adjusting your date range."
-                  : "Start by adding funds to your wallet."}
-              </p>
-            </div>
-          ) : (
-            groupedTransactions.map(([dateLabel, entries]) => (
-              <div key={dateLabel}>
-                <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 pl-1">
-                  {dateLabel}
-                </h3>
-                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden divide-y divide-slate-50 dark:divide-slate-800">
-                  {entries.map((entry, index) => {
-                    const details = getTransactionDetails(entry);
-                    const isPositive = [
-                      "MONEY_ADDED",
-                      "PHONE_SALE",
-                      "FUNDS_RELEASED",
-                    ].includes(entry.type);
+        <AnimatePresence mode="wait">
+          <motion.section 
+            key={filter}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="space-y-6 pt-2 pb-10"
+          >
+            {groupedTransactions.length === 0 ? (
+              <div className="text-center text-slate-500 dark:text-slate-400 py-10 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center gap-2">
+                <Calendar
+                  size={32}
+                  strokeWidth={1}
+                  className="text-slate-300 dark:text-slate-600"
+                />
+                <p className="font-bold text-slate-700 dark:text-slate-300">
+                  No transactions found
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {hasDateFilter
+                    ? "Try adjusting your date range."
+                    : "Start by adding funds to your wallet."}
+                </p>
+              </div>
+            ) : (
+              groupedTransactions.map(([dateLabel, entries]) => (
+                <div key={dateLabel}>
+                  <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 pl-1">
+                    {dateLabel}
+                  </h3>
+                  <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden divide-y divide-slate-50 dark:divide-slate-800">
+                    {entries.map((entry, index) => {
+                      const details = getTransactionDetails(entry);
+                      const isPositive = [
+                        "MONEY_ADDED",
+                        "PHONE_SALE",
+                        "FUNDS_RELEASED",
+                      ].includes(entry.type);
 
-                    // Specific logic for running totals on this specific day (calculated by iterating backwards)
-                    let dailyAccumulatedExpense = 0;
-                    let dailyAccumulatedProfit = 0;
-                    if (entry.type === "FUNDS_CONSUMED") {
-                      for (let i = entries.length - 1; i >= index; i--) {
-                        if (entries[i].type === "FUNDS_CONSUMED") {
-                          dailyAccumulatedExpense += Math.abs(
-                            entries[i].amount,
-                          );
+                      // Specific logic for running totals on this specific day (calculated by iterating backwards)
+                      let dailyAccumulatedExpense = 0;
+                      let dailyAccumulatedProfit = 0;
+                      if (entry.type === "FUNDS_CONSUMED") {
+                        for (let i = entries.length - 1; i >= index; i--) {
+                          if (entries[i].type === "FUNDS_CONSUMED") {
+                            dailyAccumulatedExpense += Math.abs(
+                              entries[i].amount,
+                            );
+                          }
+                        }
+                      } else if (entry.type === "PHONE_SALE") {
+                        for (let i = entries.length - 1; i >= index; i--) {
+                          if (entries[i].type === "PHONE_SALE") {
+                            dailyAccumulatedProfit += entries[i].amount;
+                          }
                         }
                       }
-                    } else if (entry.type === "PHONE_SALE") {
-                      for (let i = entries.length - 1; i >= index; i--) {
-                        if (entries[i].type === "PHONE_SALE") {
-                          dailyAccumulatedProfit += entries[i].amount;
-                        }
-                      }
-                    }
 
-                    return (
-                      <div
-                        key={entry.id}
-                        className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
+                      const isSettlement = (details as any).isSettlement;
+                      const entryAllocations = allocations[entry.id] || [];
+                      const isExpanded = expandedSettlementId === entry.id;
+
+                      return (
+                        <div key={entry.id}>
                           <div
+                            onClick={() => {
+                              if (isSettlement) {
+                                if (isExpanded) {
+                                  setExpandedSettlementId(null);
+                                } else {
+                                  setExpandedSettlementId(entry.id);
+                                  const paymentId = entry.customerPaymentId || entry.supplierPaymentId;
+                                  if (paymentId) {
+                                    fetchAllocations(entry.id, paymentId, !!entry.customerPaymentId);
+                                  }
+                                }
+                              }
+                            }}
                             className={clsx(
-                              "size-10 rounded-full flex items-center justify-center shrink-0 shadow-sm",
-                              details.color,
+                              "p-4 transition-all duration-200",
+                              isSettlement ? "cursor-pointer active:scale-[0.99]" : "",
+                              isExpanded ? "bg-slate-50 dark:bg-slate-800/50" : "hover:bg-slate-50 dark:hover:bg-slate-800"
                             )}
                           >
-                            {details.icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-baseline mb-0.5">
-                              <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2 text-sm">
-                                {details.label}
-                              </h4>
-                              <span
+                            <div className="flex items-center gap-4">
+                              <div
                                 className={clsx(
-                                  "font-bold whitespace-nowrap text-sm",
-                                  isPositive
-                                    ? "text-emerald-600 dark:text-emerald-400"
-                                    : "text-rose-600 dark:text-rose-400",
+                                  "size-10 rounded-full flex items-center justify-center shrink-0 shadow-sm",
+                                  details.color,
                                 )}
                               >
-                                {isPositive ? "+" : "-"}
-                                {formatCurrency(Math.abs(entry.amount))}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center text-[10px]">
-                              <span className="text-slate-500 dark:text-slate-400 truncate font-medium">
-                                {details.note} •{" "}
-                                {format(parseISO(entry.createdAt), "h:mm a")}
-                              </span>
-                              {[
-                                "MONEY_ADDED",
-                                "WITHDRAWAL",
-                                "PROFIT_WITHDRAWAL",
-                                "FUNDS_PLEDGED",
-                                "FUNDS_RELEASED",
-                              ].includes(entry.type) ? (
-                                <span className="text-slate-500 dark:text-slate-400 font-medium">
-                                  Balance:{" "}
-                                  {formatCurrency(runningBalances[entry.id])}
-                                </span>
-                              ) : entry.type === "FUNDS_CONSUMED" ? (
-                                <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
-                                  Expense:{" "}
-                                  {formatCurrency(dailyAccumulatedExpense)}
-                                </span>
-                              ) : (
-                                <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
-                                  Revenue:{" "}
-                                  {formatCurrency(dailyAccumulatedProfit)}
-                                </span>
-                              )}
+                                {details.icon}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-baseline mb-0.5">
+                                  <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2 text-sm flex items-center gap-2">
+                                    {isSettlement && entryAllocations.length > 2 ? `Settled ${entryAllocations.length} Bills` : details.label}
+                                    {isSettlement && (
+                                      <ChevronDown size={12} className={clsx("transition-transform duration-300", isExpanded && "rotate-180")} />
+                                    )}
+                                  </h4>
+                                  <span
+                                    className={clsx(
+                                      "font-bold whitespace-nowrap text-sm",
+                                      isPositive
+                                        ? "text-emerald-600 dark:text-emerald-400"
+                                        : "text-rose-600 dark:text-rose-400",
+                                    )}
+                                  >
+                                    {isPositive ? "+" : "-"}
+                                    {formatCurrency(Math.abs(entry.amount))}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center text-[10px]">
+                                  <span className="text-slate-500 dark:text-slate-400 truncate font-medium">
+                                    {details.note} •{" "}
+                                    {format(parseISO(entry.createdAt), "h:mm a")}
+                                  </span>
+                                  {[
+                                    "MONEY_ADDED",
+                                    "WITHDRAWAL",
+                                    "PROFIT_WITHDRAWAL",
+                                    "FUNDS_PLEDGED",
+                                    "FUNDS_RELEASED",
+                                  ].includes(entry.type) ? (
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium">
+                                      Balance:{" "}
+                                      {formatCurrency(runningBalances[entry.id])}
+                                    </span>
+                                  ) : entry.type === "FUNDS_CONSUMED" ? (
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+                                      Expense:{" "}
+                                      {formatCurrency(dailyAccumulatedExpense)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+                                      Revenue:{" "}
+                                      {formatCurrency(dailyAccumulatedProfit)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })}
 
-                  {/* Daily Summary Footers */}
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 text-xs flex justify-between items-center text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
-                    <div className="font-medium text-[10px]">
-                      Opening Bal:{" "}
-                      <span className="font-bold text-slate-700 dark:text-slate-300">
-                        {formatCurrency(
-                          runningBalances[entries[entries.length - 1].id] -
-                          (["MONEY_ADDED", "PHONE_SALE", "FUNDS_RELEASED"].includes(entries[entries.length - 1].type) ? entries[entries.length - 1].amount : 0) +
-                          (["WITHDRAWAL", "PROFIT_WITHDRAWAL", "FUNDS_PLEDGED", "REPAIR_COST"].includes(entries[entries.length - 1].type) ? Math.abs(entries[entries.length - 1].amount) : 0)
-                        )}
-                      </span>
-                    </div>
-                    <div className="font-medium text-[10px]">
-                      EOD Bal:{" "}
-                      <span className="font-bold text-slate-700 dark:text-slate-300">
-                        {formatCurrency(runningBalances[entries[0].id])}
-                      </span>
+                          {/* Settlement Detail Accordion */}
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800"
+                              >
+                                <div className="p-4 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Allocation Trail</span>
+                                    {loadingAllocations === entry.id && (
+                                       <span className="text-[10px] text-primary-500 animate-pulse font-bold">Fetching...</span>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="space-y-2">
+                                    {entryAllocations.map((alloc, idx) => {
+                                       const orderId = alloc.sale_order_id || alloc.purchase_order_id;
+                                       return (
+                                         <div 
+                                           key={idx}
+                                           onClick={() => navigate(alloc.sale_order_id ? `/orders?id=${orderId}` : `/purchase-orders?id=${orderId}`)}
+                                           className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 cursor-pointer active:scale-[0.98] transition-all"
+                                         >
+                                           <div className="flex items-center gap-2">
+                                              <div className="size-6 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500">
+                                                {idx + 1}
+                                              </div>
+                                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                                Order #{orderId?.slice(0, 6)}
+                                              </span>
+                                           </div>
+                                           <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                             {formatCurrency(alloc.amount_allocated)}
+                                           </span>
+                                         </div>
+                                       );
+                                    })}
+
+                                    {!loadingAllocations && entryAllocations.length === 0 && (
+                                       <p className="text-[10px] text-slate-400 italic text-center py-2">No direct allocations found for this entry.</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+
+                    {/* Daily Summary Footers */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-3 text-xs flex justify-between items-center text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
+                      <div className="font-medium text-[10px]">
+                        Opening Bal:{" "}
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {formatCurrency(
+                            runningBalances[entries[entries.length - 1].id] -
+                            (["MONEY_ADDED", "PHONE_SALE", "FUNDS_RELEASED"].includes(entries[entries.length - 1].type) ? entries[entries.length - 1].amount : 0) +
+                            (["WITHDRAWAL", "PROFIT_WITHDRAWAL", "FUNDS_PLEDGED", "REPAIR_COST"].includes(entries[entries.length - 1].type) ? Math.abs(entries[entries.length - 1].amount) : 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="font-medium text-[10px]">
+                        EOD Bal:{" "}
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {formatCurrency(runningBalances[entries[0].id])}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
-        </section>
+              ))
+            )}
+          </motion.section>
+        </AnimatePresence>
       </main>
 
       {/* Manual Action Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-60 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl dark:shadow-black/40 border border-transparent dark:border-slate-800">
             <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1 tracking-tight">
               {actionType === "ADD" ? "Top Up Wallet" : "Withdraw Funds"}
@@ -725,14 +954,14 @@ export default function LedgerPage() {
                   className={clsx(
                     "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors",
                     withdrawSource === "WALLET"
-                      ? "bg-slate-50 dark:bg-slate-800 border-[#064a98] dark:border-blue-500"
+                      ? "bg-slate-50 dark:bg-slate-800 border-primary-500 dark:border-blue-500"
                       : "border-slate-200 dark:border-slate-700",
                   )}
                 >
                   <input
                     type="radio"
                     name="withdrawSource"
-                    className="w-4 h-4 text-[#064a98] focus:ring-[#064a98]"
+                    className="w-4 h-4 text-primary-500 focus:ring-primary-500"
                     checked={withdrawSource === "WALLET"}
                     onChange={() => setWithdrawSource("WALLET")}
                   />
@@ -749,14 +978,14 @@ export default function LedgerPage() {
                   className={clsx(
                     "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors",
                     withdrawSource === "PROFITS"
-                      ? "bg-slate-50 dark:bg-slate-800 border-[#064a98] dark:border-blue-500"
+                      ? "bg-slate-50 dark:bg-slate-800 border-primary-500 dark:border-blue-500"
                       : "border-slate-200 dark:border-slate-700",
                   )}
                 >
                   <input
                     type="radio"
                     name="withdrawSource"
-                    className="w-4 h-4 text-[#064a98] focus:ring-[#064a98]"
+                    className="w-4 h-4 text-primary-500 focus:ring-primary-500"
                     checked={withdrawSource === "PROFITS"}
                     onChange={() => setWithdrawSource("PROFITS")}
                   />
@@ -800,7 +1029,7 @@ export default function LedgerPage() {
                 className={clsx(
                   "flex-1 py-3.5 font-semibold text-white rounded-xl shadow-lg transition-all active:scale-[0.98]",
                   actionType === "ADD"
-                    ? "bg-[#064a98] hover:bg-blue-800 shadow-blue-600/20"
+                    ? "bg-primary-500 hover:bg-blue-800 shadow-blue-600/20"
                     : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20",
                 )}
               >

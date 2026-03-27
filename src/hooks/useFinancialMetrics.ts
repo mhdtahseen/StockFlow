@@ -25,6 +25,63 @@ export function useFinancialData(dateRange?: DateRange) {
   const buckets = useAppSelector(selectWalletBuckets);
   const billingOrders = useAppSelector((state) => state.billing.orders);
   const purchasingOrders = useAppSelector((state) => state.purchasing.orders);
+  const phones = useAppSelector((state) => state.inventory.phones);
+
+  // ── ASSETS (B) ──────────────────────────────────────────────────────────
+  const stockValue = useMemo(() => {
+    return phones
+      .filter(p => p.status === "IN_STOCK")
+      .reduce((sum, p) => sum + p.purchasePrice, 0);
+  }, [phones]);
+
+  // ── LIQUIDITY (A) ────────────────────────────────────────────────────────
+  // availableToSpend is the 'Ready to Buy' budget (Wallet is already net of pledges in our selector)
+  const liquidity = useMemo(() => {
+    return {
+      availableToSpend: buckets.wallet,
+      lockedInPledges: buckets.lien,
+      cashAtHand: buckets.wallet + buckets.lien,
+      stockValue: stockValue,
+    };
+  }, [buckets, stockValue]);
+
+  // ── PERFORMANCE (C) ──────────────────────────────────────────────────────
+  const performance = useMemo(() => {
+    const from = dateRange?.from ? startOfDay(new Date(dateRange.from)) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const to = dateRange?.to ? endOfDay(new Date(dateRange.to)) : endOfDay(new Date());
+
+    const rangeEntries = entries.filter((e) => {
+      const d = parseISO(e.createdAt);
+      return (isAfter(d, from) || d.getTime() === from.getTime()) && 
+             (isBefore(d, to) || d.getTime() === to.getTime());
+    });
+
+    const revenue = rangeEntries
+      .filter((e) => e.type === "PHONE_SALE")
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    const inventoryCost = rangeEntries
+      .filter((e) => e.type === "FUNDS_CONSUMED")
+      .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+
+    const operationalCosts = rangeEntries
+      .filter((e) => e.type === "REPAIR_COST")
+      .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+    
+    // Other leakage (Withdrawals etc)
+    const leakage = rangeEntries
+      .filter((e) => e.type === "WITHDRAWAL")
+      .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+
+    return {
+      totalRevenue: revenue,
+      netProfit: revenue - inventoryCost - operationalCosts,
+      operationalCosts: operationalCosts,
+      leakage: leakage,
+      inflow: rangeEntries.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0),
+      outflow: rangeEntries.filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0)
+    };
+  }, [entries, dateRange]);
 
   // AR Calculation (Accrual)
   const arMetrics = useMemo(() => {
@@ -59,36 +116,14 @@ export function useFinancialData(dateRange?: DateRange) {
     return { moneyIn, moneyOut, openingBalance, closingBalance: buckets.wallet };
   }, [entries, buckets.wallet]);
 
-  // Range Stats (Month-to-date or Custom Range)
-  const rangeStats = useMemo(() => {
-    const from = dateRange?.from ? startOfDay(new Date(dateRange.from)) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const to = dateRange?.to ? endOfDay(new Date(dateRange.to)) : endOfDay(new Date());
-
-    const rangeEntries = entries.filter((e) => {
-      const d = parseISO(e.createdAt);
-      return (isAfter(d, from) || d.getTime() === from.getTime()) && 
-             (isBefore(d, to) || d.getTime() === to.getTime());
-    });
-
-    const income = rangeEntries
-      .filter((e) => e.type === "PHONE_SALE" || e.type === "MONEY_ADDED" || e.type === "FUNDS_RELEASED")
-      .reduce((sum, e) => sum + Math.max(0, e.amount), 0);
-
-    const expense = rangeEntries
-      .filter((e) => e.type === "WITHDRAWAL" || e.type === "PROFIT_WITHDRAWAL" || e.type === "FUNDS_PLEDGED" || e.type === "REPAIR_COST")
-      .reduce((sum, e) => sum + Math.abs(Math.min(0, e.amount)), 0);
-
-    // ── Running Balance Logic ───────────────────────────────────────────────
-    // Essential for 'Daily Balance' view in Ledger.
-    const runningBalances: Record<string, number> = {};
+  // ── Running Balances ──────────────────────────────────────────────────────
+  const runningBalances = useMemo(() => {
+    const balances: Record<string, number> = {};
     let currentWallet = 0;
 
-    // Calculate historical balance by replaying ALL entries in order
     [...entries]
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       .forEach((entry) => {
-        // Use the same sign-aware logic as our global wallet selector
-        // Most entries directly affect the wallet balance.
         switch (entry.type) {
           case "MONEY_ADDED":
           case "PHONE_SALE":
@@ -99,29 +134,20 @@ export function useFinancialData(dateRange?: DateRange) {
           case "FUNDS_PLEDGED":
             currentWallet += entry.amount;
             break;
-          case "FUNDS_CONSUMED":
-            // FUNDS_CONSUMED moves money from Lien to Purchase (already left wallet when pledged)
-            // So it doesn't affect the wallet/cash balance again.
-            break;
         }
-        
-        const dateKey = entry.createdAt.split("T")[0];
-        runningBalances[dateKey] = currentWallet;
+        balances[entry.id] = currentWallet;
       });
-
-    return {
-      income,
-      expense,
-      runningBalances,
-    };
-  }, [entries, dateRange]);
+    return balances;
+  }, [entries]);
 
   return {
+    liquidity,
+    performance,
     arMetrics,
     apMetrics,
     dailyVelocity,
-    rangeStats,
     buckets,
+    runningBalances,
     allEntries: entries
   };
 }

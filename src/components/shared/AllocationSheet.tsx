@@ -4,8 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppSelector, useAppDispatch } from '@/app/hooks';
 import { selectOrdersByCounterparty } from '@/features/billing/selectors';
-import { addCustomerPayment } from '@/features/customers/slice';
-import { updateOrderPayment } from '@/features/billing/slice';
+import { addCustomerSettlement } from '@/features/customers/slice';
 import { addEntry } from '@/features/ledger/slice';
 import type { PayMode } from '@/features/billing/types';
 import clsx from 'clsx';
@@ -42,27 +41,24 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
     e.preventDefault();
     if (totalReceived <= 0 || totalReceived > maxOwed) return toast.error(`Invalid amount max is ${maxOwed}`);
     
-    const allocationsToApply = allocations.filter(a => a.allocated > 0);
-    const paymentId = crypto.randomUUID();
-
-    dispatch(addCustomerPayment({
-       id: paymentId,
+    // Using the optimized FIFO Settlement RPC flow
+    dispatch(addCustomerSettlement({
        counterpartyId: customerId,
-       totalReceived,
+       amount: totalReceived,
        mode,
-       receivedAt: new Date().toISOString(),
-       recordedBy: 'system',
-       allocations: allocationsToApply.map(a => ({ saleOrderId: a.orderId, amountAllocated: a.allocated }))
+       note: `Lump-sum settlement for ${orders.length} pending orders`
     }));
 
-    allocationsToApply.forEach(a => {
-       const o = orders.find(ord => ord.id === a.orderId)!;
-       const newAmount = o.amountPaid + a.allocated;
-       const status = newAmount >= o.totalAmount ? 'SETTLED' : 'PARTIAL';
-       dispatch(updateOrderPayment({ id: o.id, amountPaid: newAmount, status }));
-    });
+    // Optimistic Ledger entry for immediate Wallet UI update
+    dispatch(addEntry({
+       id: crypto.randomUUID(),
+       type: 'PHONE_SALE',
+       amount: totalReceived,
+       note: `Customer Settlement (FIFO)`,
+       createdAt: new Date().toISOString(),
+    }));
     
-    toast.success("Accounts Receivable Batch Processed");
+    toast.success("Accounts Receivable Settlement Dispatched");
     onOpenChange(false);
   };
 

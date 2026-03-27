@@ -4,8 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch } from '@/app/hooks';
 import { updateOrderPayment } from '@/features/billing/slice';
-import { updatePOPayment, addSupplierPayment } from '@/features/purchasing/slice';
-import { addCustomerPayment } from '@/features/customers/slice';
+import { addCustomerPayment, addCustomerSettlement } from '@/features/customers/slice';
+import { addSupplierSettlement, updatePOPayment, addSupplierPayment } from '@/features/purchasing/slice';
 import { addEntry } from '@/features/ledger/slice';
 import type { PayMode } from '@/features/billing/types';
 import clsx from 'clsx';
@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  orderId: string;
+  orderId?: string;
   counterpartyId: string;
   currentAmountPaid: number;
   totalAmount: number;
@@ -39,42 +39,65 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
     const status = totalNow >= totalAmount ? 'SETTLED' : 'PARTIAL';
 
     if (type === 'AR') {
-      // P1-BUG-05: Only dispatch addCustomerPayment — DO NOT also call updateOrderPayment.
-      // The record_customer_payment RPC handles order status atomically server-side.
-      // We do a local optimistic update here to keep Redux in sync without the double-write race.
-      dispatch(updateOrderPayment({ id: orderId, amountPaid: totalNow, status }));
-      dispatch(addCustomerPayment({
-        id: paymentId,
-        counterpartyId,
-        totalReceived: amount,
-        mode,
-        receivedAt: new Date().toISOString(),
-        recordedBy: 'system',
-        allocations: [{ saleOrderId: orderId, amountAllocated: amount }]
-      }));
-      // P1-BUG-06: Optimistic PHONE_SALE ledger entry so Wallet bucket updates immediately.
-      // referenceId present → middleware's isTransactionSegment check skips cloud sync.
-      dispatch(addEntry({
-        id: crypto.randomUUID(),
-        type: 'PHONE_SALE',
-        referenceId: paymentId,
-        amount,
-        note: `Payment received for Order ${orderId.slice(0, 8).toUpperCase()}`,
-        createdAt: new Date().toISOString(),
-      }));
-      toast.success("Accounts Receivable Payment Recorded");
+      if (orderId) {
+        dispatch(updateOrderPayment({ id: orderId, amountPaid: totalNow, status }));
+        dispatch(addCustomerPayment({
+          id: paymentId,
+          counterpartyId,
+          totalReceived: amount,
+          mode,
+          receivedAt: new Date().toISOString(),
+          recordedBy: 'system',
+          allocations: [{ saleOrderId: orderId, amountAllocated: amount }]
+        }));
+        dispatch(addEntry({
+          id: crypto.randomUUID(),
+          type: 'PHONE_SALE',
+          referenceId: paymentId,
+          amount,
+          note: `Payment received for Order ${orderId.slice(0, 8).toUpperCase()}`,
+          createdAt: new Date().toISOString(),
+        }));
+        toast.success("Order Payment Recorded");
+      } else {
+        dispatch(addCustomerSettlement({
+          counterpartyId,
+          amount,
+          mode,
+          note: `Lump-sum settlement allocation (FIFO)`
+        }));
+        // Wallet entry to keep dashboard in sync
+        dispatch(addEntry({
+          id: crypto.randomUUID(),
+          type: 'PHONE_SALE',
+          amount,
+          note: `Global Customer Settlement (FIFO)`,
+          createdAt: new Date().toISOString(),
+        }));
+        toast.success("FIFO Settlement Dispatched (AR)");
+      }
     } else {
-      dispatch(updatePOPayment({ id: orderId, amountPaid: totalNow, status }));
-      dispatch(addSupplierPayment({
-        id: paymentId,
-        counterpartyId,
-        totalPaid: amount,
-        mode,
-        paidAt: new Date().toISOString(),
-        recordedBy: 'system',
-        allocations: [{ purchaseOrderId: orderId, amountAllocated: amount }]
-      }));
-      toast.success("Accounts Payable Transfer Dispatched");
+      if (orderId) {
+        dispatch(updatePOPayment({ id: orderId, amountPaid: totalNow, status }));
+        dispatch(addSupplierPayment({
+          id: paymentId,
+          counterpartyId,
+          totalPaid: amount,
+          mode,
+          paidAt: new Date().toISOString(),
+          recordedBy: 'system',
+          allocations: [{ purchaseOrderId: orderId, amountAllocated: amount }]
+        }));
+        toast.success("Supplier Payment Dispatched");
+      } else {
+        dispatch(addSupplierSettlement({
+          counterpartyId,
+          amount,
+          mode,
+          note: `Lump-sum supplier settlement (FIFO)`
+        }));
+        toast.success("FIFO Settlement Dispatched (AP)");
+      }
     }
     onOpenChange(false);
   };
