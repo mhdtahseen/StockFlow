@@ -28,8 +28,19 @@ const customersSlice = createSlice({
     addCustomerPayment: (s, a: PayloadAction<CustomerPayment>) => {
       s.payments.unshift(a.payload);
     },
+    addCustomerSettlement: (s, a: PayloadAction<{
+      id?: string;
+      counterpartyId: string;
+      amount: number;
+      mode: string;
+      note?: string;
+    }>) => {
+      // Local state doesn't track allocations immediately for FIFO
+      // because the backend handles the mapping. 
+      // We will refresh the full payment list on next sync.
+    },
   },
 });
-export const { setAll, addCustomer, updateCustomer, removeCustomer, setPayments, addCustomerPayment } =
+export const { setAll, addCustomer, updateCustomer, removeCustomer, setPayments, addCustomerPayment, addCustomerSettlement } =
   customersSlice.actions;
 export default customersSlice.reducer;

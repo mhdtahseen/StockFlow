@@ -24,6 +24,15 @@ const purchasingSlice = createSlice({
     addSupplierPayment: (s, a: PayloadAction<SupplierPayment>) => {
       s.payments.unshift(a.payload);
     },
+    addSupplierSettlement: (s, a: PayloadAction<{
+      id?: string;
+      counterpartyId: string;
+      amount: number;
+      mode: string;
+      note?: string;
+    }>) => {
+      // Backend handles allocation
+    },
     updatePOPayment: (
       s,
       a: PayloadAction<{
@@ -107,6 +116,7 @@ export const {
   confirmReceipt,
   setPayments,
   addSupplierPayment,
+  addSupplierSettlement,
   markPOItemAccepted,
   markPOItemRejected,
 } = purchasingSlice.actions;

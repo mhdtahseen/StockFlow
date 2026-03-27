@@ -2,15 +2,22 @@ import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppSelector } from "@/app/hooks";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   ChevronLeft,
   FileText,
   Banknote,
   CalendarClock,
   Phone,
   Edit,
-  Filter,
-  ShoppingCart,
   ShoppingBag,
+  ShoppingCart,
+  Filter,
+  BadgeCheck,
+  SlidersHorizontal,
 } from "lucide-react";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { format, parseISO, compareDesc } from "date-fns";
@@ -43,6 +50,8 @@ export default function CustomerDetail() {
   const [apOpen, setApOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [orderTypeFilter, setOrderTypeFilter] = useState<"ALL" | "SALE" | "PURCHASE">("ALL");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"ACTIVE" | "SETTLED">("ACTIVE");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const orders = React.useMemo(() => {
     const saleOrders = allSaleOrders
@@ -58,11 +67,23 @@ export default function CustomerDetail() {
   }, [allSaleOrders, allPurchaseOrders, id]);
 
   const filteredOrders = React.useMemo(() => {
-    if (orderTypeFilter === "ALL") return orders;
-    return orders.filter(o => 
-      orderTypeFilter === "PURCHASE" ? (o as any).isPurchaseOrder : !(o as any).isPurchaseOrder
-    );
-  }, [orders, orderTypeFilter]);
+    let result = orders;
+    
+    // Filter by type
+    if (orderTypeFilter !== "ALL") {
+      result = result.filter(o => 
+        orderTypeFilter === "PURCHASE" ? (o as any).isPurchaseOrder : !(o as any).isPurchaseOrder
+      );
+    }
+    
+    // Filter by status (Active vs Settled)
+    result = result.filter(o => {
+      const isSettled = o.status === "SETTLED";
+      return orderStatusFilter === "ACTIVE" ? !isSettled : isSettled;
+    });
+    
+    return result;
+  }, [orders, orderTypeFilter, orderStatusFilter]);
 
   const payments = React.useMemo(() => {
     const arPayments = allCustomerPayments
@@ -246,26 +267,92 @@ export default function CustomerDetail() {
       <div className="p-4 flex-1 overflow-y-auto pb-2">
         {activeTab === "orders" && (
           <div className="space-y-3">
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
-              {[
-                { id: "ALL", label: "All Orders", icon: <Filter size={14} /> },
-                { id: "SALE", label: "Sales", icon: <ShoppingCart size={14} /> },
-                { id: "PURCHASE", label: "Purchases", icon: <ShoppingBag size={14} /> },
-              ].map((pill) => (
-                <button
-                  key={pill.id}
-                  onClick={() => setOrderTypeFilter(pill.id as any)}
-                  className={clsx(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 border",
-                    orderTypeFilter === pill.id
-                      ? "bg-primary-500 text-white border-primary-500 shadow-sm shadow-primary-500/20"
-                      : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
-                  )}
-                >
-                  {pill.icon}
-                  {pill.label}
-                </button>
-              ))}
+            <div className="flex justify-between items-center px-1 mb-2">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                {orders.length} Orders Total
+              </span>
+              
+              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className={clsx(
+                      "size-8 rounded-lg flex items-center justify-center transition-all relative active:scale-95 border",
+                      isFilterOpen
+                        ? "bg-slate-900 border-slate-900 text-white dark:bg-slate-100 dark:border-slate-100 dark:text-slate-900"
+                        : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800"
+                    )}
+                  >
+                    <SlidersHorizontal size={16} />
+                    {(orderTypeFilter !== "ALL" || orderStatusFilter !== "ACTIVE") && (
+                      <span className="absolute -top-1 -right-1 size-3 bg-primary-500 rounded-full border-2 border-white dark:border-slate-950" />
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 p-4 z-50">
+                  <div className="space-y-4">
+                    {/* Layer 1: Type Filters */}
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                        Order Type
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: "ALL", label: "All" },
+                          { id: "SALE", label: "Sales" },
+                          { id: "PURCHASE", label: "Purchases" },
+                        ].map((pill) => (
+                          <button
+                            key={pill.id}
+                            onClick={() => {
+                              setOrderTypeFilter(pill.id as any);
+                              setIsFilterOpen(false);
+                            }}
+                            className={clsx(
+                              "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border",
+                              orderTypeFilter === pill.id
+                                ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100 shadow-sm"
+                                : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                            )}
+                          >
+                            {pill.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-slate-100 dark:bg-slate-800" />
+
+                    {/* Layer 2: Status Filters */}
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                        Lifecycle State
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: "ACTIVE", label: "Active" },
+                          { id: "SETTLED", label: "Settled" },
+                        ].map((pill) => (
+                          <button
+                            key={pill.id}
+                            onClick={() => {
+                              setOrderStatusFilter(pill.id as any);
+                              setIsFilterOpen(false);
+                            }}
+                            className={clsx(
+                              "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border",
+                              orderStatusFilter === pill.id
+                                ? "bg-primary-500 text-white border-primary-500 shadow-sm"
+                                : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                            )}
+                          >
+                            {pill.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {filteredOrders.length === 0 ? (
