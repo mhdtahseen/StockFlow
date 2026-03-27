@@ -3,6 +3,11 @@ import { useAppSelector } from "../app/hooks";
 import {
   selectCashflowSummary,
   selectInventoryMetrics,
+  selectPaymentDistribution,
+  selectCreditAging,
+  selectSupplierYields,
+  selectNetCreditPosition,
+  selectModelVelocity,
   TimePeriod,
 } from "../features/analytics/selectors";
 import {
@@ -38,7 +43,7 @@ import {
 } from "../components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import clsx from "clsx";
-import { TrendingUp, Clock, Package, Calendar } from "lucide-react";
+import { TrendingUp, Clock, Package, Calendar, Handshake } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import HeaderActions from "@/components/layout/HeaderActions";
@@ -48,13 +53,18 @@ export default function Analytics() {
   const [period, setPeriod] = useState<TimePeriod>("monthly");
   const summary = useAppSelector(selectCashflowSummary(period));
   const metrics = useAppSelector(selectInventoryMetrics);
+  const paymentDist = useAppSelector(selectPaymentDistribution);
+  const agingDues = useAppSelector(selectCreditAging);
+  const supplierYields = useAppSelector(selectSupplierYields);
+  const netCredit = useAppSelector(selectNetCreditPosition);
+  const modelVelocity = useAppSelector(selectModelVelocity);
   const entries = useAppSelector((state) => state.ledger.entries);
   const phones = useAppSelector((state) => state.inventory.phones);
   const { resolved } = useTheme();
   const isDark = resolved === "dark";
 
   const plugin = React.useRef(
-    Autoplay({ delay: 30000, stopOnInteraction: true }),
+    Autoplay({ delay: 5000, stopOnInteraction: true }),
   );
 
   const formatCurrency = (amount: number) => {
@@ -727,8 +737,229 @@ export default function Analytics() {
                   )}
                 </div>
               </CarouselItem>
+
+              {/* Chart 4: Digital India (Payment Split) */}
+              <CarouselItem>
+                <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-5 flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-indigo-500"></span>
+                  Digital India: Payment Modes
+                </h2>
+                <div className="h-56 w-full flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={paymentDist}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={65}
+                        paddingAngle={5}
+                        dataKey="amount"
+                        nameKey="mode"
+                        strokeWidth={0}
+                      >
+                        <Cell fill="#10B981" /> {/* UPI */}
+                        <Cell fill="#F59E0B" /> {/* CASH */}
+                        <Cell fill="#064a98" /> {/* BANK */}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "12px",
+                          border: `1px solid ${tooltipBorder}`,
+                          background: tooltipBg,
+                          fontSize: 12,
+                        }}
+                        formatter={(val: number) => formatCurrency(val)}
+                      />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CarouselItem>
+
+              {/* Chart 5: Supplier Yields */}
+              <CarouselItem>
+                <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-5 flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-rose-500"></span>
+                  Supplier Reliability Yields
+                </h2>
+                <div className="space-y-3 px-2">
+                  {supplierYields.slice(0, 4).map((s) => (
+                    <div key={s.id} className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {s.name}
+                        </span>
+                        <span className="font-black text-primary-500">
+                          {s.yield.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary-500 rounded-full"
+                          style={{ width: `${s.yield}%` }}
+                        />
+                      </div>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold">
+                        {s.count} Units Tracked
+                      </span>
+                    </div>
+                  ))}
+                  {supplierYields.length === 0 && (
+                    <p className="text-center text-slate-400 text-sm py-10">
+                      No PO data yet
+                    </p>
+                  )}
+                </div>
+              </CarouselItem>
+              {/* Chart 6: Khata Balance (Net Credit) */}
+              <CarouselItem>
+                <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-5 flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-blue-500"></span>
+                  Khata Balance: Net Credit Position
+                </h2>
+                <div className="flex flex-col items-center justify-center h-56 gap-6">
+                  <div className="text-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Business Leverage
+                    </p>
+                    <p
+                      className={clsx(
+                        "text-3xl font-black tabular-nums",
+                        netCredit.net > 0 ? "text-rose-500" : "text-emerald-500",
+                      )}
+                    >
+                      ₹{Math.abs(netCredit.net).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-500 mt-1">
+                      {netCredit.net > 0
+                        ? "YOU ARE FINANCING OTHERS"
+                        : "RUNNING ON SUPPLIER TRUST"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-8 w-full px-4">
+                    <div className="text-center">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">
+                        Accounts Receivable
+                      </p>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-300">
+                        ₹{netCredit.arTotal.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">
+                        Accounts Payable
+                      </p>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-300">
+                        ₹{netCredit.apTotal.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CarouselItem>
+
+              {/* Chart 7: Model Velocity (Days on Shelf) */}
+              <CarouselItem>
+                <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-5 flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-emerald-500"></span>
+                  IMEI Velocity: Avg Days to Sale
+                </h2>
+                <div className="h-56 w-full">
+                  {modelVelocity.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={modelVelocity.slice(0, 5)}
+                        layout="vertical"
+                        margin={{ left: 40, right: 20 }}
+                      >
+                        <XAxis type="number" hide />
+                        <YAxis
+                          dataKey="name"
+                          type="category"
+                          width={90}
+                          fontSize={9}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: isDark ? "#94a3b8" : "#64748b" }}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "transparent" }}
+                          contentStyle={{
+                            borderRadius: "10px",
+                            border: "none",
+                            background: tooltipBg,
+                            fontSize: 10,
+                          }}
+                          formatter={(val: number) => [`${val.toFixed(1)} Days`, "Avg Time"]}
+                        />
+                        <Bar
+                          dataKey="avgDays"
+                          fill="#10B981"
+                          radius={[0, 4, 4, 0]}
+                          barSize={12}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                      No velocity data yet
+                    </div>
+                  )}
+                </div>
+              </CarouselItem>
             </CarouselContent>
           </Carousel>
+        </div>
+
+        {/* New Widget: Aging of Dues (Udhaari) */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Clock size={16} className="text-rose-500" />
+              Udhaari: Aging of Dues
+            </h3>
+            <span className="text-[10px] bg-rose-50 dark:bg-rose-950 text-rose-600 px-2 py-1 rounded font-black uppercase">
+              Follow Up Required
+            </span>
+          </div>
+
+          <div className="space-y-6">
+            <div className="flex flex-col gap-3">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                What Customers Owe You (AR)
+              </p>
+              <div className="flex w-full h-8 rounded-lg overflow-hidden border border-slate-100 dark:border-slate-800">
+                <div
+                  className="bg-emerald-500 h-full flex items-center justify-center text-[9px] font-black text-white"
+                  style={{
+                    width: `${(agingDues.ar.current / (Object.values(agingDues.ar).reduce((a, b) => a + b, 0) || 1)) * 100}%`,
+                  }}
+                >
+                  {agingDues.ar.current > 0 ? "NEW" : ""}
+                </div>
+                <div
+                  className="bg-amber-500 h-full flex items-center justify-center text-[9px] font-black text-white"
+                  style={{
+                    width: `${(agingDues.ar.due / (Object.values(agingDues.ar).reduce((a, b) => a + b, 0) || 1)) * 100}%`,
+                  }}
+                >
+                  {agingDues.ar.due > 0 ? "7D+" : ""}
+                </div>
+                <div
+                  className="bg-rose-600 h-full flex items-center justify-center text-[9px] font-black text-white"
+                  style={{
+                    width: `${(agingDues.ar.overdue / (Object.values(agingDues.ar).reduce((a, b) => a + b, 0) || 1)) * 100}%`,
+                  }}
+                >
+                  {agingDues.ar.overdue > 0 ? "15D+" : ""}
+                </div>
+              </div>
+              <p className="text-sm font-black text-slate-900 dark:text-white">
+                ₹{(agingDues.ar.current + agingDues.ar.due + agingDues.ar.overdue).toLocaleString()} Total Outstanding
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Bottom Metric Widgets — Concept A 2-col grid */}
@@ -750,14 +981,17 @@ export default function Analytics() {
             </p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 text-center">
-            <div className="size-8 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-2">
-              <Package size={16} />
+            <div className="size-8 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-2">
+              <Handshake size={16} />
             </div>
             <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">
-              Units In Stock
+              Avg. Collection Period
             </p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {metrics.inStockCount}
+              {metrics.avgCollectionPeriodDays.toFixed(1)}{" "}
+              <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                days
+              </span>
             </p>
           </div>
         </div>
