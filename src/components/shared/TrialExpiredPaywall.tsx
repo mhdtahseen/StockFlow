@@ -35,7 +35,7 @@ export default function TrialExpiredPaywall() {
 
       <div className="mt-12 text-xs text-slate-400 dark:text-slate-600">
         <span className="opacity-70">Need your data? </span>
-        <Link to="/financials" className="text-primary-500 dark:text-blue-400 hover:underline">
+        <Link to="/ledger" className="text-primary-500 dark:text-blue-400 hover:underline">
           View in Read-Only Mode
         </Link>
       </div>

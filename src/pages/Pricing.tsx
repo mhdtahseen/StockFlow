@@ -28,7 +28,7 @@ export default function Pricing() {
     {
       id: "starter", // P1-BUG-03: was "free" — must match DB CHECK constraint
       name: "Starter",
-      price: "₹699", // P2-ARCH-14: Align with BRD pricing
+      price: "₹399", // P2-ARCH-14: Align with BRD pricing
       period: "/mo",
       icon: Store,
       description: "Basic features for small retail shops getting started.",
@@ -47,7 +47,7 @@ export default function Pricing() {
     {
       id: "pro",
       name: "Professional",
-      price: "₹1,799", // P2-ARCH-14: Align with BRD pricing
+      price: "₹999", // P2-ARCH-14: Align with BRD pricing
       period: "/mo",
       icon: Sparkles,
       description: "Full suite of tools for growing mobile retail stores.",
@@ -67,7 +67,7 @@ export default function Pricing() {
     {
       id: "enterprise",
       name: "Enterprise",
-      price: "₹3,999", // P2-ARCH-14: Align with BRD pricing
+      price: "₹1,499", // P2-ARCH-14: Align with BRD pricing
       period: "/mo",
       icon: Crown,
       description:
@@ -90,7 +90,6 @@ export default function Pricing() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto font-sans antialiased">
-
       <main className="p-4 space-y-6 pb-24">
         {currentPlan === "trial" && (
           <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 p-4 rounded-xl flex items-start gap-3">

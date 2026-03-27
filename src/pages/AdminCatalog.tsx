@@ -296,14 +296,14 @@ export default function AdminCatalog() {
   /* ── Render ──────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-slate-50 dark:bg-slate-950">
+      <div className="flex items-center justify-center min-h-dvh bg-slate-50 dark:bg-slate-950">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-dvh bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6">
         {/* ── Stats Row ──────────────────────────────────────── */}

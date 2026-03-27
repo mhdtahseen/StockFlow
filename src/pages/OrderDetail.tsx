@@ -539,7 +539,7 @@ export default function OrderDetail() {
         <div className="bg-slate-50 dark:bg-slate-950 z-10 border-b border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/20 dark:shadow-black/20 mt-2 shrink-0">
           <div className="flex px-4 w-full">
             {[
-              { id: "financials", label: "Financials", icon: IndianRupee },
+              { id: "financials", label: "Finance", icon: IndianRupee },
               { id: "items", label: "Items", icon: Package },
               { id: "timeline", label: "Timeline", icon: History },
             ].map((tab) => (

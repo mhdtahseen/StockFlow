@@ -50,10 +50,9 @@ const FINANCE_CRM_SECTIONS = [
   {
     label: "Ledger",
     to: "/ledger",
-    icon: ReceiptText,
+    icon: Banknote,
     feature: "full_ledger" as const,
   },
-  { label: "Financials", to: "/financials", icon: Banknote, feature: null },
   {
     label: "Analytics",
     to: "/analytics",

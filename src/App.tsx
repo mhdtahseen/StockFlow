@@ -14,11 +14,9 @@ import Verified from "@/pages/Verified";
 // Main pages
 import Dashboard from "@/pages/Dashboard";
 import Inventory from "@/pages/Inventory";
-import AddPhone from "@/pages/AddPhone";
 import AddPhoneUpdate from "@/pages/AddPhoneUpdate";
 import PhoneDetail from "@/pages/PhoneDetail";
 import EditPhone from "@/pages/EditPhone";
-import Financials from "@/pages/Financials";
 import LedgerPage from "@/pages/LedgerPage";
 import Customers from "@/pages/Customers";
 import CustomerDetail from "@/pages/CustomerDetail";
@@ -138,8 +136,8 @@ function App() {
               <Route path="add" element={<AddPhoneUpdate />} />
               <Route path="inventory/:id" element={<PhoneDetail />} />
               <Route path="edit/:id" element={<EditPhone />} />
-              <Route path="financials" element={<Financials />} />
               <Route path="ledger" element={<LedgerPage />} />
+              <Route path="financials" element={<Navigate to="/ledger" replace />} />
               <Route path="customers" element={<Customers />} />
               <Route path="customers/:id" element={<CustomerDetail />} />
               <Route path="orders" element={<Orders />} />
@@ -147,12 +145,12 @@ function App() {
               <Route path="purchase-orders" element={<PurchaseOrders />} />
               <Route
                 path="purchase-orders/:id"
-                element={<OrderDetail />}
+                element={<PurchaseOrderDetail />}
               />
               <Route path="pricing" element={<Pricing />} />
               <Route
                 path="wallet"
-                element={<Navigate to="/financials" replace />}
+                element={<Navigate to="/ledger" replace />}
               />
               <Route path="analytics" element={<Analytics />} />
               <Route path="team" element={<ManageTeam />} />

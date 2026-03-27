@@ -16,6 +16,7 @@ import {
   Fingerprint,
   Cpu,
   ArrowDown,
+  TrendingDown,
   TrendingUp,
   Clock,
 } from "lucide-react";
@@ -268,7 +269,10 @@ export default function Inventory() {
         {/* Row 1: Search & Filter Actions */}
         <div className="px-4 pt-3 pb-3 flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-3.5 text-slate-400" size={18} />
+            <Search
+              className="absolute left-3.5 top-3.5 text-slate-400"
+              size={18}
+            />
             <input
               type="text"
               value={query}
@@ -664,7 +668,7 @@ export default function Inventory() {
                           0 ? (
                             <TrendingUp size={14} />
                           ) : (
-                            <ArrowDown size={14} />
+                            <TrendingDown size={14} />
                           )}
                           <span className="text-lg leading-none">
                             {formatCurrency(phone.salePrice)}

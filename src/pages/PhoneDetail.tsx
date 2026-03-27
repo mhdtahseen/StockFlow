@@ -696,7 +696,7 @@ export default function PhoneDetail() {
 
       {/* Purchase Confirmation Modal */}
       {showPurchaseModal && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-60 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl dark:shadow-black/40 border border-transparent dark:border-slate-800">
             <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1 tracking-tight">
               Confirm Purchase
@@ -741,7 +741,7 @@ export default function PhoneDetail() {
 
       {/* Repair Cost Modal */}
       {showRepairModal && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-60 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl dark:shadow-black/40 border border-transparent dark:border-slate-800">
             <div className="flex items-center gap-3 mb-1">
               <div className="size-10 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center">

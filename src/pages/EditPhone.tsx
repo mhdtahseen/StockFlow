@@ -659,7 +659,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
               </div>
             </div>
           </div>
-          {/* ── Financials ───────────────────────────────────────────────── */}
+          {/* ── Finance ───────────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4 mb-8">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <DollarSign
@@ -667,7 +667,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
                 size={18}
                 strokeWidth={2.5}
               />
-              Financials
+              Finance
             </h3>
 
             <div className="relative group">

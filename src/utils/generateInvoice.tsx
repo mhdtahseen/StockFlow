@@ -2,9 +2,9 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';
-import { SaleOrder } from '@/features/billing/types';
-import { Customer } from '@/features/customers/types';
-import { TenantInfo } from '@/context/AuthContext';
+import type { SaleOrder } from '@/features/billing/types';
+import type { Customer } from '@/features/customers/types';
+import type { TenantInfo } from '@/context/AuthContext';
 import { InvoicePrintable } from '@/components/shared/InvoicePrintable';
 
 /**

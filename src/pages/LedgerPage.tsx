@@ -4,6 +4,7 @@ import {
   selectLedgerEntries,
   selectWalletBuckets,
 } from "../features/wallet/selectors";
+import { useFinancialData, useGroupedTransactions } from "../hooks/useFinancialMetrics";
 import { addEntry } from "../features/ledger/slice";
 import { toast } from "sonner";
 import {
@@ -37,6 +38,7 @@ import HeaderActions from "@/components/layout/HeaderActions";
 
 export default function LedgerPage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const buckets = useAppSelector(selectWalletBuckets);
   const ledgerEntries = useAppSelector(selectLedgerEntries);
   const phones = useAppSelector((state) => state.inventory.phones);
@@ -117,113 +119,33 @@ export default function LedgerPage() {
     setShowCustomDates(false);
   };
 
-  const sortedEntries = [...ledgerEntries].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+  const { arMetrics, apMetrics, dailyVelocity, rangeStats } = useFinancialData({
+    from: dateFrom,
+    to: dateTo,
+  });
+
+  const groupedTransactions = useGroupedTransactions(filter, {
+    from: dateFrom,
+    to: dateTo,
+  });
 
   const runningBalances = useMemo(() => {
-    // Sort oldest first to calculate running balance correctly
-    const chronological = [...ledgerEntries].sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    );
-    let currentWallet = 0;
+    // Re-calculate running balance for the full ledger context
     const balances: Record<string, number> = {};
-    chronological.forEach((entry) => {
-      switch (entry.type) {
-        case "MONEY_ADDED":
-        case "WITHDRAWAL":
-        case "PROFIT_WITHDRAWAL":
-        case "FUNDS_RELEASED":
-          currentWallet += entry.amount;
-          break;
-        case "FUNDS_PLEDGED":
-        case "REPAIR_COST":
-          currentWallet -= entry.amount;
-          break;
-      }
-      balances[entry.id] = currentWallet;
-    });
+    let current = 0;
+    [...ledgerEntries]
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .forEach(e => {
+        // Sign-aware logic matching the hook
+        if (["MONEY_ADDED", "PHONE_SALE", "FUNDS_RELEASED"].includes(e.type)) {
+          current += e.amount;
+        } else if (["FUNDS_PLEDGED", "WITHDRAWAL", "PROFIT_WITHDRAWAL", "REPAIR_COST"].includes(e.type)) {
+          current -= Math.abs(e.amount);
+        }
+        balances[e.id] = current;
+      });
     return balances;
   }, [ledgerEntries]);
-
-  // Default to last 3 days when no explicit date filter
-  const defaultCutoff = useMemo(() => startOfDay(subDays(new Date(), 2)), []); // 3 days: today, yesterday, day before
-
-  const groupedEntries = useMemo(() => {
-    const filtered = sortedEntries.filter((entry) => {
-      if (filter === "Sales" && entry.type !== "PHONE_SALE") return false;
-      if (filter === "Purchases" && entry.type !== "FUNDS_CONSUMED")
-        return false;
-      if (filter === "Repairs" && entry.type !== "REPAIR_COST") return false;
-
-      const entryDate = parseISO(entry.createdAt);
-
-      if (hasDateFilter) {
-        // Explicit date range
-        if (dateFrom && isBefore(entryDate, startOfDay(new Date(dateFrom))))
-          return false;
-        if (dateTo && isAfter(entryDate, endOfDay(new Date(dateTo))))
-          return false;
-      } else {
-        // Default: last 3 days only
-        if (isBefore(entryDate, defaultCutoff)) return false;
-      }
-
-      return true;
-    });
-
-    // Group by date label
-    const groups: Record<string, typeof ledgerEntries> = {};
-    const groupOrder: string[] = [];
-
-    filtered.forEach((entry) => {
-      const date = parseISO(entry.createdAt);
-      let dateKey = format(date, "MMM d");
-      if (isToday(date)) dateKey = "Today";
-      else if (isYesterday(date)) dateKey = "Yesterday";
-
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
-        groupOrder.push(dateKey);
-      }
-      groups[dateKey].push(entry);
-    });
-
-    // Return as ordered array of [label, entries] to preserve chronological order
-    // sortedEntries is already newest-first, so groupOrder is naturally Today → Yesterday → older
-    const ordered: Record<string, typeof ledgerEntries> = {};
-    groupOrder.forEach((key) => {
-      ordered[key] = groups[key];
-    });
-    return ordered;
-  }, [sortedEntries, filter, dateFrom, dateTo, hasDateFilter, defaultCutoff]);
-
-  const rangeStats = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-    ledgerEntries.forEach((entry) => {
-      const d = parseISO(entry.createdAt);
-      if (hasDateFilter) {
-        if (dateFrom && isBefore(d, startOfDay(new Date(dateFrom)))) return;
-        if (dateTo && isAfter(d, endOfDay(new Date(dateTo)))) return;
-      } else {
-        const now = new Date();
-        if (
-          d.getMonth() !== now.getMonth() ||
-          d.getFullYear() !== now.getFullYear()
-        )
-          return;
-      }
-      if (["MONEY_ADDED", "PHONE_SALE"].includes(entry.type))
-        income += entry.amount;
-      else if (
-        ["FUNDS_CONSUMED", "WITHDRAWAL", "REPAIR_COST"].includes(entry.type)
-      )
-        expense += Math.abs(entry.amount);
-    });
-    return { income, expense };
-  }, [ledgerEntries, dateFrom, dateTo, hasDateFilter]);
 
   const handleManualTransaction = (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,7 +274,7 @@ export default function LedgerPage() {
             className={clsx(
               "size-10 rounded-full flex items-center justify-center transition-colors relative",
               hasDateFilter
-                ? "bg-primary-500 text-white"
+                ? "bg-[#064a98] text-white"
                 : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400",
             )}
           >
@@ -394,7 +316,7 @@ export default function LedgerPage() {
                 <div className="border-t border-slate-100 dark:border-slate-800">
                   <button
                     onClick={() => setShowCustomDates(!showCustomDates)}
-                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-primary-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#064a98] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                   >
                     Custom Range...
                   </button>
@@ -410,7 +332,7 @@ export default function LedgerPage() {
                           value={dateFrom}
                           onChange={(e) => setDateFrom(e.target.value)}
                           max={dateTo || undefined}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
                         />
                       </div>
                       <div>
@@ -422,7 +344,7 @@ export default function LedgerPage() {
                           value={dateTo}
                           onChange={(e) => setDateTo(e.target.value)}
                           min={dateFrom || undefined}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
                         />
                       </div>
                       <button
@@ -431,7 +353,7 @@ export default function LedgerPage() {
                           setShowCustomDates(false);
                         }}
                         disabled={!dateFrom && !dateTo}
-                        className="w-full py-2 text-xs font-bold text-white bg-primary-500 rounded-lg disabled:opacity-40 transition-all"
+                        className="w-full py-2 text-xs font-bold text-white bg-[#064a98] rounded-lg disabled:opacity-40 transition-all"
                       >
                         Apply
                       </button>
@@ -455,25 +377,26 @@ export default function LedgerPage() {
         </div>
       </HeaderActions>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-12 space-y-4">
+      <main className="flex-1 overflow-y-auto px-4 pb-12">
         {dateRangeLabel && (
           <div className="flex items-center justify-between pt-4 -mb-2">
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-primary-50 dark:bg-blue-900/20 rounded-full border border-primary-100 dark:border-blue-900/30">
-              <span className="text-[10px] font-black text-primary-500 dark:text-blue-400 uppercase tracking-widest">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-900/30">
+              <span className="text-[10px] font-black text-[#064a98] dark:text-blue-400 uppercase tracking-widest">
                 {dateRangeLabel}
               </span>
               <button
                 onClick={clearDateRange}
-                className="text-primary-400 hover:text-rose-500 transition-colors"
+                className="text-blue-400 hover:text-rose-500 transition-colors"
               >
                 <X size={12} strokeWidth={3} />
               </button>
             </div>
           </div>
         )}
-        {/* Hero Card */}
-        <section className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm pt-4 pb-2 -mx-4 px-4">
-          <div className="bg-primary-500 dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative flex flex-col justify-between h-32 overflow-hidden">
+
+        {/* Existing Wallet Card (Hero) - Sticky */}
+        <section className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm pt-4 pb-2 -mx-4 px-4 overflow-visible">
+          <div className="bg-[#064a98] dark:bg-[#0a3a7a] rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative flex flex-col justify-between h-32 overflow-hidden">
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 dark:bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
             <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-white/10 dark:bg-white/5 rounded-full blur-xl pointer-events-none"></div>
 
@@ -522,6 +445,65 @@ export default function LedgerPage() {
           </div>
         </section>
 
+        {/* Financial Metrics Cards */}
+        <section className="pt-2 pb-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            {/* AR Card */}
+            <div 
+              onClick={() => navigate("/orders")}
+              className="bg-amber-50 dark:bg-amber-950/20 rounded-2xl p-4 border border-amber-100 dark:border-amber-900/30 shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
+            >
+              <h3 className="text-[10px] font-black text-amber-800 dark:text-amber-500 mb-1 uppercase tracking-widest">
+                Receivables (AR)
+              </h3>
+              <p className="text-xl font-black text-amber-700 dark:text-amber-400 mb-3">
+                {formatCurrency(arMetrics.outstanding)}{" "}
+                <span className="text-[9px] uppercase font-bold tracking-widest text-amber-600 dark:text-amber-500">
+                  Uncollected
+                </span>
+              </p>
+              <div className="flex justify-between text-[10px] font-bold text-amber-700/60 dark:text-amber-500/60">
+                <span>Invoiced: {formatCurrency(arMetrics.invoiced)}</span>
+                <span>Paid: {formatCurrency(arMetrics.collected)}</span>
+              </div>
+            </div>
+
+            {/* AP Card */}
+            <div 
+              onClick={() => navigate("/purchase-orders")}
+              className="bg-rose-50 dark:bg-rose-950/20 rounded-2xl p-4 border border-rose-100 dark:border-rose-900/30 shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
+            >
+              <h3 className="text-[10px] font-black text-rose-800 dark:text-rose-500 mb-1 uppercase tracking-widest">
+                Payables (AP)
+              </h3>
+              <p className="text-xl font-black text-rose-700 dark:text-rose-400 mb-3">
+                {formatCurrency(apMetrics.outstanding)}{" "}
+                <span className="text-[9px] uppercase font-bold tracking-widest text-rose-600 dark:text-rose-500">
+                  Owed
+                </span>
+              </p>
+              <div className="flex justify-between text-[10px] font-bold text-rose-700/60 dark:text-rose-500/60">
+                <span>Commits: {formatCurrency(apMetrics.owed)}</span>
+                <span>Paid: {formatCurrency(apMetrics.paid)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* EOD Summary */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-900 dark:bg-slate-100" />
+            <div className="flex justify-between items-center mb-3">
+               <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">Today's End of Day</h3>
+               <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase px-2 py-0.5 rounded tracking-wider">Net: {formatCurrency(dailyVelocity.moneyIn - dailyVelocity.moneyOut)}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div><p className="font-bold text-slate-400 capitalize mb-0.5">Opening</p><p className="font-semibold">{formatCurrency(dailyVelocity.openingBalance)}</p></div>
+              <div><p className="font-bold text-emerald-500 capitalize mb-0.5">Cash In</p><p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(dailyVelocity.moneyIn)}</p></div>
+              <div><p className="font-bold text-rose-500 capitalize mb-0.5">Cash Out</p><p className="font-semibold text-rose-600 dark:text-rose-400">{formatCurrency(dailyVelocity.moneyOut)}</p></div>
+            </div>
+          </div>
+        </section>
+
         {/* Filter chips — type only */}
         <section className="py-3 flex items-center gap-2 overflow-x-auto hide-scrollbar -mx-4 px-4">
           {["All", "Sales", "Purchases", "Repairs"].map((f) => (
@@ -542,7 +524,7 @@ export default function LedgerPage() {
 
         {/* Transaction List */}
         <section className="space-y-6 pt-2 pb-10">
-          {Object.entries(groupedEntries).length === 0 ? (
+          {groupedTransactions.length === 0 ? (
             <div className="text-center text-slate-500 dark:text-slate-400 py-10 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center gap-2">
               <Calendar
                 size={32}
@@ -559,7 +541,7 @@ export default function LedgerPage() {
               </p>
             </div>
           ) : (
-            Object.entries(groupedEntries).map(([dateLabel, entries]) => (
+            groupedTransactions.map(([dateLabel, entries]) => (
               <div key={dateLabel}>
                 <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 pl-1">
                   {dateLabel}
@@ -585,7 +567,6 @@ export default function LedgerPage() {
                         }
                       }
                     } else if (entry.type === "PHONE_SALE") {
-                      // Note: Assuming amount is pure revenue, or we estimate profit. Without cost basis attached to the entry, we define "profit" as the full sale amount here as requested by context.
                       for (let i = entries.length - 1; i >= index; i--) {
                         if (entries[i].type === "PHONE_SALE") {
                           dailyAccumulatedProfit += entries[i].amount;
@@ -609,7 +590,7 @@ export default function LedgerPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-baseline mb-0.5">
-                              <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2">
+                              <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2 text-sm">
                                 {details.label}
                               </h4>
                               <span
@@ -624,8 +605,8 @@ export default function LedgerPage() {
                                 {formatCurrency(Math.abs(entry.amount))}
                               </span>
                             </div>
-                            <div className="flex justify-between items-center text-xs">
-                              <span className="text-slate-500 dark:text-slate-400 truncate">
+                            <div className="flex justify-between items-center text-[10px]">
+                              <span className="text-slate-500 dark:text-slate-400 truncate font-medium">
                                 {details.note} •{" "}
                                 {format(parseISO(entry.createdAt), "h:mm a")}
                               </span>
@@ -660,26 +641,17 @@ export default function LedgerPage() {
 
                   {/* Daily Summary Footers */}
                   <div className="bg-slate-50 dark:bg-slate-800/50 p-3 text-xs flex justify-between items-center text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
-                    <div className="font-medium">
+                    <div className="font-medium text-[10px]">
                       Opening Bal:{" "}
                       <span className="font-bold text-slate-700 dark:text-slate-300">
                         {formatCurrency(
                           runningBalances[entries[entries.length - 1].id] -
-                            ([
-                              "MONEY_ADDED",
-                              "WITHDRAWAL",
-                              "PROFIT_WITHDRAWAL",
-                              "FUNDS_RELEASED",
-                            ].includes(entries[entries.length - 1].type)
-                              ? entries[entries.length - 1].amount
-                              : entries[entries.length - 1].type ===
-                                  "FUNDS_PLEDGED"
-                                ? -entries[entries.length - 1].amount
-                                : 0),
+                          (["MONEY_ADDED", "PHONE_SALE", "FUNDS_RELEASED"].includes(entries[entries.length - 1].type) ? entries[entries.length - 1].amount : 0) +
+                          (["WITHDRAWAL", "PROFIT_WITHDRAWAL", "FUNDS_PLEDGED", "REPAIR_COST"].includes(entries[entries.length - 1].type) ? Math.abs(entries[entries.length - 1].amount) : 0)
                         )}
                       </span>
                     </div>
-                    <div className="font-medium">
+                    <div className="font-medium text-[10px]">
                       EOD Bal:{" "}
                       <span className="font-bold text-slate-700 dark:text-slate-300">
                         {formatCurrency(runningBalances[entries[0].id])}
@@ -714,14 +686,14 @@ export default function LedgerPage() {
                   className={clsx(
                     "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors",
                     withdrawSource === "WALLET"
-                      ? "bg-slate-50 dark:bg-slate-800 border-primary-500 dark:border-blue-500"
+                      ? "bg-slate-50 dark:bg-slate-800 border-[#064a98] dark:border-blue-500"
                       : "border-slate-200 dark:border-slate-700",
                   )}
                 >
                   <input
                     type="radio"
                     name="withdrawSource"
-                    className="w-4 h-4 text-primary-500 focus:ring-primary-500"
+                    className="w-4 h-4 text-[#064a98] focus:ring-[#064a98]"
                     checked={withdrawSource === "WALLET"}
                     onChange={() => setWithdrawSource("WALLET")}
                   />
@@ -738,14 +710,14 @@ export default function LedgerPage() {
                   className={clsx(
                     "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors",
                     withdrawSource === "PROFITS"
-                      ? "bg-slate-50 dark:bg-slate-800 border-primary-500 dark:border-blue-500"
+                      ? "bg-slate-50 dark:bg-slate-800 border-[#064a98] dark:border-blue-500"
                       : "border-slate-200 dark:border-slate-700",
                   )}
                 >
                   <input
                     type="radio"
                     name="withdrawSource"
-                    className="w-4 h-4 text-primary-500 focus:ring-primary-500"
+                    className="w-4 h-4 text-[#064a98] focus:ring-[#064a98]"
                     checked={withdrawSource === "PROFITS"}
                     onChange={() => setWithdrawSource("PROFITS")}
                   />
@@ -789,7 +761,7 @@ export default function LedgerPage() {
                 className={clsx(
                   "flex-1 py-3.5 font-semibold text-white rounded-xl shadow-lg transition-all active:scale-[0.98]",
                   actionType === "ADD"
-                    ? "bg-primary-500 hover:bg-blue-800 shadow-blue-600/20"
+                    ? "bg-[#064a98] hover:bg-blue-800 shadow-blue-600/20"
                     : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20",
                 )}
               >
