@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAppSelector, useAppDispatch } from "../app/hooks";
 import {
   selectLedgerEntries,
@@ -30,6 +31,8 @@ import {
   Calendar,
   X,
   Wrench,
+  ChevronRight,
+  ChevronDown
 } from "lucide-react";
 import clsx from "clsx";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -48,6 +51,7 @@ export default function LedgerPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addAmount, setAddAmount] = useState("");
   const [actionType, setActionType] = useState<"ADD" | "WITHDRAW">("ADD");
+  const [isEodExpanded, setIsEodExpanded] = useState(false);
   const [withdrawSource, setWithdrawSource] = useState<"WALLET" | "PROFITS">(
     "WALLET",
   );
@@ -489,18 +493,53 @@ export default function LedgerPage() {
             </div>
           </div>
 
-          {/* EOD Summary */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
+          {/* EOD Summary - Collapsible */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all duration-300">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-900 dark:bg-slate-100" />
-            <div className="flex justify-between items-center mb-3">
-               <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">Today's End of Day</h3>
-               <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase px-2 py-0.5 rounded tracking-wider">Net: {formatCurrency(dailyVelocity.moneyIn - dailyVelocity.moneyOut)}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <div><p className="font-bold text-slate-400 capitalize mb-0.5">Opening</p><p className="font-semibold">{formatCurrency(dailyVelocity.openingBalance)}</p></div>
-              <div><p className="font-bold text-emerald-500 capitalize mb-0.5">Cash In</p><p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(dailyVelocity.moneyIn)}</p></div>
-              <div><p className="font-bold text-rose-500 capitalize mb-0.5">Cash Out</p><p className="font-semibold text-rose-600 dark:text-rose-400">{formatCurrency(dailyVelocity.moneyOut)}</p></div>
-            </div>
+            
+            <button 
+              onClick={() => setIsEodExpanded(!isEodExpanded)}
+              className="w-full flex justify-between items-center p-4 text-left"
+            >
+               <div className="flex items-center gap-2">
+                 {isEodExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
+                 <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">Today's End of Day</h3>
+               </div>
+               <div className="flex items-center gap-2">
+                 <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase px-2 py-0.5 rounded tracking-wider">
+                   Net: {formatCurrency(dailyVelocity.moneyIn - dailyVelocity.moneyOut)}
+                 </span>
+               </div>
+            </button>
+
+            <AnimatePresence>
+              {isEodExpanded && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden border-t border-slate-50 dark:border-slate-800/50"
+                >
+                  <div className="px-4 pb-4 pt-4">
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <p className="font-bold text-slate-400 capitalize mb-1 text-[10px] tracking-tight">Opening</p>
+                        <p className="font-bold text-slate-900 dark:text-slate-100">{formatCurrency(dailyVelocity.openingBalance)}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-emerald-500 capitalize mb-1 text-[10px] tracking-tight">Cash In</p>
+                        <p className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(dailyVelocity.moneyIn)}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-rose-500 capitalize mb-1 text-[10px] tracking-tight">Outflow</p>
+                        <p className="font-bold text-rose-600 dark:text-rose-400">{formatCurrency(dailyVelocity.moneyOut)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </section>
 
