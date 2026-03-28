@@ -1,5 +1,6 @@
 import * as React from "react"
 import {
+  Bell,
   CheckCircle,
   Database,
   Store,
@@ -41,6 +42,21 @@ const data = {
         {
           title: "Supervision",
           url: "/admin/supervision",
+        },
+      ],
+    },
+    {
+      title: "Platform Controls",
+      url: "#",
+      icon: Bell,
+      items: [
+        {
+          title: "Notifications",
+          url: "/admin/notifications",
+        },
+        {
+          title: "Rate Pricing",
+          url: "/admin/pricing",
         },
       ],
     },

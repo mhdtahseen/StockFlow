@@ -36,6 +36,8 @@ import AdminLayout from "@/pages/AdminLayout";
 import AdminApprovals from "@/pages/AdminApprovals";
 import AdminSupervision from "@/pages/AdminSupervision";
 import AdminCatalog from "@/pages/AdminCatalog";
+import AdminPricing from "@/pages/AdminPricing";
+import AdminNotifications from "@/pages/AdminNotifications";
 
 import "./index.css";
 import { useAuth } from "./context/AuthContext";
@@ -121,6 +123,8 @@ function App() {
               <Route path="approvals" element={<AdminApprovals />} />
               <Route path="supervision" element={<AdminSupervision />} />
               <Route path="catalog" element={<AdminCatalog />} />
+              <Route path="pricing" element={<AdminPricing />} />
+              <Route path="notifications" element={<AdminNotifications />} />
             </Route>
 
             <Route

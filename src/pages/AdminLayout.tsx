@@ -2,11 +2,13 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar"
 import { Outlet, useLocation } from "react-router-dom"
 import { Separator } from "@/components/ui/separator"
+import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
 
 const ADMIN_TITLES: Record<string, string> = {
   "/admin/approvals": "Approval Queue",
   "/admin/supervision": "Supervision Lab",
   "/admin/catalog": "Master Catalog",
+  "/admin/notifications": "Broadcast Center",
 };
 
 export default function AdminLayout() {
@@ -23,10 +25,11 @@ export default function AdminLayout() {
         <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 border-b border-slate-100 dark:border-slate-800">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-3 h-4" />
-          <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
             {getTitle()}
           </h1>
         </header>
+        <AnnouncementBanner />
         <div className="flex-1 w-full relative max-w-full">
           <Outlet />
         </div>

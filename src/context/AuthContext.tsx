@@ -11,6 +11,8 @@ export interface TenantInfo {
   address?: string;
   gstin?: string;
   phone?: string;
+  isActive: boolean;
+  suspendedUntil: string | null;
 }
 
 interface AuthContextType {
@@ -64,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const { data: tenantData } = await supabase
         .from("tenants")
-        .select("id, name, plan, plan_expires_at, address, gstin, phone")
+        .select("id, name, plan, plan_expires_at, address, gstin, phone, is_active, suspended_until")
         .eq("id", tenantId)
         .single();
       if (tenantData) {
@@ -76,6 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           address: tenantData.address,
           gstin: tenantData.gstin,
           phone: tenantData.phone,
+          isActive: tenantData.is_active,
+          suspendedUntil: tenantData.suspended_until,
         });
       }
     } catch (err) {
@@ -107,70 +111,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const initialized = React.useRef(false);
   useEffect(() => {
-    let mounted = true;
+    if (initialized.current) return;
+    initialized.current = true;
 
-    async function getInitialSession() {
+    async function initializeAuth() {
       try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        const { data: { session: s } } = await supabase.auth.getSession();
+        setSession(s);
+        setUser(s?.user || null);
 
-        if (mounted) {
-          const s = data.session;
-          setSession(s);
-          setUser(s?.user || null);
-          // Fetch real-time roles from profiles table
-          if (s?.user) {
-            localStorage.setItem("stockflow_auth", "true");
-            const { data: profile, error } = await supabase
-              .from("profiles")
-              .select("role, tenant_id, full_name, avatar_url")
-              .eq("id", s.user.id)
-              .single();
+        if (s?.user) {
+          localStorage.setItem("stockflow_auth", "true");
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role, tenant_id, full_name, avatar_url")
+            .eq("id", s.user.id)
+            .single();
 
-            if (error) {
-              console.error("Error fetching initial profile:", error);
-            }
-
-            if (profile) {
-              setFullName(profile.full_name);
-              setAvatarUrl(profile.avatar_url);
-              const profileRole = profile.role;
-              setIsSuperAdmin(profileRole === "super-admin");
-              setIsAdmin(
-                profileRole === "admin" || profileRole === "super-admin",
-              );
-
-              if (profile.tenant_id) {
-                await fetchTenant(profile.tenant_id);
-              }
-            } else {
-              setIsSuperAdmin(false);
-              setIsAdmin(false);
-            }
-          } else {
-            localStorage.removeItem("stockflow_auth");
-            localStorage.removeItem("persist:stockflow-root");
+          if (profile) {
+            setFullName(profile.full_name);
+            setAvatarUrl(profile.avatar_url);
+            setIsSuperAdmin(profile.role === "super-admin");
+            setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
+            if (profile.tenant_id) await fetchTenant(profile.tenant_id);
           }
+        } else {
+          localStorage.removeItem("stockflow_auth");
+          localStorage.removeItem("persist:stockflow-root");
         }
       } catch (error) {
-        console.error("Error getting session:", error);
+        console.error("Auth init error:", error);
       } finally {
-        if (mounted) setIsLoading(false);
+        setIsLoading(false);
       }
     }
 
-    getInitialSession();
+    initializeAuth();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user || null);
-
-        if (newSession?.user) {
+      async (event, newSession) => {
+        if (event === 'SIGNED_OUT') {
+          localStorage.removeItem("stockflow_auth");
+          localStorage.removeItem("persist:stockflow-root");
+          setSession(null);
+          setUser(null);
+          setIsSuperAdmin(false);
+          setIsAdmin(false);
+          setTenant(null);
+          setFullName(null);
+          setAvatarUrl(null);
+        } else if (newSession) {
+          setSession(newSession);
+          setUser(newSession.user);
           localStorage.setItem("stockflow_auth", "true");
           
-          // Fetch real-time roles and tenant ID from profiles
           const { data: profile } = await supabase
             .from("profiles")
             .select("role, tenant_id, full_name, avatar_url")
@@ -180,31 +176,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (profile) {
             setFullName(profile.full_name);
             setAvatarUrl(profile.avatar_url);
-            const profileRole = profile.role;
-            setIsSuperAdmin(profileRole === "super-admin");
-            setIsAdmin(profileRole === "admin" || profileRole === "super-admin");
-
-            // Prioritize metadata tenant_id, then profile fallback
+            setIsSuperAdmin(profile.role === "super-admin");
+            setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
             const tid = newSession.user.user_metadata.tenant_id || profile.tenant_id;
-            if (tid) {
-              await fetchTenant(tid);
-            }
+            if (tid) await fetchTenant(tid);
           }
-        } else {
-          localStorage.removeItem("stockflow_auth");
-          localStorage.removeItem("persist:stockflow-root");
-          setIsSuperAdmin(false);
-          setIsAdmin(false);
-          setTenant(null);
-          setFullName(null);
-          setAvatarUrl(null);
         }
         setIsLoading(false);
       },
     );
 
     return () => {
-      mounted = false;
       authListener.subscription.unsubscribe();
     };
   }, []);
@@ -215,20 +197,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       async () => {
         const { data } = await supabase
           .from("tenants")
-          .select("plan, plan_expires_at")
+          .select("plan, plan_expires_at, is_active, suspended_until")
           .eq("id", tenant.id)
           .single();
-        if (data && data.plan !== tenant.plan) {
+        if (data && (data.plan !== tenant.plan || data.is_active !== tenant.isActive)) {
           setTenant((prev) =>
             prev
               ? {
                   ...prev,
                   plan: data.plan,
                   planExpiresAt: data.plan_expires_at,
+                  isActive: data.is_active,
+                  suspendedUntil: data.suspended_until,
                 }
               : null,
           );
-          toast.info("Your subscription has been updated.");
+          if (data.is_active !== tenant.isActive) {
+            toast.error(data.is_active ? "Access Restored" : "Access Revoked");
+          } else {
+            toast.info("Your subscription has been updated.");
+          }
         }
       },
       15 * 60 * 1000,

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2,
@@ -6,7 +6,9 @@ import {
   Store,
   Sparkles,
   ChevronLeft,
+  Loader2,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -14,79 +16,74 @@ import { toast } from "sonner";
 export default function Pricing() {
   const navigate = useNavigate();
   const { tenant } = useAuth();
+  const [plans, setPlans] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const currentPlan = tenant?.plan || "trial";
 
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("subscription_plans")
+          .select("*")
+          .order("price_monthly", { ascending: true });
+
+        if (error) throw error;
+        
+        // Map database plans to UI requirements (icons, colors)
+        const mappedPlans = (data || []).map(p => {
+          let icon = Store;
+          let color = "slate";
+          let popular = false;
+
+          if (p.id === "pro") {
+            icon = Sparkles;
+            color = "blue";
+            popular = true;
+          } else if (p.id === "enterprise") {
+            icon = Crown;
+            color = "amber";
+          }
+
+          return {
+            ...p,
+            icon,
+            color,
+            popular,
+            price: `₹${p.price_monthly.toLocaleString()}`,
+            period: "/mo",
+            buttonText: currentPlan === p.id ? "Current Plan" : `Upgrade to ${p.name}`,
+            disabled: currentPlan === p.id
+          };
+        });
+
+        setPlans(mappedPlans);
+      } catch (err) {
+        toast.error("Failed to load plans");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPlans();
+  }, [currentPlan]);
+
   const handleSubscribe = (planCode: string) => {
-    if (planCode === "starter") return; // P1-BUG-03: was "free"
+    if (planCode === currentPlan) return;
     toast.info("Checkout Integration", {
       description: "Razorpay integration is scheduled for Phase 6.",
     });
   };
 
-  const plans = [
-    {
-      id: "starter", // P1-BUG-03: was "free" — must match DB CHECK constraint
-      name: "Starter",
-      price: "₹399", // P2-ARCH-14: Align with BRD pricing
-      period: "/mo",
-      icon: Store,
-      description: "Basic features for small retail shops getting started.",
-      features: [
-        "Up to 200 active inventory devices",
-        "Basic local ledger",
-        "Single user account",
-        "Standard categorization",
-      ],
-      buttonText:
-        currentPlan === "starter" ? "Current Plan" : "Downgrade to Starter",
-      disabled: currentPlan === "starter",
-      popular: false,
-      color: "slate",
-    },
-    {
-      id: "pro",
-      name: "Professional",
-      price: "₹999", // P2-ARCH-14: Align with BRD pricing
-      period: "/mo",
-      icon: Sparkles,
-      description: "Full suite of tools for growing mobile retail stores.",
-      features: [
-        "Unlimited inventory capacity",
-        "Customer directory & sales orders",
-        "Receipt & invoice generation",
-        "Advanced financial analytics",
-        "Camera barcode & IMEI scanner",
-        "Catalog autofill for devices",
-      ],
-      buttonText: currentPlan === "pro" ? "Current Plan" : "Upgrade to Pro",
-      disabled: currentPlan === "pro",
-      popular: true,
-      color: "blue",
-    },
-    {
-      id: "enterprise",
-      name: "Enterprise",
-      price: "₹1,499", // P2-ARCH-14: Align with BRD pricing
-      period: "/mo",
-      icon: Crown,
-      description:
-        "Advanced features for B2B enterprises and heavy volume traders.",
-      features: [
-        "Bulk purchase & batch orders",
-        "Accounts receivable tracking",
-        "Multi-user team access",
-        "Customer P&L analytics",
-        "B2B network trade portal",
-        "Priority technical support",
-      ],
-      buttonText:
-        currentPlan === "enterprise" ? "Current Plan" : "Upgrade to Enterprise",
-      disabled: currentPlan === "enterprise",
-      popular: false,
-      color: "amber",
-    },
-  ];
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
+        <Loader2 className="animate-spin h-8 w-8" />
+        <p className="font-black text-[10px] uppercase tracking-widest">Pricing Liquidity...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto font-sans antialiased">
@@ -160,7 +157,7 @@ export default function Pricing() {
               </div>
 
               <div className="space-y-3 mb-8">
-                {plan.features.map((feature, idx) => (
+                {plan.features.map((feature: string, idx: number) => (
                   <div
                     key={idx}
                     className="flex gap-3 text-sm font-semibold text-slate-700 dark:text-slate-300"

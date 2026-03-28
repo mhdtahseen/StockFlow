@@ -88,12 +88,12 @@ export default function AdminApprovals() {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto w-full">
+    <div className="p-4 sm:p-5 w-full">
       <div className="mb-6">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
           Tenant Approvals
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-xs sm:text-sm text-slate-500 mt-1">
           Review organizations requesting access to StockFlow.
         </p>
       </div>
@@ -120,14 +120,12 @@ export default function AdminApprovals() {
                   <h3 className="font-bold text-base sm:text-lg text-slate-900 dark:text-slate-100 truncate">
                     {req.org_name}
                   </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                    <div className="truncate">
-                      {req.full_name} •{" "}
-                      <span className="text-blue-600 dark:text-blue-400 break-all">
-                        {req.email}
-                      </span>
-                    </div>
-                  </p>
+                  <div className="text-sm text-slate-500 dark:text-slate-400 font-medium truncate">
+                    {req.full_name} •{" "}
+                    <span className="text-blue-600 dark:text-blue-400 break-all">
+                      {req.email}
+                    </span>
+                  </div>
                   <div className="mt-2 text-xs flex items-center gap-1.5 text-slate-400">
                     <Clock size={12} />
                     <span className="truncate">

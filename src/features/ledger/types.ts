@@ -1,4 +1,5 @@
 export type LedgerEntryType =
+  | "MONEY_ADDED"
   | "CAPITAL_INJECTION"
   | "CUSTOMER_PAYMENT"
   | "SUPPLIER_PAYMENT"
