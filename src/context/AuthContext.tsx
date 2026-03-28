@@ -139,52 +139,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     getInitialSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (_event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user || null);
 
-        const updateRoles = async () => {
-          if (newSession?.user) {
-            const { data: profile, error } = await supabase
-              .from("profiles")
-              .select("role")
-              .eq("id", newSession.user.id)
-              .single();
-
-            if (error) {
-              console.error("Error fetching profile:", error);
-            }
-
-            if (profile) {
-              const profileRole = profile.role;
-              setIsSuperAdmin(profileRole === "super-admin");
-              setIsAdmin(
-                profileRole === "admin" || profileRole === "super-admin",
-              );
-            } else {
-              setIsSuperAdmin(false);
-              setIsAdmin(false);
-            }
-          } else {
-            setIsSuperAdmin(false);
-            setIsAdmin(false);
-          }
-          // Set loading to false only after roles are determined
-          setIsLoading(false);
-        };
-        updateRoles();
-
-        if (newSession) {
+        if (newSession?.user) {
           localStorage.setItem("stockflow_auth", "true");
-          // If we haven't fetched it yet (e.g. login event) and we have tenant_id
-          if (newSession.user.user_metadata.tenant_id && !tenant) {
-            fetchTenant(newSession.user.user_metadata.tenant_id);
+          
+          // Fetch real-time roles and tenant ID from profiles
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role, tenant_id")
+            .eq("id", newSession.user.id)
+            .single();
+
+          if (profile) {
+            const profileRole = profile.role;
+            setIsSuperAdmin(profileRole === "super-admin");
+            setIsAdmin(profileRole === "admin" || profileRole === "super-admin");
+
+            // Prioritize metadata tenant_id, then profile fallback
+            const tid = newSession.user.user_metadata.tenant_id || profile.tenant_id;
+            if (tid) {
+              await fetchTenant(tid);
+            }
           }
         } else {
           localStorage.removeItem("stockflow_auth");
           localStorage.removeItem("persist:stockflow-root");
+          setIsSuperAdmin(false);
+          setIsAdmin(false);
           setTenant(null);
         }
+        setIsLoading(false);
       },
     );
 

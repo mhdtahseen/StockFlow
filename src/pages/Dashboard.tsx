@@ -121,7 +121,7 @@ export default function Dashboard() {
 
   // Profile Completion logic
   const completionItems = [
-    { label: "Business Name", value: !!session?.user.user_metadata?.org_name },
+    { label: "Business Name", value: !!tenant?.name || !!session?.user.user_metadata?.org_name },
     { label: "Business Address", value: !!tenant?.address },
     {
       label: "Phone Number",

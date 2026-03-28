@@ -79,14 +79,13 @@ export default function ProfilePage() {
       
       setIsLoading(true);
       try {
-        // Load personal profile (from profiles table)
         const { data, error } = await supabase
           .from("profiles")
           .select("full_name, avatar_url, email")
           .eq("id", session.user.id)
           .single();
 
-        if (error && error.code !== "PGRST116") { // Skip "not found" errors
+        if (error && error.code !== "PGRST116") {
           console.error("Error loading profile:", error);
         }
 
@@ -95,13 +94,11 @@ export default function ProfilePage() {
           setAvatarUrl(data.avatar_url || "");
           setEmail(data.email || session.user.email || "");
         } else {
-          // Fallback if no profile record exists
           setEmail(session.user.email || "");
           setFullName(session.user.user_metadata?.full_name || "");
           setAvatarUrl(session.user.user_metadata?.avatar_url || "");
         }
         
-        // Always sync phone from auth metadata regardless
         setPhone(session.user.user_metadata?.phone || "");
       } catch (err: any) {
         console.error("Profile load catch:", err);
@@ -110,11 +107,11 @@ export default function ProfilePage() {
       }
     }
 
-    // Only initialize business details once when tenant data first arrives
+    // Proactive sync for business details from tenant source-of-truth
     if (tenant) {
-      if (!storeName) setStoreName(tenant.name || session?.user.user_metadata?.org_name || "");
-      if (!storeAddress) setStoreAddress(tenant.address || "");
-      if (!storeGSTIN) setStoreGSTIN(tenant.gstin || "");
+      setStoreName(tenant.name || session?.user.user_metadata?.org_name || "");
+      setStoreAddress(tenant.address || "");
+      setStoreGSTIN(tenant.gstin || "");
     }
 
     loadProfileData();
