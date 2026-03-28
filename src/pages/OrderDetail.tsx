@@ -300,7 +300,7 @@ export default function OrderDetail() {
             receivedAt: p.receivedAt,
             mode: p.mode,
             type: "ALLOCATION" as const,
-            note: `Allocated from Bulk Receipt #${p.id.slice(0, 5).toUpperCase()}`,
+            note: `Bulk Receipt #${p.id.slice(0, 5).toUpperCase()}`,
             totalPaymentAmount: p.totalReceived, // for context
           })),
       );
@@ -540,7 +540,6 @@ export default function OrderDetail() {
           <div className="flex px-4 w-full">
             {[
               { id: "financials", label: "Finance", icon: IndianRupee },
-              { id: "settlement", label: "Settled", icon: BadgeCheck },
               { id: "items", label: "Items", icon: Package },
               { id: "timeline", label: "Timeline", icon: History },
             ].map((tab) => (
@@ -687,53 +686,9 @@ export default function OrderDetail() {
         {/* --- FINANCIALS TAB --- */}
         {activeTab === "financials" && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Financial Summary Breakdown could go here if we had more details */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 space-y-4">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">
-                Order Summary
-              </h3>
-              <div className="flex justify-between items-center py-2 border-b border-slate-50 dark:border-slate-800/50">
-                <span className="text-sm font-medium text-slate-500">Gross Amount</span>
-                <span className="text-sm font-black text-slate-900 dark:text-slate-100">₹{(order.totalAmount || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-slate-50 dark:border-slate-800/50">
-                <span className="text-sm font-medium text-slate-500">Total Collected</span>
-                <span className="text-sm font-black text-emerald-600">₹{(order.amountPaid || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-sm font-medium text-slate-500">Net Outstanding</span>
-                <span className={clsx(
-                  "text-sm font-black",
-                  outstanding > 0 ? "text-amber-600" : "text-emerald-600"
-                )}>
-                  ₹{Math.max(0, outstanding).toLocaleString()}
-                </span>
-              </div>
-            </div>
-            {!isPurchaseOrder && totalSaleProfit !== 0 && (
-               <div className={clsx(
-                 "p-5 rounded-2xl border flex flex-col gap-1",
-                 totalSaleProfit > 0 
-                   ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/50" 
-                   : "bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-800/50"
-               )}>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Projected Profit</span>
-                  <span className={clsx(
-                    "text-2xl font-black tracking-tighter",
-                    totalSaleProfit > 0 ? "text-emerald-600" : "text-rose-600"
-                  )}>
-                    ₹{totalSaleProfit.toLocaleString()}
-                  </span>
-               </div>
-            )}
-          </div>
-        )}
 
-        {/* --- SETTLEMENT TAB --- */}
-        {activeTab === "settlement" && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Payment List */}
-            <div>
+            {/* Combined Receipts & Allocations from former Settlement tab */}
+            <div className="pt-2">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">
                 Receipts & Allocations
               </h3>
