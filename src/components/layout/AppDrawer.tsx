@@ -298,7 +298,7 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
                 Sign Out?
               </DialogTitle>
               <DialogDescription className="text-[13px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                Are you sure you want to log out from StockFlow?
+                Are you sure you want to log out from {tenant?.name || "the Organisation"}?
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-2 mt-6">
