@@ -20,8 +20,11 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   isLoading: boolean;
   tenant: TenantInfo | null;
+  fullName: string | null;
+  avatarUrl: string | null;
   signOut: () => Promise<void>;
   refreshTenant: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,7 +38,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isTenantLoading, setIsTenantLoading] = useState(false);
+
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+      if (data) {
+        setFullName(data.full_name);
+        setAvatarUrl(data.avatar_url);
+      }
+    } catch (err) {
+      console.error("Error refreshing profile:", err);
+    }
+  };
 
   const fetchTenant = async (tenantId: string) => {
     setIsTenantLoading(true);
@@ -102,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             localStorage.setItem("stockflow_auth", "true");
             const { data: profile, error } = await supabase
               .from("profiles")
-              .select("role, tenant_id")
+              .select("role, tenant_id, full_name, avatar_url")
               .eq("id", s.user.id)
               .single();
 
@@ -111,6 +133,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             if (profile) {
+              setFullName(profile.full_name);
+              setAvatarUrl(profile.avatar_url);
               const profileRole = profile.role;
               setIsSuperAdmin(profileRole === "super-admin");
               setIsAdmin(
@@ -149,11 +173,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           // Fetch real-time roles and tenant ID from profiles
           const { data: profile } = await supabase
             .from("profiles")
-            .select("role, tenant_id")
+            .select("role, tenant_id, full_name, avatar_url")
             .eq("id", newSession.user.id)
             .single();
 
           if (profile) {
+            setFullName(profile.full_name);
+            setAvatarUrl(profile.avatar_url);
             const profileRole = profile.role;
             setIsSuperAdmin(profileRole === "super-admin");
             setIsAdmin(profileRole === "admin" || profileRole === "super-admin");
@@ -170,6 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsSuperAdmin(false);
           setIsAdmin(false);
           setTenant(null);
+          setFullName(null);
+          setAvatarUrl(null);
         }
         setIsLoading(false);
       },
@@ -224,8 +252,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isSuperAdmin,
         isLoading: isLoading || isTenantLoading,
         tenant,
+        fullName,
+        avatarUrl,
         signOut,
         refreshTenant,
+        refreshProfile,
       }}
     >
       {children}

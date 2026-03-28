@@ -52,7 +52,7 @@ const generateRandomAvatars = () => {
 };
 
 export default function ProfilePage() {
-  const { session, tenant, refreshTenant, signOut } = useAuth();
+  const { session, tenant, refreshTenant, refreshProfile, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingBusiness, setIsSavingBusiness] = useState(false);
@@ -164,10 +164,12 @@ export default function ProfilePage() {
       }
 
       await refreshTenant();
+      await refreshProfile();
+      
       toast.success("Profile updated successfully");
     } catch (err: any) {
-      console.error("Update profile error:", err);
-      toast.error("Failed to update profile", { description: err.message });
+      console.error("Error updating profile:", err);
+      toast.error(err.message || "Failed to update profile");
     } finally {
       setIsSaving(false);
     }

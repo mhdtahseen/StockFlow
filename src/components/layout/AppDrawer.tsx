@@ -16,7 +16,17 @@ import {
   Settings2,
   ShieldCheck,
   LogOut,
+  AlertCircle,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import clsx from "clsx";
 import { usePlan, FeatureKey } from "@/hooks/usePlan";
 import { useAuth } from "@/context/AuthContext";
@@ -72,7 +82,8 @@ interface Props { isOpen: boolean; onClose: () => void; }
 export default function AppDrawer({ isOpen, onClose }: Props) {
   const location = useLocation();
   const { canUse, plan } = usePlan();
-  const { isAdmin, user, signOut, tenant } = useAuth();
+  const { isAdmin, user, signOut, tenant, fullName, avatarUrl } = useAuth();
+  const [showSignOutConfirm, setShowSignOutConfirm] = React.useState(false);
   const touchStartX = useRef<number>(0);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -226,14 +237,24 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
         <div className="px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30">
           <div className="flex items-center justify-between mb-4 px-1">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="size-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-sm font-black text-slate-500 border border-slate-200 dark:border-slate-700 shrink-0">
-                {(user?.user_metadata?.full_name || user?.email || "?").charAt(0).toUpperCase()}
+              <div className="size-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
+                {avatarUrl ? (
+                  <img 
+                    src={avatarUrl} 
+                    alt="Profile" 
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-sm font-black text-slate-500 uppercase">
+                    {(fullName || user?.email || "?").charAt(0)}
+                  </span>
+                )}
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="text-[13px] font-bold text-slate-900 dark:text-slate-100 truncate leading-tight">
-                  {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+                  {fullName || user?.email?.split('@')[0]}
                   {tenant?.name && (
-                    <span className="text-slate-400 dark:text-slate-500 font-medium ml-1.5 opacity-80">
+                    <span className="text-slate-400 dark:text-slate-500 font-medium ml-1.5 opacity-80 decoration-slate-300">
                       ({tenant.name})
                     </span>
                   )}
@@ -242,22 +263,19 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
                   {user?.email}
                 </span>
                 <div className="flex items-center gap-1.5 mt-1">
-                  <div className="size-1.5 rounded-full bg-emerald-500/80 animate-pulse shrink-0" />
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest scale-90 origin-left">
-                    Signed in
+                  <div className="size-1.5 rounded-full bg-emerald-500/80 animate-pulse shrink-0 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest scale-90 origin-left">
+                    Connected
                   </span>
                 </div>
               </div>
             </div>
             <button 
-              onClick={() => {
-                signOut();
-                onClose();
-              }}
-              className="p-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-all active:scale-95 border border-transparent active:border-rose-100 dark:active:border-rose-900/30"
+              onClick={() => setShowSignOutConfirm(true)}
+              className="p-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-all active:scale-95 border border-transparent active:border-rose-100 dark:active:border-rose-900/30 group"
               title="Sign Out"
             >
-              <LogOut size={18} />
+              <LogOut size={18} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
           
@@ -268,6 +286,42 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
             </span>
           </div>
         </div>
+
+        {/* Confirmation Dialog */}
+        <Dialog open={showSignOutConfirm} onOpenChange={setShowSignOutConfirm}>
+          <DialogContent className="sm:max-w-xs bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-slate-200 dark:border-slate-800 text-center p-6 gap-0">
+            <DialogHeader className="flex flex-col items-center">
+              <div className="size-14 rounded-full bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center mb-4 border border-rose-100 dark:border-rose-900 text-rose-600 dark:text-rose-400">
+                <AlertCircle size={28} />
+              </div>
+              <DialogTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                Sign Out?
+              </DialogTitle>
+              <DialogDescription className="text-[13px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                Are you sure you want to log out from StockFlow?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-2 mt-6">
+              <Button 
+                onClick={() => {
+                  signOut();
+                  onClose();
+                  setShowSignOutConfirm(false);
+                }}
+                className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold h-11 rounded-xl shadow-lg shadow-rose-600/20"
+              >
+                Yes, Sign Out
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowSignOutConfirm(false)}
+                className="w-full h-11 rounded-xl text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                Stay Logged In
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );
