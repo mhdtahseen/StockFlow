@@ -19,7 +19,7 @@ Since inception, we have built a complete **Production-Ready Core**:
 | Milestone | Capability | Status |
 |-----------|------------|--------|
 | **Multi-Tenancy** | Bulletproof data isolation using Row-Level Security (RLS). | 🟢 Complete |
-| **Financial Engine** | Double-entry ledger with "Pledged vs Available" cash buckets. | 🟢 Complete |
+| **Financial Engine** | Professional 4-Bucket Accrual Accounting (Equity, Debt, P&L, Liquidity). | 🟢 Complete |
 | **Sync Manager** | Persistent offline-first state with background auto-sync & retry. | 🟢 Complete |
 | **Device Lifecycle** | Full "PO → Inspection → Sales → Invoicing" pipeline. | 🟢 Complete |
 | **Analytics 1.0** | Real-time margin tracking and brand market share visualization. | 🟢 Complete |
@@ -123,19 +123,22 @@ Below is an exhaustive breakdown of every module and minute feature currently ac
 - **Interactive Inspection Queue**: A structured workflow for staff to verify inbound stock before it becomes available for sale.
 - **Batch Processing**: Sourcing multiple devices under single Purchase Orders (PO) for bulk intake.
 
-### 🏦 Financial Integrity & Ledger
-- **Multi-State Vault**: Automated movement of funds between `Liquid`, `Pledged`, and `Consumed` buckets.
-- **Immutable Ledger**: A permanent audit trail of every transaction (Sales, Repairs, Refurbishment costs, Withdrawals).
-- **Profit Isolation**: Intelligently calculates and segregates net margins from operational cost basis.
-- **Owner-Only Withdrawals**: Specialized logic for withdrawing realized profits without depleting business capital.
-- **Platform Fee Attribution**: Direct tracking of 3rd-party sourcing fees (e.g., aggregator commissions) as part of unit expenditure.
+### 🏦 Financial Integrity & 4-Bucket Accounting
+- **The 4-Bucket Strategy**: Advanced categorization into **Equity, Debt (AR/AP), P&L (Accrual), and Internal Liquidity**.
+- **Accrual-First Model**: Revenue (`PHONE_SALE`) and COGS (`FUNDS_CONSUMED`) are booked at the time of transaction, regardless of cash collection.
+- **Sign-Aware Precision Ledger**: Standardized +/- audit trail ensuring mathematical consistency across all wallet calculations.
+- **Credit & Debt Offsetting**: Automated balancing of unpaid portions during sales and purchases to keep wallet balances accurate.
+- **Total Value Tracking**: Every sale and purchase tracks the "Full Transaction Value," providing a true picture of business volume.
+- **Owner-Only Withdrawals**: Specialized logic for withdrawing realized profits without depleting core business capital.
+- **Platform Fee Attribution**: Direct tracking of 3rd-party sourcing fees as part of unit expenditure.
 
 ### 📄 Billing & Professional Client Services
 - **Sale Order Orchestrator**: Supports single Retail sales, high-volume Bulk transactions, and Internal Transfers.
+- **FIFO Settlement Engine**: Optimized algorithm for "First-In-First-Out" debt collection and supplier payout distribution.
 - **Custom-Branded Invoicing**: Instant professional PDF generation with tenant-specific colors and contact details.
 - **Direct-to-Print**: Seamless integration with mobile/desktop thermal and standard printers.
-- **Debt & Due Tracking**: Manage customer balances with specific "Due Dates" and settlement alerts.
-- **Dynamic Discounting**: Apply fixed or percentage-based discounts to single or multi-unit orders.
+- **Real-Time AR/AP Visibility**: Manage customer/supplier balances with specific "Due Dates" and settlement alerts.
+- **Dynamic Discounting**: Apply fixed or percentage-based discounts with automatic ledger reconciliation.
 
 ### 📈 Business Intelligence & Sync
 - **Growth Trend Analytics**: Visualizing Revenue vs. Expenditure across 6+ distinct time periods.

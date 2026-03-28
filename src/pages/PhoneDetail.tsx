@@ -121,7 +121,7 @@ export default function PhoneDetail() {
           id: crypto.randomUUID(),
           type: "FUNDS_PLEDGED",
           referenceId: phone.id,
-          amount: finalPrice - pledgedAmount,
+          amount: -(finalPrice - pledgedAmount), // NEGATIVE for wallet deduction
           createdAt: now,
         }),
       );
@@ -144,7 +144,7 @@ export default function PhoneDetail() {
         id: crypto.randomUUID(),
         type: "FUNDS_CONSUMED",
         referenceId: phone.id,
-        amount: finalPrice,
+        amount: -finalPrice, // NEGATIVE for consumption from lien
         createdAt: now,
       }),
     );
@@ -178,7 +178,7 @@ export default function PhoneDetail() {
         id: crypto.randomUUID(),
         type: "REPAIR_COST",
         referenceId: phone.id,
-        amount,
+        amount: -amount,
         note: repairNote.trim() || "Repair",
         createdAt: new Date().toISOString(),
       }),

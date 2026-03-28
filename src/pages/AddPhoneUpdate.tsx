@@ -213,24 +213,38 @@ export default function AddPhoneUpdate() {
       dispatch(linkPhoneToPO({ phoneId: r.id, purchaseOrderId: poId }));
     });
 
-    const channels = [
-      { amount: cashPaid, label: "Cash", mode: "CASH" as const },
-      { amount: upiPaid, label: "UPI", mode: "UPI" as const },
-      { amount: bankPaid, label: "Bank Transfer", mode: "BANK_TRANSFER" as const },
-    ].filter((e) => e.amount > 0);
+    // 1. Log TOTAL Consumption (Accrual) — This is Bucket 3
+    dispatch(
+      addEntry({
+        id: crypto.randomUUID(),
+        type: "FUNDS_CONSUMED",
+        referenceId: poId,
+        amount: -grandTotal,
+        note: `Full Procurement Cost — ${vendor.name} — PO:${poId.slice(0, 8)}`,
+        createdAt: ts,
+      }),
+    );
 
-    channels.forEach((e) => {
+    // 2. Log Credit Settlement (Offset) — This is Bucket 2 offset
+    // Since we consumed the full grandTotal from the wallet, 
+    // we need to 'add back' the portion we haven't paid yet to keep the wallet accurate.
+    const unpaidPurchase = grandTotal - totalPaid;
+    if (unpaidPurchase > 0) {
       dispatch(
         addEntry({
           id: crypto.randomUUID(),
-          type: "FUNDS_CONSUMED",
-          amount: -e.amount,
-          paymentMode: e.mode,
-          note: `${e.label} payment — ${vendor.name} — PO:${poId.slice(0, 8)}`,
+          type: "SUPPLIER_PAYMENT",
+          referenceId: poId,
+          amount: unpaidPurchase,
+          note: `Supplier Credit (Offset) — Vendor: ${vendor.name}`,
           createdAt: ts,
         }),
       );
-    });
+    }
+
+    // 3. For any ACTUAL cash paid today, it is already accounted for in the -grandTotal 
+    // and correctly balanced by the +unpaidPurchase offset.
+    // Resulting wallet impact = -(grandTotal - unpaidPurchase) = -totalPaid.
 
     toast.success(
       `${rows.length} device${rows.length > 1 ? "s" : ""} ingested successfully`,

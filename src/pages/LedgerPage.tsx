@@ -5,7 +5,10 @@ import {
   selectLedgerEntries,
   selectWalletBuckets,
 } from "../features/wallet/selectors";
-import { useFinancialData, useGroupedTransactions } from "../hooks/useFinancialMetrics";
+import {
+  useFinancialData,
+  useGroupedTransactions,
+} from "../hooks/useFinancialMetrics";
 import { addEntry } from "../features/ledger/slice";
 import { toast } from "sonner";
 import {
@@ -33,7 +36,9 @@ import {
   Wrench,
   ChevronRight,
   ChevronDown,
-  Check
+  Check,
+  User,
+  Building2,
 } from "lucide-react";
 import clsx from "clsx";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -71,17 +76,27 @@ export default function LedgerPage() {
   const [dateTo, setDateTo] = useState("");
 
   // FIFO Settlement Expansion State
-  const [expandedSettlementId, setExpandedSettlementId] = useState<string | null>(null);
+  const [expandedSettlementId, setExpandedSettlementId] = useState<
+    string | null
+  >(null);
   const [allocations, setAllocations] = useState<Record<string, any[]>>({});
-  const [loadingAllocations, setLoadingAllocations] = useState<string | null>(null);
+  const [loadingAllocations, setLoadingAllocations] = useState<string | null>(
+    null,
+  );
 
-  const fetchAllocations = async (entryId: string, paymentId: string, isCustomer: boolean) => {
+  const fetchAllocations = async (
+    entryId: string,
+    paymentId: string,
+    isCustomer: boolean,
+  ) => {
     if (allocations[entryId]) return;
     setLoadingAllocations(entryId);
-    
+
     try {
       const table = isCustomer ? "payment_allocations" : "supplier_allocations";
-      const idField = isCustomer ? "customer_payment_id" : "supplier_payment_id";
+      const idField = isCustomer
+        ? "customer_payment_id"
+        : "supplier_payment_id";
       const orderField = isCustomer ? "sale_order_id" : "purchase_order_id";
 
       const { data, error } = await supabase
@@ -90,7 +105,7 @@ export default function LedgerPage() {
         .eq(idField, paymentId);
 
       if (error) throw error;
-      setAllocations(prev => ({ ...prev, [entryId]: data || [] }));
+      setAllocations((prev) => ({ ...prev, [entryId]: data || [] }));
     } catch (err) {
       console.error("Failed to fetch allocations:", err);
     } finally {
@@ -154,14 +169,14 @@ export default function LedgerPage() {
     setShowCustomDates(false);
   };
 
-  const { 
-    arMetrics, 
-    apMetrics, 
-    dailyVelocity, 
-    performance, 
+  const {
+    arMetrics,
+    apMetrics,
+    dailyVelocity,
+    performance,
     liquidity,
     runningBalances,
-    buckets: financialBuckets 
+    buckets: financialBuckets,
   } = useFinancialData({
     from: dateFrom,
     to: dateTo,
@@ -180,7 +195,7 @@ export default function LedgerPage() {
         id: crypto.randomUUID(),
         type:
           actionType === "ADD"
-            ? "MONEY_ADDED"
+            ? "CAPITAL_INJECTION"
             : withdrawSource === "PROFITS"
               ? "PROFIT_WITHDRAWAL"
               : "WITHDRAWAL",
@@ -204,39 +219,48 @@ export default function LedgerPage() {
   };
 
   const getTransactionDetails = (entry: (typeof ledgerEntries)[0]) => {
+    const cleanNote = (n?: string) => {
+      if (!n) return "";
+      if (n.toLowerCase().includes("lump-sum settlement")) {
+        const match = n.match(/\d+/);
+        const count = match ? match[0] : "";
+        return count ? `Settled ${count} Bills` : "Bulk Settlement";
+      }
+      return n;
+    };
+
     switch (entry.type) {
-      case "MONEY_ADDED":
-        if (entry.customerPaymentId) {
-          return {
-            label: "Bill Settlement (FIFO)",
-            icon: <Check size={20} strokeWidth={3} />,
-            color: "bg-emerald-500 text-white shadow-emerald-200/50",
-            note: "FIFO Debt Clear",
-            isSettlement: true
-          };
-        }
+      case "CAPITAL_INJECTION":
         return {
-          label: "Bank Transfer Deposit",
+          label: "Capital Top Up",
           icon: <Landmark size={20} />,
           color: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400",
-          note: "Top Up",
+          note: "Owner Investment",
+        };
+      case "CUSTOMER_PAYMENT":
+        return {
+          label: "Customer Payment",
+          icon: <User size={20} />,
+          color:
+            "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
+          note: cleanNote(entry.note) || "Collection",
+          isSettlement: (entry.settlementCount || 0) > 2,
+        };
+      case "SUPPLIER_PAYMENT":
+        return {
+          label: "Supplier Payment",
+          icon: <Building2 size={20} />,
+          color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400",
+          note: cleanNote(entry.note) || "Payout",
+          isSettlement: (entry.settlementCount || 0) > 2,
         };
       case "WITHDRAWAL":
-        if (entry.supplierPaymentId) {
-          return {
-            label: "Supplier Settlement",
-            icon: <Check size={20} strokeWidth={3} />,
-            color: "bg-emerald-500 text-white shadow-emerald-200/50",
-            note: "FIFO Payout",
-            isSettlement: true
-          };
-        }
         return {
           label: "Owner Withdrawal",
           icon: <Banknote size={20} />,
           color:
             "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
-          note: "Transfer to Personal",
+          note: "Personal Takeout",
         };
       case "PROFIT_WITHDRAWAL":
         return {
@@ -249,11 +273,11 @@ export default function LedgerPage() {
       case "FUNDS_PLEDGED": {
         const p = phones.find((ph) => ph.id === entry.referenceId);
         return {
-          label: p ? `Pending: ${p.brand} ${p.model}` : "Capital Pledged",
+          label: p ? `Hold: ${p.brand} ${p.model}` : "Capital Pledged",
           icon: <ArrowRightLeft size={20} />,
           color:
             "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400",
-          note: "Escrow Locked",
+          note: "Moving to Escrow",
         };
       }
       case "FUNDS_RELEASED": {
@@ -268,7 +292,9 @@ export default function LedgerPage() {
       case "FUNDS_CONSUMED": {
         const c = phones.find((ph) => ph.id === entry.referenceId);
         return {
-          label: c ? `${c.brand} ${c.model} Purchase` : "Inventory Acquisition",
+          label: c
+            ? `Purchase: ${c.brand} ${c.model}`
+            : "Inventory Acquisition",
           icon: <Package size={20} />,
           color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400",
           note: "Acquisition",
@@ -448,21 +474,20 @@ export default function LedgerPage() {
               onDragEnd={(_, info) => {
                 const swipeThreshold = 40;
                 if (info.offset.x < -swipeThreshold) setDashboardCardIndex(1);
-                else if (info.offset.x > swipeThreshold) setDashboardCardIndex(0);
+                else if (info.offset.x > swipeThreshold)
+                  setDashboardCardIndex(0);
               }}
-              transition={{ 
-                type: "spring", 
-                stiffness: 300, 
+              transition={{
+                type: "spring",
+                stiffness: 300,
                 damping: 35,
-                mass: 0.8
+                mass: 0.8,
               }}
               className="flex w-full h-[140px] cursor-grab active:cursor-grabbing"
             >
               {/* Card 1 Wrapper */}
               <div className="w-full shrink-0">
-                <div
-                  className="w-full h-full bg-primary-500 dark:bg-primary-600 rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative flex flex-col justify-between overflow-hidden select-none"
-                >
+                <div className="w-full h-full bg-primary-500 dark:bg-primary-600 rounded-xl p-5 shadow-lg shadow-blue-900/20 dark:shadow-blue-950/40 text-white relative flex flex-col justify-between overflow-hidden select-none">
                   <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 dark:bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
                   <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-white/10 dark:bg-white/5 rounded-full blur-xl pointer-events-none"></div>
 
@@ -506,13 +531,14 @@ export default function LedgerPage() {
                       }}
                       className="cursor-pointer flex items-center gap-1.5 text-rose-300 text-[10px] font-bold bg-black/20 px-2.5 py-1.5 rounded-lg backdrop-blur-sm hover:bg-black/30 transition-colors"
                     >
-                      <ArrowDown size={14} /> {formatCurrency(performance.outflow)}
+                      <ArrowDown size={14} />{" "}
+                      {formatCurrency(performance.outflow)}
                     </div>
                   </div>
 
                   {/* Swipe Indicator */}
                   {dashboardCardIndex === 0 && (
-                    <motion.div 
+                    <motion.div
                       animate={{ x: [0, 2, 0], opacity: [0.2, 0.5, 0.2] }}
                       transition={{ duration: 3, repeat: Infinity }}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30"
@@ -525,63 +551,91 @@ export default function LedgerPage() {
 
               {/* Card 2 Wrapper */}
               <div className="w-full shrink-0 px-0.5">
-                <div
-                  className="w-full h-full bg-slate-900 dark:bg-slate-800 rounded-xl pt-7 pb-3 px-5 shadow-xl shadow-slate-900/10 text-white relative flex flex-col justify-between overflow-hidden border border-white/5 select-none"
-                >
+                <div className="w-full h-full bg-slate-900 dark:bg-slate-800 rounded-xl pt-7 pb-3 px-5 shadow-xl shadow-slate-900/10 text-white relative flex flex-col justify-between overflow-hidden border border-white/5 select-none">
                   <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary-500/10 rounded-full blur-2xl pointer-events-none"></div>
-                  
+
                   <div className="flex justify-between items-start mb-2 absolute top-4 left-5 right-5">
-                    <p className="text-slate-500 text-[9px] font-black uppercase tracking-widest leading-none">BUSINESS HEALTH</p>
-                    <div className="bg-primary-500/10 text-primary-400 text-[8px] font-black px-1.5 py-0.5 rounded">A+C+B HYBRID</div>
+                    <p className="text-slate-500 text-[9px] font-black uppercase tracking-widest leading-none">
+                      BUSINESS HEALTH
+                    </p>
+                    <div className="bg-primary-500/10 text-primary-400 text-[8px] font-black px-1.5 py-0.5 rounded">
+                      A+C+B HYBRID
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-0 mt-1 flex-1 items-center">
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">Profit</span>
-                      <span className={clsx(
-                        "text-sm font-bold tracking-tight",
-                        performance.netProfit >= 0 ? "text-emerald-400" : "text-rose-400"
-                      )}>{formatCurrency(performance.netProfit)}</span>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                        Profit
+                      </span>
+                      <span
+                        className={clsx(
+                          "text-sm font-bold tracking-tight",
+                          performance.netProfit >= 0
+                            ? "text-emerald-400"
+                            : "text-rose-400",
+                        )}
+                      >
+                        {formatCurrency(performance.netProfit)}
+                      </span>
                     </div>
                     <div className="flex flex-col border-x border-white/5 px-3">
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">Stock</span>
-                      <span className="text-sm font-bold tracking-tight text-white">{formatCurrency(liquidity.stockValue)}</span>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                        Stock
+                      </span>
+                      <span className="text-sm font-bold tracking-tight text-white">
+                        {formatCurrency(liquidity.stockValue)}
+                      </span>
                     </div>
                     <div className="flex flex-col pl-3">
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">Burn</span>
-                      <span className="text-sm font-bold tracking-tight text-rose-400">{formatCurrency(performance.operationalCosts)}</span>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                        Burn
+                      </span>
+                      <span className="text-sm font-bold tracking-tight text-rose-400">
+                        {formatCurrency(performance.operationalCosts)}
+                      </span>
                     </div>
                   </div>
 
                   <div className="mt-auto flex flex-col gap-1 pt-1.5 border-t border-white/5">
                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                       <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-emerald-500"></div> Liquid</span>
-                       <span className="text-white text-xs">{formatCurrency(liquidity.availableToSpend)}</span>
+                      <span className="flex items-center gap-1">
+                        <div className="w-1 h-1 rounded-full bg-emerald-500"></div>{" "}
+                        Liquid
+                      </span>
+                      <span className="text-white text-xs">
+                        {formatCurrency(liquidity.availableToSpend)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                       <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-amber-500"></div> Lien</span>
-                       <span className="text-amber-400 text-xs">{formatCurrency(liquidity.lockedInPledges)}</span>
+                      <span className="flex items-center gap-1">
+                        <div className="w-1 h-1 rounded-full bg-amber-500"></div>{" "}
+                        Lien
+                      </span>
+                      <span className="text-amber-400 text-xs">
+                        {formatCurrency(liquidity.lockedInPledges)}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
             </motion.div>
-            
+
             {/* iOS System Pagination Indicators */}
             <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2 pb-1 pointer-events-none z-30">
-              <motion.div 
-                animate={{ 
+              <motion.div
+                animate={{
                   opacity: dashboardCardIndex === 0 ? 1 : 0.3,
-                  scale: dashboardCardIndex === 0 ? 1.1 : 1
+                  scale: dashboardCardIndex === 0 ? 1.1 : 1,
                 }}
-                className="w-1.5 h-1.5 bg-white rounded-full shadow-sm" 
+                className="w-1.5 h-1.5 bg-white rounded-full shadow-sm"
               />
-              <motion.div 
-                animate={{ 
+              <motion.div
+                animate={{
                   opacity: dashboardCardIndex === 1 ? 1 : 0.3,
-                  scale: dashboardCardIndex === 1 ? 1.1 : 1
+                  scale: dashboardCardIndex === 1 ? 1.1 : 1,
                 }}
-                className="w-1.5 h-1.5 bg-white rounded-full shadow-sm" 
+                className="w-1.5 h-1.5 bg-white rounded-full shadow-sm"
               />
             </div>
           </div>
@@ -591,7 +645,7 @@ export default function LedgerPage() {
         <section className="pt-2 pb-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             {/* AR Card */}
-            <div 
+            <div
               onClick={() => navigate("/orders")}
               className="bg-amber-50 dark:bg-amber-950/20 rounded-2xl p-4 border border-amber-100 dark:border-amber-900/30 shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
             >
@@ -611,7 +665,7 @@ export default function LedgerPage() {
             </div>
 
             {/* AP Card */}
-            <div 
+            <div
               onClick={() => navigate("/purchase-orders")}
               className="bg-rose-50 dark:bg-rose-950/20 rounded-2xl p-4 border border-rose-100 dark:border-rose-900/30 shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
             >
@@ -634,25 +688,34 @@ export default function LedgerPage() {
           {/* EOD Summary - Collapsible */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all duration-300">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-900 dark:bg-slate-100" />
-            
-            <button 
+
+            <button
               onClick={() => setIsEodExpanded(!isEodExpanded)}
               className="w-full flex justify-between items-center p-4 text-left"
             >
-               <div className="flex items-center gap-2">
-                 {isEodExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
-                 <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">Today's End of Day</h3>
-               </div>
-               <div className="flex items-center gap-2">
-                 <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase px-2 py-0.5 rounded tracking-wider">
-                   Net: {formatCurrency(dailyVelocity.moneyIn - dailyVelocity.moneyOut)}
-                 </span>
-               </div>
+              <div className="flex items-center gap-2">
+                {isEodExpanded ? (
+                  <ChevronDown size={14} className="text-slate-400" />
+                ) : (
+                  <ChevronRight size={14} className="text-slate-400" />
+                )}
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">
+                  Today's End of Day
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase px-2 py-0.5 rounded tracking-wider">
+                  Net:{" "}
+                  {formatCurrency(
+                    dailyVelocity.moneyIn - dailyVelocity.moneyOut,
+                  )}
+                </span>
+              </div>
             </button>
 
             <AnimatePresence>
               {isEodExpanded && (
-                <motion.div 
+                <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
@@ -662,16 +725,28 @@ export default function LedgerPage() {
                   <div className="px-4 pb-4 pt-4">
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div>
-                        <p className="font-bold text-slate-400 capitalize mb-1 text-[10px] tracking-tight">Opening</p>
-                        <p className="font-bold text-slate-900 dark:text-slate-100">{formatCurrency(dailyVelocity.openingBalance)}</p>
+                        <p className="font-bold text-slate-400 capitalize mb-1 text-[10px] tracking-tight">
+                          Opening
+                        </p>
+                        <p className="font-bold text-slate-900 dark:text-slate-100">
+                          {formatCurrency(dailyVelocity.openingBalance)}
+                        </p>
                       </div>
                       <div>
-                        <p className="font-bold text-emerald-500 capitalize mb-1 text-[10px] tracking-tight">Cash In</p>
-                        <p className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(dailyVelocity.moneyIn)}</p>
+                        <p className="font-bold text-emerald-500 capitalize mb-1 text-[10px] tracking-tight">
+                          Cash In
+                        </p>
+                        <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatCurrency(dailyVelocity.moneyIn)}
+                        </p>
                       </div>
                       <div>
-                        <p className="font-bold text-rose-500 capitalize mb-1 text-[10px] tracking-tight">Outflow</p>
-                        <p className="font-bold text-rose-600 dark:text-rose-400">{formatCurrency(dailyVelocity.moneyOut)}</p>
+                        <p className="font-bold text-rose-500 capitalize mb-1 text-[10px] tracking-tight">
+                          Outflow
+                        </p>
+                        <p className="font-bold text-rose-600 dark:text-rose-400">
+                          {formatCurrency(dailyVelocity.moneyOut)}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -708,7 +783,7 @@ export default function LedgerPage() {
 
         {/* Transaction List */}
         <AnimatePresence mode="wait">
-          <motion.section 
+          <motion.section
             key={filter}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -742,7 +817,8 @@ export default function LedgerPage() {
                     {entries.map((entry, index) => {
                       const details = getTransactionDetails(entry);
                       const isPositive = [
-                        "MONEY_ADDED",
+                        "CAPITAL_INJECTION",
+                        "CUSTOMER_PAYMENT",
                         "PHONE_SALE",
                         "FUNDS_RELEASED",
                       ].includes(entry.type);
@@ -779,17 +855,27 @@ export default function LedgerPage() {
                                   setExpandedSettlementId(null);
                                 } else {
                                   setExpandedSettlementId(entry.id);
-                                  const paymentId = entry.customerPaymentId || entry.supplierPaymentId;
+                                  const paymentId =
+                                    entry.customerPaymentId ||
+                                    entry.supplierPaymentId;
                                   if (paymentId) {
-                                    fetchAllocations(entry.id, paymentId, !!entry.customerPaymentId);
+                                    fetchAllocations(
+                                      entry.id,
+                                      paymentId,
+                                      !!entry.customerPaymentId,
+                                    );
                                   }
                                 }
                               }
                             }}
                             className={clsx(
                               "p-4 transition-all duration-200",
-                              isSettlement ? "cursor-pointer active:scale-[0.99]" : "",
-                              isExpanded ? "bg-slate-50 dark:bg-slate-800/50" : "hover:bg-slate-50 dark:hover:bg-slate-800"
+                              isSettlement
+                                ? "cursor-pointer active:scale-[0.99]"
+                                : "",
+                              isExpanded
+                                ? "bg-slate-50 dark:bg-slate-800/50"
+                                : "hover:bg-slate-50 dark:hover:bg-slate-800",
                             )}
                           >
                             <div className="flex items-center gap-4">
@@ -802,16 +888,30 @@ export default function LedgerPage() {
                                 {details.icon}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-baseline mb-0.5">
-                                  <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2 text-sm flex items-center gap-2">
-                                    {isSettlement && entryAllocations.length > 2 ? `Settled ${entryAllocations.length} Bills` : details.label}
+                                <div className="flex justify-between items-start mb-0.5">
+                                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                                    <h4 className={clsx(
+                                      "font-bold text-slate-900 dark:text-slate-100 truncate",
+                                      details.label.length > 30 ? "text-[11px]" : 
+                                      details.label.length > 22 ? "text-[12px]" : 
+                                      "text-sm"
+                                    )}>
+                                      {details.label}
+                                    </h4>
                                     {isSettlement && (
-                                      <ChevronDown size={12} className={clsx("transition-transform duration-300", isExpanded && "rotate-180")} />
+                                      <ChevronDown
+                                        size={14}
+                                        className={clsx(
+                                          "shrink-0 transition-transform duration-300 opacity-40",
+                                          isExpanded &&
+                                            "rotate-180 opacity-100",
+                                        )}
+                                      />
                                     )}
-                                  </h4>
+                                  </div>
                                   <span
                                     className={clsx(
-                                      "font-bold whitespace-nowrap text-sm",
+                                      "font-bold whitespace-nowrap text-sm shrink-0 ml-3",
                                       isPositive
                                         ? "text-emerald-600 dark:text-emerald-400"
                                         : "text-rose-600 dark:text-rose-400",
@@ -824,26 +924,33 @@ export default function LedgerPage() {
                                 <div className="flex justify-between items-center text-[10px]">
                                   <span className="text-slate-500 dark:text-slate-400 truncate font-medium">
                                     {details.note} •{" "}
-                                    {format(parseISO(entry.createdAt), "h:mm a")}
+                                    {format(
+                                      parseISO(entry.createdAt),
+                                      "h:mm a",
+                                    )}
                                   </span>
                                   {[
-                                    "MONEY_ADDED",
+                                    "CAPITAL_INJECTION",
+                                    "CUSTOMER_PAYMENT",
+                                    "SUPPLIER_PAYMENT",
                                     "WITHDRAWAL",
                                     "PROFIT_WITHDRAWAL",
                                     "FUNDS_PLEDGED",
                                     "FUNDS_RELEASED",
                                   ].includes(entry.type) ? (
-                                    <span className="text-slate-500 dark:text-slate-400 font-medium">
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium shrink-0 ml-2">
                                       Balance:{" "}
-                                      {formatCurrency(runningBalances[entry.id])}
+                                      {formatCurrency(
+                                        runningBalances[entry.id],
+                                      )}
                                     </span>
                                   ) : entry.type === "FUNDS_CONSUMED" ? (
-                                    <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px] shrink-0 ml-2">
                                       Expense:{" "}
                                       {formatCurrency(dailyAccumulatedExpense)}
                                     </span>
                                   ) : (
-                                    <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px] shrink-0 ml-2">
                                       Revenue:{" "}
                                       {formatCurrency(dailyAccumulatedProfit)}
                                     </span>
@@ -864,39 +971,59 @@ export default function LedgerPage() {
                               >
                                 <div className="p-4 space-y-3">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Allocation Trail</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                      Allocation Trail
+                                    </span>
                                     {loadingAllocations === entry.id && (
-                                       <span className="text-[10px] text-primary-500 animate-pulse font-bold">Fetching...</span>
+                                      <span className="text-[10px] text-primary-500 animate-pulse font-bold">
+                                        Fetching...
+                                      </span>
                                     )}
                                   </div>
-                                  
+
                                   <div className="space-y-2">
                                     {entryAllocations.map((alloc, idx) => {
-                                       const orderId = alloc.sale_order_id || alloc.purchase_order_id;
-                                       return (
-                                         <div 
-                                           key={idx}
-                                           onClick={() => navigate(alloc.sale_order_id ? `/orders?id=${orderId}` : `/purchase-orders?id=${orderId}`)}
-                                           className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 cursor-pointer active:scale-[0.98] transition-all"
-                                         >
-                                           <div className="flex items-center gap-2">
-                                              <div className="size-6 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500">
-                                                {idx + 1}
-                                              </div>
-                                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                                                Order #{orderId?.slice(0, 6)}
+                                      const orderId =
+                                        alloc.sale_order_id ||
+                                        alloc.purchase_order_id;
+                                      return (
+                                        <div
+                                          key={idx}
+                                          onClick={() =>
+                                            navigate(
+                                              alloc.sale_order_id
+                                                ? `/orders?id=${orderId}`
+                                                : `/purchase-orders?id=${orderId}`,
+                                            )
+                                          }
+                                          className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 cursor-pointer active:scale-[0.98] transition-all"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <div className="size-6 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500">
+                                              {idx + 1}
+                                            </div>
+                                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                              <span className="uppercase">
+                                                #{orderId?.slice(0, 6)}
                                               </span>
-                                           </div>
-                                           <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                                             {formatCurrency(alloc.amount_allocated)}
-                                           </span>
-                                         </div>
-                                       );
+                                            </span>
+                                          </div>
+                                          <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                            {formatCurrency(
+                                              alloc.amount_allocated,
+                                            )}
+                                          </span>
+                                        </div>
+                                      );
                                     })}
 
-                                    {!loadingAllocations && entryAllocations.length === 0 && (
-                                       <p className="text-[10px] text-slate-400 italic text-center py-2">No direct allocations found for this entry.</p>
-                                    )}
+                                    {!loadingAllocations &&
+                                      entryAllocations.length === 0 && (
+                                        <p className="text-[10px] text-slate-400 italic text-center py-2">
+                                          No direct allocations found for this
+                                          entry.
+                                        </p>
+                                      )}
                                   </div>
                                 </div>
                               </motion.div>
@@ -913,8 +1040,23 @@ export default function LedgerPage() {
                         <span className="font-bold text-slate-700 dark:text-slate-300">
                           {formatCurrency(
                             runningBalances[entries[entries.length - 1].id] -
-                            (["MONEY_ADDED", "PHONE_SALE", "FUNDS_RELEASED"].includes(entries[entries.length - 1].type) ? entries[entries.length - 1].amount : 0) +
-                            (["WITHDRAWAL", "PROFIT_WITHDRAWAL", "FUNDS_PLEDGED", "REPAIR_COST"].includes(entries[entries.length - 1].type) ? Math.abs(entries[entries.length - 1].amount) : 0)
+                              ([
+                                "CAPITAL_INJECTION",
+                                "CUSTOMER_PAYMENT",
+                                "PHONE_SALE",
+                                "FUNDS_RELEASED",
+                              ].includes(entries[entries.length - 1].type)
+                                ? entries[entries.length - 1].amount
+                                : 0) +
+                              ([
+                                "WITHDRAWAL",
+                                "SUPPLIER_PAYMENT",
+                                "PROFIT_WITHDRAWAL",
+                                "FUNDS_PLEDGED",
+                                "REPAIR_COST",
+                              ].includes(entries[entries.length - 1].type)
+                                ? Math.abs(entries[entries.length - 1].amount)
+                                : 0),
                           )}
                         </span>
                       </div>

@@ -46,19 +46,29 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
        counterpartyId: customerId,
        amount: totalReceived,
        mode,
-       note: `Lump-sum settlement for ${orders.length} pending orders`
+       note: orders.length === 1 
+         ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()}`
+         : orders.length === 2
+           ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()} & #${orders[1].id.slice(0, 4).toUpperCase()}`
+           : `Settled ${orders.length} Bills`
     }));
 
     // Optimistic Ledger entry for immediate Wallet UI update
     dispatch(addEntry({
        id: crypto.randomUUID(),
-       type: 'PHONE_SALE',
+       type: 'CUSTOMER_PAYMENT',
        amount: totalReceived,
-       note: `Customer Settlement (FIFO)`,
+       note: orders.length === 1 
+         ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()}`
+         : orders.length === 2
+           ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()} & #${orders[1].id.slice(0, 4).toUpperCase()}`
+           : `Settled ${orders.length} Bills`,
+       customerPaymentId: 'OPTIMISTIC_FIFO', // Signals the UI to treat this as a settlement
+       settlementCount: orders.length,
        createdAt: new Date().toISOString(),
     }));
     
-    toast.success("Accounts Receivable Settlement Dispatched");
+    toast.success("Accounts Receivable Collection Dispatched");
     onOpenChange(false);
   };
 
@@ -118,7 +128,7 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
 
         <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0">
            <Button type="submit" form="allocate-form" disabled={totalReceived <= 0 || allocations.length === 0} className="w-full h-14 rounded-xl text-lg font-black tracking-wide bg-primary-500 hover:bg-primary-600 text-white shadow-xl shadow-primary-500/20 transition-all disabled:opacity-50">
-             Process Waterfall Payout
+             Process Global Collection
            </Button>
         </div>
       </SheetContent>

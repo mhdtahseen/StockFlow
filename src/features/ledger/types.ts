@@ -1,5 +1,7 @@
 export type LedgerEntryType =
-  | "MONEY_ADDED"
+  | "CAPITAL_INJECTION"
+  | "CUSTOMER_PAYMENT"
+  | "SUPPLIER_PAYMENT"
   | "FUNDS_PLEDGED"
   | "FUNDS_RELEASED"
   | "FUNDS_CONSUMED"
@@ -20,6 +22,7 @@ export interface LedgerEntry {
   note?: string; // optional human-readable description (e.g. "Screen replacement")
   customerPaymentId?: string; // Link to FIFO settlement master record
   supplierPaymentId?: string; // Link to supplier FIFO settlement record
+  settlementCount?: number; // Count of orders involved in this payment
   createdAt: string;
 }
 

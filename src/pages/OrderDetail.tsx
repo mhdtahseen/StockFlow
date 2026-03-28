@@ -324,7 +324,7 @@ export default function OrderDetail() {
             id: crypto.randomUUID(),
             type: "FUNDS_CONSUMED",
             referenceId: order.id,
-            amount: -order.totalAmount, // Negative amount for refund
+            amount: order.totalAmount, // POSITIVE amount for refund (returning to escrow/purchases balance)
             note: `Refund for returned items for Purchase Order ${order.id.slice(
               0,
               8,

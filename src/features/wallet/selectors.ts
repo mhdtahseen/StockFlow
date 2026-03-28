@@ -17,10 +17,12 @@ export const selectWalletBuckets = createSelector(
       // except for those specifically moving money to/from the Lien (escrow).
       
       switch (entry.type) {
-        case "MONEY_ADDED":
+        case "CAPITAL_INJECTION":
+        case "CUSTOMER_PAYMENT":
           wallet += entry.amount; // Positive
           break;
         case "WITHDRAWAL":
+        case "SUPPLIER_PAYMENT":
         case "PROFIT_WITHDRAWAL":
           wallet += entry.amount; // Negative
           if (entry.type === "PROFIT_WITHDRAWAL") {

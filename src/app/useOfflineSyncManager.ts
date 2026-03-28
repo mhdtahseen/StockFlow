@@ -177,8 +177,11 @@ export function useOfflineSyncManager() {
             type: e.type as any,
             referenceId: e.reference_id ?? undefined,
             amount: Number(e.amount),
-            paymentMode: e.payment_mode ?? undefined, // ← financial channel
+            paymentMode: e.payment_mode ?? undefined,
             note: e.note ?? undefined,
+            settlementCount: e.settlement_count ?? undefined,
+            customerPaymentId: e.customer_payment_id ?? undefined,
+            supplierPaymentId: e.supplier_payment_id ?? undefined,
             createdAt: e.created_at,
           }));
           if (store.getState().sync.outbox.length === 0) {

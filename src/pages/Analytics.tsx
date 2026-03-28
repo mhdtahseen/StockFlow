@@ -103,7 +103,7 @@ export default function Analytics() {
           const entryTime = new Date(e.createdAt).getTime();
           if (entryTime >= periodStart && entryTime <= periodEnd) {
             if (e.type === "PHONE_SALE") sales += e.amount;
-            if (e.type === "FUNDS_CONSUMED") expense += Math.abs(e.amount);
+            if (["FUNDS_CONSUMED", "REPAIR_COST", "SUPPLIER_PAYMENT"].includes(e.type)) expense += Math.abs(e.amount);
           }
         });
 
@@ -121,7 +121,7 @@ export default function Analytics() {
         entries.forEach((e) => {
           if (format(new Date(e.createdAt), "MMM dd") === dayStr) {
             if (e.type === "PHONE_SALE") sales += e.amount;
-            if (e.type === "FUNDS_CONSUMED") expense += Math.abs(e.amount);
+            if (["FUNDS_CONSUMED", "REPAIR_COST", "SUPPLIER_PAYMENT"].includes(e.type)) expense += Math.abs(e.amount);
           }
         });
 
@@ -141,7 +141,7 @@ export default function Analytics() {
           const entryTime = new Date(e.createdAt).getTime();
           if (entryTime > periodStart && entryTime <= periodEndEnd) {
             if (e.type === "PHONE_SALE") sales += e.amount;
-            if (e.type === "FUNDS_CONSUMED") expense += Math.abs(e.amount);
+            if (["FUNDS_CONSUMED", "REPAIR_COST", "SUPPLIER_PAYMENT"].includes(e.type)) expense += Math.abs(e.amount);
           }
         });
 

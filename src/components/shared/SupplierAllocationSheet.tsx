@@ -49,15 +49,24 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
        counterpartyId: supplierId,
        amount: totalPaid,
        mode,
-       note: `Supplier lump-sum settlement for ${orders.length} orders`
+       note: orders.length === 1 
+         ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()}`
+         : orders.length === 2
+           ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()} & #${orders[1].id.slice(0, 4).toUpperCase()}`
+           : `Settled ${orders.length} Bills`
     }));
 
     // Optimistic Ledger entry for immediate Wallet balance update
     dispatch(addEntry({
        id: crypto.randomUUID(),
-       type: 'WITHDRAWAL',
-       amount: totalPaid,
-       note: `Supplier Settlement (FIFO)`,
+       type: 'SUPPLIER_PAYMENT',
+       amount: -totalPaid,
+       note: orders.length === 1 
+         ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()}`
+         : orders.length === 2
+           ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()} & #${orders[1].id.slice(0, 4).toUpperCase()}`
+           : `Settled ${orders.length} Bills`,
+       settlementCount: orders.length,
        createdAt: new Date().toISOString(),
     }));
     

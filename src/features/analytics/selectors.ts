@@ -44,32 +44,41 @@ export const selectCashflowSummary = (period: TimePeriod) =>
     const startDate = getStartDate(period, now);
 
     let grossSales = 0;
+    let collections = 0;
     let capitalInvested = 0; // Money actually consumed for assets
+    let repairCosts = 0;
     let pledgedCapital = 0; // Money tied up currently
-    let topUps = 0;
-    let withdrawals = 0;
+    let injections = 0;
+    let supplierPayments = 0;
+    let personalWithdrawals = 0;
 
     entries.forEach((entry) => {
       const entryDate = parseISO(entry.createdAt);
       if (isAfter(entryDate, startDate)) {
         if (entry.type === "PHONE_SALE") grossSales += entry.amount;
-        if (entry.type === "FUNDS_CONSUMED") capitalInvested += entry.amount;
-        if (entry.type === "REPAIR_COST") capitalInvested += entry.amount;
-        if (entry.type === "FUNDS_PLEDGED") pledgedCapital += entry.amount;
-        if (entry.type === "FUNDS_RELEASED") pledgedCapital -= entry.amount;
-        if (entry.type === "MONEY_ADDED") topUps += entry.amount;
-        if (entry.type === "WITHDRAWAL") withdrawals += Math.abs(entry.amount);
+        if (entry.type === "CUSTOMER_PAYMENT") collections += entry.amount;
+        if (entry.type === "FUNDS_CONSUMED") capitalInvested += Math.abs(entry.amount);
+        if (entry.type === "REPAIR_COST") repairCosts += Math.abs(entry.amount);
+        if (entry.type === "SUPPLIER_PAYMENT") supplierPayments += Math.abs(entry.amount);
+        if (entry.type === "FUNDS_PLEDGED") pledgedCapital += Math.abs(entry.amount);
+        if (entry.type === "FUNDS_RELEASED") pledgedCapital -= Math.abs(entry.amount);
+        if (entry.type === "CAPITAL_INJECTION") injections += entry.amount;
+        if (entry.type === "WITHDRAWAL") personalWithdrawals += Math.abs(entry.amount);
+        if (entry.type === "PROFIT_WITHDRAWAL") personalWithdrawals += Math.abs(entry.amount);
       }
     });
 
-    const netOperatingCashflow = grossSales - capitalInvested;
+    const netOperatingCashflow = grossSales - capitalInvested - repairCosts;
 
     return {
       grossSales,
+      collections,
       capitalInvested,
+      repairCosts,
       pledgedCapital,
-      topUps,
-      withdrawals,
+      injections,
+      supplierPayments,
+      personalWithdrawals,
       netOperatingCashflow,
     };
   });

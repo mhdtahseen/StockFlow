@@ -105,10 +105,10 @@ export function useFinancialData(dateRange?: DateRange) {
   const dailyVelocity = useMemo(() => {
     const todayEntries = entries.filter((e) => isToday(parseISO(e.createdAt)));
     const moneyIn = todayEntries
-      .filter((e) => e.type === "PHONE_SALE" || e.type === "MONEY_ADDED" || e.type === "FUNDS_RELEASED")
+      .filter((e) => ["PHONE_SALE", "CAPITAL_INJECTION", "CUSTOMER_PAYMENT", "FUNDS_RELEASED"].includes(e.type))
       .reduce((s, e) => s + Math.max(0, e.amount), 0);
     const moneyOut = todayEntries
-      .filter((e) => ["FUNDS_PLEDGED", "WITHDRAWAL", "PROFIT_WITHDRAWAL", "REPAIR_COST"].includes(e.type))
+      .filter((e) => ["FUNDS_PLEDGED", "WITHDRAWAL", "SUPPLIER_PAYMENT", "PROFIT_WITHDRAWAL", "REPAIR_COST"].includes(e.type))
       .reduce((s, e) => s + Math.abs(Math.min(0, e.amount)), 0);
     
     // Reverse calculation for opening balance
@@ -125,7 +125,8 @@ export function useFinancialData(dateRange?: DateRange) {
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       .forEach((entry) => {
         switch (entry.type) {
-          case "MONEY_ADDED":
+          case "CAPITAL_INJECTION":
+          case "CUSTOMER_PAYMENT":
           case "PHONE_SALE":
           case "FUNDS_RELEASED":
           case "WITHDRAWAL":

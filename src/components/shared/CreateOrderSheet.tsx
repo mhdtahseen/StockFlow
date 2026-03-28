@@ -193,31 +193,40 @@ export function CreateOrderSheet({
         ),
     );
 
-    // 4. One ledger entry per payment channel with explicit payment mode
-    //    Each row is independently queryable: GROUP BY payment_mode
-    const channels = [
-      { amount: cashPaid, label: "Cash", mode: "CASH" as const },
-      { amount: upiPaid, label: "UPI", mode: "UPI" as const },
-      {
-        amount: bankPaid,
-        label: "Bank Transfer",
-        mode: "BANK_TRANSFER" as const,
-      },
-    ].filter((c) => c.amount > 0);
+    // 1. Log TOTAL Revenue (Accrual) — This is Bucket 3
+    dispatch(
+      addEntry({
+        id: crypto.randomUUID(),
+        type: "PHONE_SALE",
+        referenceId: orderId,
+        amount: order.totalAmount,
+        note: `Total Sale Value — ${customer.name} — SO:${orderId.slice(0, 8)}`,
+        createdAt: ts,
+      }),
+    );
 
-    channels.forEach((c) => {
+    // 2. Log Collections (Cash Flow) — This is Bucket 2 offset
+    // Since we already booked the full sale to the wallet, 
+    // we need to 'remove' the unpaid portion so the wallet stays accurate.
+    const unpaidAmount = order.totalAmount - totalPaid;
+    if (unpaidAmount > 0) {
       dispatch(
         addEntry({
           id: crypto.randomUUID(),
-          type: "PHONE_SALE",
+          type: "CUSTOMER_PAYMENT",
           referenceId: orderId,
-          amount: c.amount,
-          paymentMode: c.mode,
-          note: `${c.label} — ${customer.name} — SO:${orderId.slice(0, 8)}`,
+          amount: -unpaidAmount,
+          note: `Credit Extended (Offset) — Customer: ${customer.name}`,
           createdAt: ts,
         }),
       );
-    });
+    }
+
+    // 3. For any ACTUAL cash received today, we don't need additional entries 
+    // because the PHONE_SALE already added them to the wallet balance.
+    // However, if we want to track Payment Modes (GnuCash style), we do it now.
+    // BUT we won't add them as additional wallet balance.
+    // Actually, for StockFlow, we will treat the PHONE_SALE as the primary entry.
 
     onOpenChange(false);
     navigate(`/orders/${order.id}`);

@@ -52,10 +52,11 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
         }));
         dispatch(addEntry({
           id: crypto.randomUUID(),
-          type: 'PHONE_SALE',
+          type: 'CUSTOMER_PAYMENT',
           referenceId: paymentId,
+          customerPaymentId: paymentId,
           amount,
-          note: `Payment received for Order ${orderId.slice(0, 8).toUpperCase()}`,
+          note: `Payment for Order ${orderId.slice(0, 8).toUpperCase()}`,
           createdAt: new Date().toISOString(),
         }));
         toast.success("Order Payment Recorded");
@@ -69,12 +70,13 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
         // Wallet entry to keep dashboard in sync
         dispatch(addEntry({
           id: crypto.randomUUID(),
-          type: 'PHONE_SALE',
+          type: 'CUSTOMER_PAYMENT',
+          customerPaymentId: 'OPTIMISTIC_FIFO',
           amount,
-          note: `Global Customer Settlement (FIFO)`,
+          note: `Bulk Collection (FIFO Account Clear)`,
           createdAt: new Date().toISOString(),
         }));
-        toast.success("FIFO Settlement Dispatched (AR)");
+        toast.success("Collection Dispatched (AR)");
       }
     } else {
       if (orderId) {
@@ -88,6 +90,15 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
           recordedBy: 'system',
           allocations: [{ purchaseOrderId: orderId, amountAllocated: amount }]
         }));
+        dispatch(addEntry({
+          id: crypto.randomUUID(),
+          type: 'SUPPLIER_PAYMENT',
+          referenceId: paymentId,
+          supplierPaymentId: paymentId,
+          amount: -amount,
+          note: `Purchase Payment for PO ${orderId.slice(0, 8).toUpperCase()}`,
+          createdAt: new Date().toISOString(),
+        }));
         toast.success("Supplier Payment Dispatched");
       } else {
         dispatch(addSupplierSettlement({
@@ -96,6 +107,15 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
           mode,
           note: `Lump-sum supplier settlement (FIFO)`
         }));
+        dispatch(addEntry({
+          id: crypto.randomUUID(),
+          type: 'SUPPLIER_PAYMENT',
+          supplierPaymentId: 'OPTIMISTIC_FIFO',
+          amount: -amount,
+          note: `Bulk Supplier Payout (FIFO Account Clear)`,
+          createdAt: new Date().toISOString(),
+        }));
+        toast.success("Supplier Bulk Settlement Dispatched");
         toast.success("FIFO Settlement Dispatched (AP)");
       }
     }

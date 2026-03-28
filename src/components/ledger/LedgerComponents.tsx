@@ -28,23 +28,37 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   customSummaryLabel,
   formatCurrency
 }) => {
-  const isPositive = ["MONEY_ADDED", "PHONE_SALE", "FUNDS_RELEASED"].includes(entry.type);
+  const isPositive = ["CAPITAL_INJECTION", "CUSTOMER_PAYMENT", "PHONE_SALE", "FUNDS_RELEASED"].includes(entry.type);
 
   const getDetails = (entry: any) => {
     switch (entry.type) {
-      case "MONEY_ADDED":
+      case "CAPITAL_INJECTION":
         return {
-          label: "Bank Transfer Deposit",
+          label: "Capital Top Up",
           icon: <Landmark size={20} />,
           color: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400",
-          note: "Top Up",
+          note: "Owner Investment",
+        };
+      case "CUSTOMER_PAYMENT":
+        return {
+          label: "Bill Settlement (AR)",
+          icon: <Landmark size={20} />,
+          color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
+          note: "Customer Collection",
+        };
+      case "SUPPLIER_PAYMENT":
+        return {
+          label: "Supplier Settlement (AP)",
+          icon: <Landmark size={20} />,
+          color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400",
+          note: "Liability Payout",
         };
       case "WITHDRAWAL":
         return {
           label: "Owner Withdrawal",
           icon: <Banknote size={20} />,
           color: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
-          note: "Transfer to Personal",
+          note: "Personal Takeout",
         };
       case "PROFIT_WITHDRAWAL":
         return {
