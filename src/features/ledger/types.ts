@@ -23,6 +23,8 @@ export interface LedgerEntry {
   note?: string; // optional human-readable description (e.g. "Screen replacement")
   customerPaymentId?: string; // Link to FIFO settlement master record
   supplierPaymentId?: string; // Link to supplier FIFO settlement record
+  saleOrderId?: string; // Link to sales order
+  purchaseOrderId?: string; // Link to purchase order
   settlementCount?: number; // Count of orders involved in this payment
   createdAt: string;
 }

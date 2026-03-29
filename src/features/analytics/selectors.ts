@@ -55,7 +55,9 @@ export const selectCashflowSummary = (period: TimePeriod) =>
     entries.forEach((entry) => {
       const entryDate = parseISO(entry.createdAt);
       if (isAfter(entryDate, startDate)) {
-        if (entry.type === "PHONE_SALE") grossSales += entry.amount;
+        if (entry.type === "PHONE_SALE" || entry.type === "CUSTOMER_PAYMENT") {
+          grossSales += entry.amount;
+        }
         if (entry.type === "CUSTOMER_PAYMENT") collections += entry.amount;
         if (entry.type === "FUNDS_CONSUMED") capitalInvested += Math.abs(entry.amount);
         if (entry.type === "REPAIR_COST") repairCosts += Math.abs(entry.amount);

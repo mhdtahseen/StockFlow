@@ -343,7 +343,7 @@ export default function OrderDetail() {
             id: crypto.randomUUID(),
             type: "PHONE_SALE",
             referenceId: order.id,
-            amount: -order.totalAmount, // Negative amount
+            amount: -order.amountPaid, // Reverse only what was actually collected
             note: `Refund for returned item(s) for Sales Order ${order.id.slice(
               0,
               8,

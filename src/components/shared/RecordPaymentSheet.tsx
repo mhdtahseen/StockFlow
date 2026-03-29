@@ -9,6 +9,7 @@ import { addSupplierSettlement, updatePOPayment, addSupplierPayment } from '@/fe
 import { addEntry } from '@/features/ledger/slice';
 import type { PayMode } from '@/features/billing/types';
 import clsx from 'clsx';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 
 interface Props {
@@ -26,6 +27,7 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
   const [amountStr, setAmountStr] = useState(max.toString());
   const [mode, setMode] = useState<Exclude<PayMode, 'CREDIT'>>('CASH');
   const dispatch = useAppDispatch();
+  const { user } = useAuth();
 
   React.useEffect(() => { if (open) setAmountStr(max.toString()) }, [open, max]);
 
@@ -47,7 +49,7 @@ export function RecordPaymentSheet({ open, onOpenChange, orderId, counterpartyId
           totalReceived: amount,
           mode,
           receivedAt: new Date().toISOString(),
-          recordedBy: 'system',
+          recordedBy: user?.id || 'system',
           allocations: [{ saleOrderId: orderId, amountAllocated: amount }]
         }));
         dispatch(addEntry({

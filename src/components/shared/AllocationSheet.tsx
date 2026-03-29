@@ -39,7 +39,7 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (totalReceived <= 0 || totalReceived > maxOwed) return toast.error(`Invalid amount max is ${maxOwed}`);
+    if (totalReceived <= 0) return toast.error("Please enter a valid amount");
     
     // Using the optimized FIFO Settlement RPC flow
     dispatch(addCustomerSettlement({
@@ -102,7 +102,7 @@ export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
 
                 <div className="ml-2">
                   <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500 mb-2 block">Amount Surrendered (₹)</label>
-                  <Input type="number" max={maxOwed} min={1} value={totalReceivedStr} onChange={e => setTotalReceivedStr(e.target.value)} className="h-14 font-black tracking-tight text-2xl bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl" autoFocus />
+                  <Input type="number" min={1} value={totalReceivedStr} onChange={e => setTotalReceivedStr(e.target.value)} className="h-14 font-black tracking-tight text-2xl bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl" autoFocus />
                 </div>
               </div>
 
