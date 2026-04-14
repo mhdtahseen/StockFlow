@@ -29,15 +29,34 @@ const customersSlice = createSlice({
       s.payments.unshift(a.payload);
     },
     addCustomerSettlement: (s, a: PayloadAction<{
-      id?: string;
+      id: string;
       counterpartyId: string;
       amount: number;
-      mode: string;
+      mode: "CASH" | "UPI" | "BANK_TRANSFER";
+      allocations: {
+        orderId: string;
+        amount: number;
+      }[];
       note?: string;
+      recordedBy: string;
     }>) => {
-      // Local state doesn't track allocations immediately for FIFO
-      // because the backend handles the mapping. 
-      // We will refresh the full payment list on next sync.
+      const { id, counterpartyId, amount, mode, note, recordedBy, allocations } = a.payload;
+      
+      const newPayment: CustomerPayment = {
+        id,
+        counterpartyId,
+        totalReceived: amount,
+        mode,
+        receivedAt: new Date().toISOString(),
+        note,
+        recordedBy,
+        allocations: allocations.map(al => ({
+          saleOrderId: al.orderId,
+          amountAllocated: al.amount,
+        }))
+      };
+
+      s.payments.unshift(newPayment);
     },
   },
 });

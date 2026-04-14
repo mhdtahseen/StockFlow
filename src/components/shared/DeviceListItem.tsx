@@ -48,6 +48,7 @@ export interface DeviceListItemProps {
   brand: string;
   model: string;
   storage: string;
+  ram?: string;
   color: string;
   imeis: string[];
   price: number;
@@ -64,6 +65,7 @@ export function DeviceListItem({
   brand,
   model,
   storage,
+  ram,
   color,
   imeis = [],
   price,
@@ -81,53 +83,49 @@ export function DeviceListItem({
       >
         <BrandIcon brand={brand} />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-baseline mb-0.5">
-          <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2 text-sm  tracking-tight">
+      <div className="flex-1 min-w-0 flex justify-between items-center gap-2">
+        {/* Left: 3-line stack Info */}
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate text-sm leading-tight tracking-tight">
             {brand} {model}
           </h4>
-          <span className="font-black text-slate-900 dark:text-slate-100 whitespace-nowrap text-sm tracking-tight">
+          
+          <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">
+            {ram && ram !== "N/A" ? `${ram} / ` : ""}{storage} • {color}
+          </p>
+          
+          <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 leading-none">
+            {imeis && imeis.length > 0 ? (
+              `IMEI: ${imeis.map(i => `•••• ${i.slice(-4)}`).join(" / ")}`
+            ) : (
+              <span className="italic opacity-50">IMEI Not Assigned</span>
+            )}
+          </p>
+        </div>
+
+        {/* Right: Meta (Price, Profit, Status) */}
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <span className="font-black text-slate-900 dark:text-slate-100 whitespace-nowrap text-sm tracking-tight leading-none">
             ₹{price.toLocaleString()}
           </span>
-        </div>
-        <div className="flex justify-between items-center text-[10px]">
-          <div className="flex items-center gap-1.5 overflow-hidden">
-            <span className="text-slate-500 dark:text-slate-400 truncate font-bold uppercase tracking-wider">
-              {storage} • {color}
-            </span>
-            {imeis.length > 0 && (
-              <span className="text-slate-300 dark:text-slate-700 font-bold shrink-0">
-                |
-              </span>
-            )}
-            <div className="flex gap-1 overflow-x-auto no-scrollbar py-0.5">
-              {imeis.map((imei, idx) => (
-                <span
-                  key={idx}
-                  className="bg-slate-50 dark:bg-slate-950 px-1.5 py-0.5 rounded text-slate-500 border border-slate-100 dark:border-slate-800 font-black shrink-0"
-                >
-                  {imei.slice(-6)}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 pl-2">
+          
+          <div className="flex items-center gap-1.5">
             {!isPurchaseOrder && unitProfit !== 0 && (
               <span
                 className={clsx(
-                  "font-black px-1.5 py-0.5 rounded",
+                  "font-black px-1.5 py-0.5 rounded text-[9px] leading-none",
                   unitProfit > 0
-                    ? "text-emerald-500 bg-emerald-50"
-                    : "text-rose-500 bg-rose-50",
+                    ? "text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10"
+                    : "text-rose-500 bg-rose-50 dark:bg-rose-500/10",
                 )}
               >
-                {unitProfit > 0 ? "+" : ""}₹
+                {unitProfit > 0 ? "+" : ""}
                 {Math.abs(unitProfit).toLocaleString()}
               </span>
             )}
             <span
               className={clsx(
-                "font-black px-1.5 py-0.5 rounded border uppercase tracking-tighter whitespace-nowrap",
+                "font-black px-1.5 py-0.5 rounded border uppercase tracking-tighter whitespace-nowrap text-[9px] leading-none",
                 config.container,
               )}
             >

@@ -15,6 +15,11 @@ export interface PurchaseOrderItem {
   purchasePrice: number;
   status: POItemStatus;
   rejectionReason?: string;
+  brandSnapshot?: string;
+  modelSnapshot?: string;
+  storageSnapshot?: string;
+  colorSnapshot?: string;
+  ramSnapshot?: string;
 }
 
 export interface PurchaseOrder {

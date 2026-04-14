@@ -1,7 +1,33 @@
 import { createSelector } from "@reduxjs/toolkit";
 import { RootState } from "../../app/store";
 
-export const selectLedgerEntries = (state: RootState) => state.ledger.entries;
+const selectRawEntries = (state: RootState) => state.ledger.entries;
+const selectRawPendingEntries = (state: RootState) => state.ledger.pendingEntries;
+
+export const selectLedgerEntries = createSelector(
+  [selectRawEntries, selectRawPendingEntries],
+  (entries = [], pendingEntries = []) => {
+    // Create a set of purchaseOrderIds already in official entries to avoid double-counting
+    const safeEntries = entries || [];
+    const safePending = pendingEntries || [];
+
+    const existingPOIds = new Set(
+      safeEntries
+        .filter((e) => e && e.purchaseOrderId)
+        .map((e) => e.purchaseOrderId),
+    );
+
+    // Filter out pending entries that have already been synced
+    const filteredPending = safePending.filter(
+      (e) => e && (!e.purchaseOrderId || !existingPOIds.has(e.purchaseOrderId)),
+    );
+
+    return [...safeEntries, ...filteredPending].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }
+);
 
 export const selectWalletBuckets = createSelector(
   [selectLedgerEntries],
@@ -17,6 +43,7 @@ export const selectWalletBuckets = createSelector(
       // except for those specifically moving money to/from the Lien (escrow).
       
       switch (entry.type) {
+        case "MONEY_ADDED":
         case "CAPITAL_INJECTION":
         case "CUSTOMER_PAYMENT":
           wallet += entry.amount; // Positive
@@ -33,8 +60,8 @@ export const selectWalletBuckets = createSelector(
           wallet += entry.amount; // Negative
           break;
         case "PHONE_SALE":
-          // Sales add to both wallet (real money) and the separate sales metric
-          wallet += entry.amount; // Positive
+          // Sales only add to the separate sales metric (Accrual)
+          // Liquid cash is tracked via CUSTOMER_PAYMENT (Cash basis)
           sales += entry.amount;
           break;
         case "FUNDS_PLEDGED":

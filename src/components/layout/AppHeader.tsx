@@ -1,8 +1,6 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
-import {
-  Menu,
-} from "lucide-react";
+import { Menu } from "lucide-react";
 import NotificationsPopover from "@/components/shared/NotificationsPopover";
 
 interface Props {
@@ -59,8 +57,11 @@ export default function AppHeader({ onMenuOpen }: Props) {
       </div>
 
       <div className="flex items-center gap-3 relative">
+        <div
+          id="header-actions-target"
+          className="flex items-center gap-2"
+        ></div>
         <NotificationsPopover />
-        <div id="header-actions-target" className="flex items-center gap-2"></div>
       </div>
     </header>
   );

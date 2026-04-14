@@ -9,7 +9,12 @@ export type LedgerEntryType =
   | "PHONE_SALE"
   | "REPAIR_COST"
   | "WITHDRAWAL"
-  | "PROFIT_WITHDRAWAL";
+  | "PROFIT_WITHDRAWAL"
+  | "INVENTORY_ADJUSTMENT"
+  | "DEBT_PLEDGED"
+  | "DEBT_SETTLEMENT"
+  | "ADVANCE_RECEIVED"
+  | "ADVANCE_SUPPLIER";
 
 // Mirrors the DB CHECK constraint on ledger.payment_mode
 export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CREDIT";
@@ -26,9 +31,12 @@ export interface LedgerEntry {
   saleOrderId?: string; // Link to sales order
   purchaseOrderId?: string; // Link to purchase order
   settlementCount?: number; // Count of orders involved in this payment
+  recordedBy?: string; // User ID of the person who recorded this entry
   createdAt: string;
+  isVoided?: boolean;
 }
 
 export interface LedgerState {
   entries: LedgerEntry[];
+  pendingEntries: LedgerEntry[];
 }

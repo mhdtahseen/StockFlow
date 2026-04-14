@@ -24,6 +24,7 @@ import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
 import CurrencyInput from "../components/ui/CurrencyInput";
+import HeaderActions from "@/components/layout/HeaderActions";
 import clsx from "clsx";
 import {
   Smartphone,
@@ -40,6 +41,7 @@ import {
   HardDrive,
   ChevronDown,
   ChevronUp,
+  X,
 } from "lucide-react";
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -288,49 +290,25 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
       if (!masterData.issueTags.includes(tag)) dispatch(addIssueTag(tag));
     });
 
-    const updatedPhone: Phone = {
-      ...phone,
+    const updatedFields: Partial<Phone> = {
       brand,
       model,
       ram: ram || "N/A",
       storage,
       color,
       imeis: filledImeis.map((e) => e.value).slice(0, 2),
-      purchasePrice: parseFloat(price),
+      purchasePrice: parseFloat(price) || 0,
       issueTags: selectedTags,
     };
 
-    dispatch(updatePhone(updatedPhone));
-
-    // Handle price changes if phone is still pending
-    if (
-      phone.status === "PENDING" &&
-      parseFloat(price) !== phone.purchasePrice
-    ) {
-      const priceDifference = parseFloat(price) - phone.purchasePrice;
-
-      if (priceDifference > 0) {
-        dispatch(
-          addEntry({
-            id: crypto.randomUUID(),
-            type: "FUNDS_PLEDGED",
-            referenceId: phone.id,
-            amount: priceDifference,
-            createdAt: new Date().toISOString(),
-          }),
-        );
-      } else if (priceDifference < 0) {
-        dispatch(
-          addEntry({
-            id: crypto.randomUUID(),
-            type: "FUNDS_RELEASED",
-            referenceId: phone.id,
-            amount: Math.abs(priceDifference),
-            createdAt: new Date().toISOString(),
-          }),
-        );
-      }
-    }
+    // Watchtower will automatically log INVENTORY_ADJUSTMENT if purchasePrice changed
+    dispatch(
+      updatePhone({
+        id: phone.id,
+        phone: updatedFields,
+        prevPrice: phone.purchasePrice,
+      }),
+    );
 
     toast.success("Device Updated", {
       description: `Changes to ${brand} ${model} saved successfully.`,
@@ -371,16 +349,16 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300 relative">
-      {/* Header */}
-      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-end shadow-sm gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="text-slate-500 dark:text-slate-400 font-bold text-sm px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
+      <HeaderActions>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 shadow-sm"
+          title="Cancel"
+        >
+          <X size={20} />
+        </button>
+      </HeaderActions>
 
       <main className="w-full max-w-lg mx-auto p-4 pb-12 z-10">
         <form onSubmit={handleSubmit} className="space-y-6">

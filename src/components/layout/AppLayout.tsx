@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import BottomNav from "./BottomNav";
 import AppDrawer from "./AppDrawer";
 import AppHeader from "./AppHeader";
@@ -22,6 +22,8 @@ export default function AppLayout() {
   usePushNotifications();
 
   const { isExpired } = usePlan();
+  const location = useLocation();
+  const isLedgerRoute = location.pathname.startsWith('/ledger');
   const { tenant, isSuperAdmin } = useAuth();
 
   if (tenant && !tenant.isActive && !isSuperAdmin) {
@@ -30,7 +32,7 @@ export default function AppLayout() {
 
   return (
     <div className="flex flex-col h-[100dvh] overflow-hidden w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
-      {isExpired && <TrialExpiredPaywall />}
+      {isExpired && !isLedgerRoute && <TrialExpiredPaywall />}
       <AppDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <AnnouncementBanner />
       <AppHeader onMenuOpen={() => setDrawerOpen(true)} />

@@ -52,6 +52,8 @@ import {
 } from "lucide-react";
 import { BatchAddSheet } from "../components/shared/BatchAddSheet";
 
+import { usePlan } from "../hooks/usePlan";
+
 // ─── Validation (simple, no zod overhead on every render) ────────────────────
 
 type FormErrors = Partial<
@@ -144,6 +146,8 @@ export default function AddPhone() {
   // Supplier section state - MANDATORY
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
 
+  const { isExpired } = usePlan();
+
   // ── Pre-select Generic Cash Supplier ───────────────────────────────────────
   useEffect(() => {
     const GENERIC_CASH_ID = "00000000-0000-0000-0000-000000000001";
@@ -231,6 +235,13 @@ export default function AddPhone() {
     const errs = validate(brand, model, storage, color, priceNum);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
+
+    if (isExpired) {
+      toast.error("Subscription Expired", {
+        description: "Please renew your subscription to add new devices.",
+      });
+      return;
+    }
 
     if (!selectedSupplier) {
       toast.error("Purchase Source Required");

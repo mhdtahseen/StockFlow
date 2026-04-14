@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch } from "@/app/hooks";
 import { addPurchaseOrder } from "@/features/purchasing/slice";
-import { addEntry } from "@/features/ledger/slice";
+
+import { useAuth } from "@/context/AuthContext";
 import type {
   PurchaseOrder,
   AcquisitionChannel,
@@ -50,6 +51,7 @@ interface DeviceRow {
 
 export function BatchAddSheet({ open, onOpenChange }: Props) {
   const dispatch = useAppDispatch();
+  const { user } = useAuth();
   const { canUse } = usePlan();
   const {
     getBrandOptions,
@@ -183,14 +185,11 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       phoneId: null, // Linked later during receipt
       status: "PENDING_INSPECTION" as const,
       purchasePrice: parseFloat(r.purchasePrice) || 0,
-      // Pass snapshots of metadata if defined
-      meta: {
-        brand: r.brand,
-        model: r.model,
-        ram: r.ram,
-        storage: r.storage,
-        color: r.color,
-      },
+      brandSnapshot: r.brand,
+      modelSnapshot: r.model,
+      ramSnapshot: r.ram,
+      storageSnapshot: r.storage,
+      colorSnapshot: r.color,
     }));
 
     const order: PurchaseOrder = {
@@ -210,26 +209,10 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       items: orderItems as any, // Extend if needed in types
     };
 
+    // Dispatch PO to Redux + sync outbox.
+    // The create_purchase_order RPC handles the FUNDS_CONSUMED ledger entry server-side.
+    // The addPurchaseOrder extraReducer in ledger/slice creates a virtual pendingEntry for optimistic display.
     dispatch(addPurchaseOrder(order));
-
-    const paymentEntries = [
-      { amount: cashPaid, mode: "CASH", note: "Cash" },
-      { amount: upiPaid, mode: "UPI", note: "UPI" },
-      { amount: bankPaid, mode: "BANK_TRANSFER", note: "Bank Transfer" },
-    ].filter((p) => p.amount > 0);
-
-    paymentEntries.forEach((p) => {
-      dispatch(
-        addEntry({
-          id: crypto.randomUUID(),
-          type: "FUNDS_PLEDGED",
-          referenceId: orderId,
-          amount: -p.amount,
-          note: `Capital pledged (${p.note}) for PO-${orderId.slice(0, 6)}`,
-          createdAt: new Date().toISOString(),
-        }),
-      );
-    });
 
     onOpenChange(false);
     toast.success("Purchase Order Committed");
@@ -434,7 +417,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                           onChange={(v) =>
                             updateRow(row.id, { purchasePrice: v })
                           }
-                          className="h-12 text-sm! font-black py-0! rounded-xl !pl-10"
+                          className="h-12 text-sm! font-black py-0! rounded-xl pl-10!"
                           placeholder="0.00"
                         />
                       </div>

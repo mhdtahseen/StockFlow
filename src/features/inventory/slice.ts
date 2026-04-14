@@ -15,14 +15,41 @@ const inventorySlice = createSlice({
     addPhone: (state, action: PayloadAction<Phone>) => {
       state.phones.push(action.payload);
     },
-    updatePhone: (state, action: PayloadAction<Phone>) => {
+    updatePhone: (
+      state,
+      action: PayloadAction<{
+        id: string;
+        phone: Partial<Phone>;
+        prevPrice?: number; // Added to help Watchtower track adjustments
+      }>,
+    ) => {
       const index = state.phones.findIndex((p) => p.id === action.payload.id);
       if (index !== -1) {
-        state.phones[index] = action.payload;
+        state.phones[index] = {
+          ...state.phones[index],
+          ...action.payload.phone,
+        };
       }
     },
     removePhone: (state, action: PayloadAction<string>) => {
       state.phones = state.phones.filter((p) => p.id !== action.payload);
+    },
+    addRepairLog: (
+      state,
+      action: PayloadAction<{
+        phoneId: string;
+        amount: number;
+        note: string;
+        recordedBy?: string;
+      }>,
+    ) => {
+      // Logic for adding repair to a phone's sub-history if needed
+    },
+    removeRepairLog: (
+      state,
+      action: PayloadAction<{ phoneId: string; entryId: string }>,
+    ) => {
+      // Logic for removing repair from history
     },
     markAsInStock: (
       state,
@@ -67,6 +94,8 @@ export const {
   addPhone,
   updatePhone,
   removePhone,
+  addRepairLog,
+  removeRepairLog,
   markAsInStock,
   markAsSold,
   linkPhoneToPO,

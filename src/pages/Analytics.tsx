@@ -179,15 +179,19 @@ export default function Analytics() {
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       )
       .map((p, idx) => {
-        const profit = (p.salePrice || 0) - p.purchasePrice;
-        const marginPct = ((profit / p.purchasePrice) * 100).toFixed(1);
+        const repairs = entries
+          .filter((e) => e.type === "REPAIR_COST" && e.referenceId === p.id)
+          .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+        const costBasis = p.purchasePrice + repairs;
+        const profit = (p.salePrice || 0) - costBasis;
+        const marginPct = costBasis > 0 ? ((profit / costBasis) * 100).toFixed(1) : "0.0";
         return {
           name: `#${idx + 1} ${p.brand}`,
           Margin: parseFloat(marginPct),
           Profit: profit,
         };
       });
-  }, [phones]);
+  }, [phones, entries]);
 
   // 3. Chart Data: Brand Wise Sales (Pie Chart)
   const brandSalesData = React.useMemo(() => {

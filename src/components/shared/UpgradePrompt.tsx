@@ -37,14 +37,28 @@ export function UpgradePrompt({ feature, currentPlan }: Props) {
         {FEATURE_NAMES[feature] || "Premium Feature"}
       </h3>
       <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">
-        This feature is not available on the current <strong className="capitalize text-slate-700 dark:text-slate-300">{currentPlan}</strong> plan. Upgrade your subscription to unlock it.
+        {currentPlan === "enterprise" 
+          ? "This feature requires a premium add-on or a specific configuration for your Enterprise account. Please contact support."
+          : `This feature is not available on the current ${currentPlan} plan. Upgrade your subscription to unlock it.`}
       </p>
-      <Link
-        to="/pricing"
-        className="flex items-center gap-2 bg-primary-500 hover:bg-blue-800 text-white font-medium py-2.5 px-6 rounded-lg transition-colors w-full justify-center shadow-md shadow-blue-900/20"
-      >
-        View Pricing <ArrowRight size={18} />
-      </Link>
+      
+      {currentPlan === "enterprise" ? (
+        <a
+          href="https://wa.me/919028747249"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors w-full justify-center shadow-md shadow-emerald-900/20"
+        >
+          Contact Support <ArrowRight size={18} />
+        </a>
+      ) : (
+        <Link
+          to="/pricing"
+          className="flex items-center gap-2 bg-primary-500 hover:bg-blue-800 text-white font-medium py-2.5 px-6 rounded-lg transition-colors w-full justify-center shadow-md shadow-blue-900/20"
+        >
+          View Pricing <ArrowRight size={18} />
+        </Link>
+      )}
     </div>
   );
 }

@@ -30,6 +30,7 @@ import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import CurrencyInput from "@/components/ui/CurrencyInput";
 import { PhoneSelectorSheet } from "./PhoneSelectorSheet";
 import { usePlan } from "@/hooks/usePlan";
+import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { toast } from "sonner";
@@ -72,7 +73,8 @@ export function CreateOrderSheet({
   const [dueDateStr, setDueDateStr] = useState("");
   const [notes, setNotes] = useState("");
 
-  const { canUse } = usePlan();
+  const { canUse, isExpired } = usePlan();
+  const { user } = useAuth();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
@@ -193,42 +195,24 @@ export function CreateOrderSheet({
         ),
     );
 
-    // 1. Log TOTAL Revenue (Accrual) — This is Bucket 3
-    dispatch(
-      addEntry({
-        id: crypto.randomUUID(),
-        type: "PHONE_SALE",
-        referenceId: orderId,
-        amount: order.totalAmount,
-        note: `Total Sale Value — ${customer.name} — SO:${orderId.slice(0, 8)}`,
-        createdAt: ts,
-      }),
-    );
-
-    // 2. Log Collections (Cash Flow) — This is Bucket 2 offset
-    // Since we already booked the full sale to the wallet, 
-    // we need to 'remove' the unpaid portion so the wallet stays accurate.
-    const unpaidAmount = order.totalAmount - totalPaid;
-    if (unpaidAmount > 0) {
+    // Log ACTUAL Receipt (Cash Flow)
+    // We no longer log "Bill Revenue" (accrual) to the ledger to maintain a Cash Basis Ledger.
+    if (totalPaid > 0) {
       dispatch(
         addEntry({
           id: crypto.randomUUID(),
           type: "CUSTOMER_PAYMENT",
           referenceId: orderId,
-          amount: -unpaidAmount,
-          note: `Credit Extended (Offset) — Customer: ${customer.name}`,
+          saleOrderId: orderId,
+          customerPaymentId: crypto.randomUUID(), // Temp ID for audit trail
+          amount: totalPaid,
+          note: `Initial Bill Receipt · #${orderId.slice(0, 8).toUpperCase()}`,
+          recordedBy: user?.id || 'system',
           createdAt: ts,
         }),
       );
     }
 
-    // 3. For any ACTUAL cash received today, we don't need additional entries 
-    // because the PHONE_SALE already added them to the wallet balance.
-    // However, if we want to track Payment Modes (GnuCash style), we do it now.
-    // BUT we won't add them as additional wallet balance.
-    // Actually, for StockFlow, we will treat the PHONE_SALE as the primary entry.
-
-    onOpenChange(false);
     navigate(`/orders/${order.id}`);
     toast.success(
       `Sales order committed — ${items.length} device${items.length > 1 ? "s" : ""} sold`,
@@ -346,7 +330,7 @@ export function CreateOrderSheet({
 
               {/* ─── Devices in Cart ──────────────────────────────────── */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] overflow-hidden">
-                <div className="px-4 pt-4 pb-3 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+                <div className="px-4 pt-4 pb-3 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between sticky top-0 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm">
                   <span className="text-sm font-black text-slate-900 dark:text-slate-100">
                     Devices
                     {items.length > 0 && (
@@ -491,7 +475,7 @@ export function CreateOrderSheet({
 
               {/* ─── Fiscal Settlement (Hybrid Multi-Channel) ─────────── */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] overflow-hidden">
-                <div className="px-4 pt-4 pb-3 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+                <div className="px-4 pt-4 pb-3 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between sticky top-0 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm">
                   <div className="flex items-center gap-2">
                     <DollarSign
                       size={16}
@@ -666,10 +650,16 @@ export function CreateOrderSheet({
             <button
               type="submit"
               form="order-form"
-              className="w-full bg-primary-500 hover:bg-blue-800 text-white py-4 rounded-2xl font-black text-base shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
+              disabled={isExpired}
+              className={clsx(
+                "w-full py-4 rounded-2xl font-black text-base shadow-lg flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]",
+                isExpired 
+                  ? "bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none" 
+                  : "bg-primary-500 hover:bg-blue-800 text-white shadow-blue-900/20"
+              )}
             >
               <ShoppingCart size={20} strokeWidth={2.5} />
-              Commit Sales Ledger
+              {isExpired ? "Subscription Expired" : "Commit Sales Ledger"}
             </button>
           </div>
         </SheetContent>

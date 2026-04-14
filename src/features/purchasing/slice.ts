@@ -54,6 +54,7 @@ const purchasingSlice = createSlice({
         phonesReceived: number;
         status: PurchaseOrder["status"];
         items: PurchaseOrderItem[];
+        totalAmount?: number;
       }>,
     ) => {
       const o = s.orders.find((o) => o.id === a.payload.id);
@@ -61,6 +62,9 @@ const purchasingSlice = createSlice({
         o.phonesReceived = a.payload.phonesReceived;
         o.status = a.payload.status;
         o.items = a.payload.items;
+        if (a.payload.totalAmount !== undefined) {
+          o.totalAmount = a.payload.totalAmount;
+        }
       }
     },
     markPOItemAccepted: (
@@ -101,6 +105,9 @@ const purchasingSlice = createSlice({
         item.status = "REJECTED";
         if (action.payload.reason)
           (item as any).rejectionReason = action.payload.reason;
+        
+        // RECONCILIATION: Subtract price from total since we no longer owe for this unit
+        po.totalAmount = (po.totalAmount || 0) - (item.purchasePrice || 0);
       }
       const allResolved = po.items.every(
         (i) => i.status !== "PENDING_INSPECTION",

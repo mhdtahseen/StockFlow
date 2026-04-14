@@ -50,7 +50,7 @@ export default function CustomerDetail() {
   const [apOpen, setApOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [orderTypeFilter, setOrderTypeFilter] = useState<"ALL" | "SALE" | "PURCHASE">("ALL");
-  const [orderStatusFilter, setOrderStatusFilter] = useState<"ACTIVE" | "SETTLED">("ACTIVE");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"ALL" | "ACTIVE" | "SETTLED">("ALL");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const orders = React.useMemo(() => {
@@ -77,10 +77,12 @@ export default function CustomerDetail() {
     }
     
     // Filter by status (Active vs Settled)
-    result = result.filter(o => {
-      const isSettled = o.status === "SETTLED";
-      return orderStatusFilter === "ACTIVE" ? !isSettled : isSettled;
-    });
+    if (orderStatusFilter !== "ALL") {
+      result = result.filter(o => {
+        const isSettled = o.status === "SETTLED";
+        return orderStatusFilter === "ACTIVE" ? !isSettled : isSettled;
+      });
+    }
     
     return result;
   }, [orders, orderTypeFilter, orderStatusFilter]);
@@ -329,6 +331,7 @@ export default function CustomerDetail() {
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {[
+                          { id: "ALL", label: "All" },
                           { id: "ACTIVE", label: "Active" },
                           { id: "SETTLED", label: "Settled" },
                         ].map((pill) => (
@@ -379,7 +382,7 @@ export default function CustomerDetail() {
                     <div className="flex items-center gap-2 mb-1">
                       {/* ORDER ID */}
                       <span className="text-[14px] font-black text-slate-500 uppercase tracking-widest">
-                        #{o.id.substring(0, 6)}
+                        #{o.id.substring(0, 8)}
                       </span>
                       {/* STATUS */}
                       <span
@@ -427,74 +430,141 @@ export default function CustomerDetail() {
 
         {activeTab === "payments" && (
           <div className="space-y-3">
+            <div className="flex justify-between items-center px-1 mb-2">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                {payments.length} Transaction{payments.length !== 1 ? "s" : ""}
+              </span>
+            </div>
             {payments.length === 0 ? (
               <div className="text-center py-12 text-slate-400 font-medium">
-                No payments found.
+                No payment records yet.
               </div>
             ) : (
-              payments.map((p: any) => (
-                <div
-                  key={p.id}
-                  className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800"
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <span
+              payments.map((p: any) => {
+                const isReceived = !!p.isAr;
+                const amount = p.totalReceived || p.totalPaid || 0;
+                const date = p.receivedAt || p.paidAt;
+                const mode = p.mode || "—";
+                // Collect all linked order IDs from allocations
+                const linkedOrders: { id: string; isAp: boolean }[] =
+                  (p.allocations || []).map((a: any) => ({
+                    id: a.saleOrderId || a.purchaseOrderId,
+                    isAp: !!a.purchaseOrderId,
+                  })).filter((a: any) => !!a.id);
+
+                return (
+                  <div
+                    key={p.id}
+                    className={clsx(
+                      "bg-white dark:bg-slate-900 rounded-2xl border shadow-sm overflow-hidden",
+                      isReceived
+                        ? "border-emerald-100 dark:border-emerald-900/30"
+                        : "border-amber-100 dark:border-amber-900/30",
+                    )}
+                  >
+                    {/* Colour bar at top */}
+                    <div
                       className={clsx(
-                        "font-black",
-                        p.isAr
-                          ? "text-emerald-600 dark:text-emerald-500"
-                          : "text-amber-600 dark:text-amber-500",
+                        "h-1 w-full",
+                        isReceived ? "bg-emerald-500" : "bg-amber-500",
                       )}
-                    >
-                      ₹{(p.totalReceived || p.totalPaid || 0).toLocaleString()}
-                    </span>
-                    <span className="text-xs font-bold text-slate-400">
-                      {format(
-                        parseISO(p.receivedAt || p.paidAt),
-                        "MMM d, h:mm a",
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                      {p.isAr ? "RECEIVED" : "PAID"} · {p.mode}
-                    </span>
-                  </div>
-                  {p.allocations && p.allocations.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1">
-                      {p.allocations.map((a: any, i: number) => {
-                        const orderId = a.saleOrderId || a.purchaseOrderId;
-                        return (
-                          <div
-                            key={i}
-                            className="flex justify-between items-center text-xs font-medium text-slate-600 dark:text-slate-400"
+                    />
+                    <div className="p-4">
+                      {/* Row 1: Direction label + amount */}
+                      <div className="flex justify-between items-start">
+                        <div className="flex flex-col">
+                          <span
+                            className={clsx(
+                              "text-[11px] font-black uppercase tracking-wider",
+                              isReceived
+                                ? "text-emerald-600 dark:text-emerald-500"
+                                : "text-amber-600 dark:text-amber-500",
+                            )}
                           >
-                            <span className="truncate flex items-center gap-1.5">
-                              Applied to Order
-                              <span
-                                onClick={(e) => {
-                                  e.stopPropagation();
+                            {isReceived ? "▲ Money Received" : "▼ Payment Sent"}
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                            {date ? format(parseISO(date), "MMM d, yyyy · h:mm a") : "—"}
+                          </span>
+                        </div>
+                        <span
+                          className={clsx(
+                            "font-black text-xl tracking-tight",
+                            isReceived
+                              ? "text-emerald-700 dark:text-emerald-400"
+                              : "text-amber-700 dark:text-amber-400",
+                          )}
+                        >
+                          {isReceived ? "+" : "-"}₹{amount.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Row 2: Mode badge */}
+                      <div className="flex items-center gap-2 mt-3">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700">
+                          {mode}
+                        </span>
+                        {p.note && (
+                          <span className="text-[10px] font-medium text-slate-400 truncate">
+                            {p.note}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Row 3: Linked orders */}
+                      {linkedOrders.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            Applied To
+                          </span>
+                          {linkedOrders.map((lo, i) => (
+                            <div
+                              key={i}
+                              className="flex justify-between items-center"
+                            >
+                              <div
+                                className="flex items-center gap-2 cursor-pointer group"
+                                onClick={() =>
                                   navigate(
-                                    p.isAr
-                                      ? `/orders/${orderId}`
-                                      : `/purchase-orders/${orderId}`,
-                                  );
-                                }}
-                                className="font-extrabold uppercase text-primary-500 hover:text-primary-600 hover:underline cursor-pointer"
+                                    lo.isAp
+                                      ? `/purchase-orders/${lo.id}`
+                                      : `/orders/${lo.id}`,
+                                  )
+                                }
                               >
-                                #{orderId.substring(0, 6)}
+                                <span
+                                  className={clsx(
+                                    "text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded",
+                                    lo.isAp
+                                      ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                                      : "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
+                                  )}
+                                >
+                                  {lo.isAp ? "PO" : "SO"}
+                                </span>
+                                <span className="text-xs font-extrabold text-primary-500 group-hover:underline uppercase tracking-wider">
+                                  #{lo.id.substring(0, 8)}
+                                </span>
+                              </div>
+                              <span className="text-xs font-black text-slate-700 dark:text-slate-300">
+                                ₹{
+                                  (
+                                    p.allocations?.find(
+                                      (a: any) =>
+                                        (a.saleOrderId || a.purchaseOrderId) ===
+                                        lo.id,
+                                    )?.amountAllocated || 0
+                                  ).toLocaleString()
+                                }
                               </span>
-                            </span>
-                            <span className="font-black text-slate-700 dark:text-slate-300 shrink-0">
-                              ₹{a.amountAllocated.toLocaleString()}
-                            </span>
-                          </div>
-                        );
-                      })}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))
+                  </div>
+                );
+              })
             )}
           </div>
         )}
@@ -541,7 +611,7 @@ export default function CustomerDetail() {
                           {(o as any).isPurchaseOrder
                             ? "Purchase"
                             : o.orderType || "Sale"}{" "}
-                          Order
+                          Order (#{o.id.substring(0, 8).toUpperCase()})
                         </span>
                         <div className="flex justify-between text-xs text-slate-500 font-medium">
                           <span>{o.items.length} items</span>
@@ -582,16 +652,21 @@ export default function CustomerDetail() {
                             : "bg-amber-50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30",
                         )}
                       >
-                        <span
-                          className={clsx(
-                            "font-bold text-sm block mb-1",
-                            p.isAr
-                              ? "text-emerald-800 dark:text-emerald-400"
-                              : "text-amber-800 dark:text-amber-400",
-                          )}
-                        >
-                          {p.isAr ? "Payment Received" : "Payment Sent (PO)"}
-                        </span>
+                          <span
+                            className={clsx(
+                              "font-bold text-sm block mb-1",
+                              p.isAr
+                                ? "text-emerald-800 dark:text-emerald-400"
+                                : "text-amber-800 dark:text-amber-400",
+                            )}
+                          >
+                            {p.isAr ? "Payment Received" : "Payment Sent (PO)"}
+                            {p.allocations && p.allocations.length === 1 && (
+                              <span className="opacity-70 ml-1">
+                                (#{p.allocations[0].saleOrderId?.substring(0, 8).toUpperCase() || p.allocations[0].purchaseOrderId?.substring(0, 8).toUpperCase()})
+                              </span>
+                            )}
+                          </span>
                         <div className="flex justify-between text-xs font-medium">
                           <span className="text-slate-500 capitalize">
                             Via {p.mode.toLowerCase()}

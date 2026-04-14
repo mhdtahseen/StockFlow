@@ -182,6 +182,8 @@ export function useOfflineSyncManager() {
             settlementCount: e.settlement_count ?? undefined,
             customerPaymentId: e.customer_payment_id ?? undefined,
             supplierPaymentId: e.supplier_payment_id ?? undefined,
+            saleOrderId: e.sale_order_id ?? undefined,
+            purchaseOrderId: e.purchase_order_id ?? undefined,
             createdAt: e.created_at,
           }));
           if (store.getState().sync.outbox.length === 0) {
@@ -251,12 +253,15 @@ export function useOfflineSyncManager() {
             });
           }
 
-          // Open + Partial sales orders (with items)
+          // All recent sale orders (all statuses, last 90 days to avoid huge payloads)
+          const ninetyDaysAgo = new Date(
+            Date.now() - 90 * 24 * 3600 * 1000,
+          ).toISOString();
           const { data: soData } = await supabase
             .from("sale_orders")
             .select("*, sale_order_items(*)")
             .eq("tenant_id", tenantId)
-            .in("status", ["OPEN", "PARTIAL"])
+            .gte("created_at", ninetyDaysAgo)
             .order("created_at", { ascending: false });
           if (soData && mounted && store.getState().sync.outbox.length === 0) {
             dispatch({ type: "billing/setOrders", payload: soData.map((o: any) => ({
@@ -273,12 +278,12 @@ export function useOfflineSyncManager() {
             })) });
           }
 
-          // Open + Awaiting purchase orders (with items)
+          // All non-archived purchase orders (all active statuses including SETTLED/CANCELLED)
           const { data: poData } = await supabase
             .from("purchase_orders")
             .select("*, purchase_order_items(*)")
             .eq("tenant_id", tenantId)
-            .in("status", ["AWAITING_RECEIPT", "RECEIVED", "PARTIAL"])
+            .in("status", ["AWAITING_RECEIPT", "RECEIVED", "PARTIAL", "SETTLED", "CANCELLED"])
             .order("created_at", { ascending: false });
           if (poData && mounted && store.getState().sync.outbox.length === 0) {
             dispatch({
@@ -297,15 +302,12 @@ export function useOfflineSyncManager() {
             });
           }
 
-          // Recent customer payments (last 30 days)
-          const thirtyDaysAgo = new Date(
-            Date.now() - 30 * 24 * 3600 * 1000,
-          ).toISOString();
+          // Customer payments (last 90 days — aligned with order window)
           const { data: cpPayData } = await supabase
             .from("customer_payments")
             .select("*, payment_allocations(*)")
             .eq("tenant_id", tenantId)
-            .gte("received_at", thirtyDaysAgo)
+            .gte("received_at", ninetyDaysAgo)
             .order("received_at", { ascending: false });
           if (cpPayData && mounted && store.getState().sync.outbox.length === 0) {
             dispatch({
@@ -320,12 +322,12 @@ export function useOfflineSyncManager() {
             });
           }
 
-          // Recent supplier payments (last 30 days)
+          // Supplier payments (last 90 days — aligned with order window)
           const { data: spPayData } = await supabase
             .from("supplier_payments")
             .select("*, supplier_allocations(*)")
             .eq("tenant_id", tenantId)
-            .gte("paid_at", thirtyDaysAgo)
+            .gte("paid_at", ninetyDaysAgo)
             .order("paid_at", { ascending: false });
           if (spPayData && mounted && store.getState().sync.outbox.length === 0) {
             dispatch({

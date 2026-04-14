@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { useAppSelector, useAppDispatch } from '@/app/hooks';
 import { addSupplierSettlement } from '@/features/purchasing/slice';
 import { addEntry } from '@/features/ledger/slice';
+import { useAuth } from '@/context/AuthContext';
+import { updatePOPayment } from '@/features/purchasing/slice';
 import type { PayMode } from '@/features/purchasing/types';
 import clsx from 'clsx';
 import { toast } from 'sonner';
@@ -17,6 +19,7 @@ interface Props {
 
 export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Props) {
   const dispatch = useAppDispatch();
+  const { user } = useAuth();
   const allOrders = useAppSelector((state) => state.purchasing.orders);
   
   const orders = useMemo(() => 
@@ -56,20 +59,6 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
            : `Settled ${orders.length} Bills`
     }));
 
-    // Optimistic Ledger entry for immediate Wallet balance update
-    dispatch(addEntry({
-       id: crypto.randomUUID(),
-       type: 'SUPPLIER_PAYMENT',
-       amount: -totalPaid,
-       note: orders.length === 1 
-         ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()}`
-         : orders.length === 2
-           ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()} & #${orders[1].id.slice(0, 4).toUpperCase()}`
-           : `Settled ${orders.length} Bills`,
-       settlementCount: orders.length,
-       createdAt: new Date().toISOString(),
-    }));
-    
     toast.success("Accounts Payable Settlement Dispatched");
     onOpenChange(false);
   };

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import CurrencyInput from "../components/ui/CurrencyInput";
 import { useAppSelector, useAppDispatch } from "../app/hooks";
+import { useAuth } from "../context/AuthContext";
 import {
   markAsInStock,
   markAsSold,
@@ -35,10 +36,12 @@ import clsx from "clsx";
 import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
 import { repairsFlatList } from "../data/repairCatalog";
 import { CreateOrderSheet } from "../components/shared/CreateOrderSheet";
+import HeaderActions from "@/components/layout/HeaderActions";
 
 export default function PhoneDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const dispatch = useAppDispatch();
   const phone = useAppSelector((state) =>
     state.inventory.phones.find((p) => p.id === id),
@@ -71,7 +74,7 @@ export default function PhoneDetail() {
       ),
   );
   const totalRepairCost = useMemo(
-    () => repairEntries.reduce((sum, e) => sum + e.amount, 0),
+    () => repairEntries.reduce((sum, e) => sum + Math.abs(e.amount), 0),
     [repairEntries],
   );
 
@@ -122,6 +125,8 @@ export default function PhoneDetail() {
           type: "FUNDS_PLEDGED",
           referenceId: phone.id,
           amount: -(finalPrice - pledgedAmount), // NEGATIVE for wallet deduction
+          note: `PURCHASE - ${phone.brand} ${phone.model} : Cost adjustment (Increase)`,
+          recordedBy: user?.id || 'system',
           createdAt: now,
         }),
       );
@@ -133,6 +138,8 @@ export default function PhoneDetail() {
           type: "FUNDS_RELEASED",
           referenceId: phone.id,
           amount: pledgedAmount - finalPrice,
+          note: `PURCHASE - ${phone.brand} ${phone.model} : Cost adjustment (Surplus)`,
+          recordedBy: user?.id || 'system',
           createdAt: now,
         }),
       );
@@ -145,6 +152,8 @@ export default function PhoneDetail() {
         type: "FUNDS_CONSUMED",
         referenceId: phone.id,
         amount: -finalPrice, // NEGATIVE for consumption from lien
+        note: `PURCHASE - ${phone.brand} ${phone.model} : Confirmed and added to stock`,
+        recordedBy: user?.id || 'system',
         createdAt: now,
       }),
     );
@@ -173,44 +182,46 @@ export default function PhoneDetail() {
     e.preventDefault();
     if (!repairAmount || Number(repairAmount) <= 0) return;
     const amount = Number(repairAmount);
+    
+    // WATCHTOWER AUTO-LOGS: addRepairLog triggers the ledger entry
     dispatch(
-      addEntry({
-        id: crypto.randomUUID(),
-        type: "REPAIR_COST",
-        referenceId: phone.id,
-        amount: -amount,
-        note: repairNote.trim() || "Repair",
-        createdAt: new Date().toISOString(),
-      }),
+      addRepairLog({
+        phoneId: phone.id,
+        amount,
+        note: repairNote.trim() || 'General Maintenance',
+        recordedBy: user?.id || 'system',
+      })
     );
+
     toast.success("Repair Cost Logged", {
       description: `₹${amount} repair expense recorded for ${phone.brand} ${phone.model}.`,
     });
     setRepairAmount("");
     setRepairNote("");
     setShowRepairModal(false);
-    setRepairAccordionOpen(true); // auto-open accordion after logging
+    setRepairAccordionOpen(true);
   };
 
   const handleDeleteRepair = (entryId: string) => {
-    dispatch(removeEntry(entryId));
+    // WATCHTOWER VOID LOGIC: removeRepairLog handles the reversal/cleanup
+    dispatch(removeRepairLog({ phoneId: phone.id, entryId }));
     toast.success("Repair entry removed");
   };
 
   const handleSaveRepairEdit = (entry: { id: string; createdAt: string }) => {
     if (!editAmount || Number(editAmount) <= 0) return;
-    // Remove old + add updated entry (keeps full ledger audit trail intact)
-    dispatch(removeEntry(entry.id));
+    
+    // Logic: Remove old, add new -> Watchtower creates the audit trail
+    dispatch(removeRepairLog({ phoneId: phone.id, entryId: entry.id }));
     dispatch(
-      addEntry({
-        id: crypto.randomUUID(),
-        type: "REPAIR_COST",
-        referenceId: phone.id,
+      addRepairLog({
+        phoneId: phone.id,
         amount: Number(editAmount),
-        note: editNote.trim() || "Repair",
-        createdAt: entry.createdAt, // preserve original date
-      }),
+        note: `${editNote.trim() || 'General Maintenance'} (Updated)`,
+        recordedBy: user?.id || 'system',
+      })
     );
+    
     setEditingRepairId(null);
     setEditNote("");
     setEditAmount("");
@@ -238,18 +249,20 @@ export default function PhoneDetail() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 pb-6 transition-colors duration-300">
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
-        {phone.status !== "SOLD" && (
+      {phone.status !== "SOLD" && (
+        <HeaderActions>
           <button
             onClick={() => navigate(`/edit/${phone.id}`)}
-            className="text-primary-500 dark:text-blue-400 font-bold text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors flex items-center gap-1.5"
+            className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 shadow-sm"
+            title="Edit Phone"
           >
-            <PenSquare size={16} /> Edit
+            <PenSquare size={18} />
           </button>
-        )}
-      </div>
+        </HeaderActions>
+      )}
 
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-12 max-w-lg mx-auto w-full space-y-5">
+      <div className="flex-1 overflow-y-auto">
+        <main className="px-4 pt-4 pb-12 max-w-lg mx-auto w-full space-y-5">
         {/* Device Identity Card */}
         <section className="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
           {phone.status === "SOLD" && (
@@ -593,6 +606,8 @@ export default function PhoneDetail() {
                         type: "FUNDS_RELEASED",
                         referenceId: phone.id,
                         amount: Math.abs(phone.purchasePrice),
+                        note: `REJECTION - ${phone.brand} ${phone.model} : Inspection failed, funds released`,
+                        recordedBy: user?.id || 'system',
                         createdAt: new Date().toISOString(),
                       }),
                     );
@@ -687,6 +702,7 @@ export default function PhoneDetail() {
             })()}
         </section>
       </main>
+    </div>
       {/* Sale Modal via CreateOrderSheet */}
       <CreateOrderSheet
         open={showSaleModal}

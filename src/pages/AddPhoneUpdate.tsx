@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { addPhone, linkPhoneToPO } from "../features/inventory/slice";
 import { addEntry } from "../features/ledger/slice";
-import { addPurchaseOrder } from "../features/purchasing/slice";
+import { addPurchaseOrder, addSupplierPayment } from "../features/purchasing/slice";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -213,38 +213,36 @@ export default function AddPhoneUpdate() {
       dispatch(linkPhoneToPO({ phoneId: r.id, purchaseOrderId: poId }));
     });
 
-    // 1. Log TOTAL Consumption (Accrual) — This is Bucket 3
-    dispatch(
-      addEntry({
-        id: crypto.randomUUID(),
-        type: "FUNDS_CONSUMED",
-        referenceId: poId,
-        amount: -grandTotal,
-        note: `Full Procurement Cost — ${vendor.name} — PO:${poId.slice(0, 8)}`,
-        createdAt: ts,
-      }),
-    );
-
-    // 2. Log Credit Settlement (Offset) — This is Bucket 2 offset
-    // Since we consumed the full grandTotal from the wallet, 
-    // we need to 'add back' the portion we haven't paid yet to keep the wallet accurate.
-    const unpaidPurchase = grandTotal - totalPaid;
-    if (unpaidPurchase > 0) {
+    // 4. Optimistically add payment and ledger entry if any amount is paid.
+    if (totalPaid > 0) {
+      dispatch(
+        addSupplierPayment({
+          id: crypto.randomUUID(),
+          counterpartyId: vendor.id,
+          totalPaid: totalPaid,
+          mode: "CASH", // Future: support other modes natively here
+          paidAt: ts,
+          recordedBy: vendor.id, // we don't have user.id here directly unless we import it, let's use a placeholder or tenant
+          allocations: [{ purchaseOrderId: poId, amountAllocated: totalPaid }],
+        }),
+      );
       dispatch(
         addEntry({
           id: crypto.randomUUID(),
-          type: "SUPPLIER_PAYMENT",
-          referenceId: poId,
-          amount: unpaidPurchase,
-          note: `Supplier Credit (Offset) — Vendor: ${vendor.name}`,
           createdAt: ts,
-        }),
+          description: `Payment to ${vendor.name}`,
+          type: "FUNDS_CONSUMED",
+          amount: -totalPaid,
+          balanceAfter: 0,
+          counterpartyId: vendor.id,
+          purchaseOrderId: poId,
+          paymentMode: "CASH",
+          status: "PENDING", // PENDING so that ledger sync can replace it without duplicate
+        } as any),
       );
     }
 
-    // 3. For any ACTUAL cash paid today, it is already accounted for in the -grandTotal 
-    // and correctly balanced by the +unpaidPurchase offset.
-    // Resulting wallet impact = -(grandTotal - unpaidPurchase) = -totalPaid.
+    // Resulting wallet impact will be handled by the create_purchase_order RPC (Cash Basis).
 
     toast.success(
       `${rows.length} device${rows.length > 1 ? "s" : ""} ingested successfully`,

@@ -44,6 +44,7 @@ export default function Inventory() {
     tabParam && VALID_TABS.includes(tabParam) ? tabParam : "ALL";
 
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [filterBrand, setFilterBrand] = useState<string | null>(null);
@@ -61,8 +62,11 @@ export default function Inventory() {
   );
 
   useEffect(() => {
-    // Search input focus is no longer needed as the bar is static
-  }, []);
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   // Long press handlers
   const handleTouchStart = (phone: Phone) => {
@@ -127,8 +131,8 @@ export default function Inventory() {
         : phones.filter((p) => p.status === activeTab);
 
     // Text search across brand, model, color, storage, tags, imei, ram
-    if (query.trim()) {
-      const q = query.toLowerCase().trim();
+    if (debouncedQuery.trim()) {
+      const q = debouncedQuery.toLowerCase().trim();
       const qStripped = q.replace(/\s+/g, "");
 
       result = result.filter(
@@ -184,7 +188,18 @@ export default function Inventory() {
     });
 
     return result;
-  }, [phones, activeTab, query, filterBrand, sortBy]);
+  }, [phones, activeTab, debouncedQuery, filterBrand, sortBy]);
+
+  // Grouped phones by brand
+  const groupedPhones = useMemo(() => {
+    const groups: Record<string, Phone[]> = {};
+    filteredPhones.forEach((phone) => {
+      const brand = phone.brand || "Other";
+      if (!groups[brand]) groups[brand] = [];
+      groups[brand].push(phone);
+    });
+    return groups;
+  }, [filteredPhones]);
 
   const getTabMetrics = () => {
     const count = filteredPhones.length;
@@ -216,7 +231,7 @@ export default function Inventory() {
     ledgerEntries.forEach((e) => {
       if (e.type === "REPAIR_COST" && e.referenceId) {
         repairByPhone[e.referenceId] =
-          (repairByPhone[e.referenceId] || 0) + e.amount;
+          (repairByPhone[e.referenceId] || 0) + Math.abs(e.amount);
       }
     });
 
@@ -430,11 +445,11 @@ export default function Inventory() {
 
       <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24 z-10 w-full max-w-lg mx-auto space-y-5">
         {/* Active search/filter indicator */}
-        {(query || filterBrand) && (
+        {(debouncedQuery || filterBrand) && (
           <div className="flex items-center gap-2 flex-wrap">
-            {query && (
+            {debouncedQuery && (
               <span className="flex items-center gap-1 bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400 text-xs font-bold px-2.5 py-1 rounded-md border border-blue-100 dark:border-blue-900">
-                Search: "{query}"
+                Search: "{debouncedQuery}"
                 <button onClick={() => setQuery("")}>
                   <X size={12} />
                 </button>
@@ -546,209 +561,223 @@ export default function Inventory() {
                   {query || filterBrand ? "No matches" : "No units found"}
                 </p>
                 <p className="text-sm mt-1 text-slate-500 dark:text-slate-400 font-medium">
-                  {query || filterBrand
+                  {debouncedQuery || filterBrand
                     ? "Try adjusting your search or filters."
                     : `There are no ${activeTab.toLowerCase().replace("_", " ")} devices.`}
                 </p>
               </div>
             ) : (
-              filteredPhones.map((phone) => (
-                <div
-                  key={phone.id}
-                  onTouchStart={() => handleTouchStart(phone)}
-                  onTouchEnd={handleTouchEnd}
-                  onMouseDown={() => handleMouseDown(phone)}
-                  onMouseUp={handleMouseUp}
-                  onClick={() => {
-                    if (isMultiSelect) {
-                      if (phone.status !== "IN_STOCK") return;
-                      setSelectedIds((prev) =>
-                        prev.includes(phone.id)
-                          ? prev.filter((id) => id !== phone.id)
-                          : [...prev, phone.id],
-                      );
-                    } else {
-                      navigate(`/inventory/${phone.id}`);
-                    }
-                  }}
-                  className={clsx(
-                    "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border block transition-all group cursor-pointer relative",
-                    phone.status === "SOLD" && "opacity-90",
-                    isMultiSelect && selectedIds.includes(phone.id)
-                      ? "border-primary-500 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-500"
-                      : "border-slate-100 dark:border-slate-800 hover:border-primary-500/20 dark:hover:border-primary-500/30",
-                    isMultiSelect &&
-                      phone.status !== "IN_STOCK" &&
-                      "opacity-50 pointer-events-none",
-                  )}
-                >
-                  {/* Checkbox overlay for multi-select mode */}
-                  {isMultiSelect && phone.status === "IN_STOCK" && (
-                    <div className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 z-10 shadow-sm rounded-lg">
+              Object.entries(groupedPhones).map(([brand, phones]) => (
+                <div key={brand} className="space-y-2">
+                  <div className="flex items-center justify-between py-2 bg-slate-50 dark:bg-slate-950">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                      {brand} — {phones.length} Units
+                    </h3>
+                  </div>
+                  <div className="grid gap-3">
+                    {phones.map((phone) => (
                       <div
+                        key={phone.id}
+                        onTouchStart={() => handleTouchStart(phone)}
+                        onTouchEnd={handleTouchEnd}
+                        onMouseDown={() => handleMouseDown(phone)}
+                        onMouseUp={handleMouseUp}
+                        onClick={() => {
+                          if (isMultiSelect) {
+                            if (phone.status !== "IN_STOCK") return;
+                            setSelectedIds((prev) =>
+                              prev.includes(phone.id)
+                                ? prev.filter((id) => id !== phone.id)
+                                : [...prev, phone.id],
+                            );
+                          } else {
+                            navigate(`/inventory/${phone.id}`);
+                          }
+                        }}
                         className={clsx(
-                          "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
-                          selectedIds.includes(phone.id)
-                            ? "bg-primary-500 border-primary-500"
-                            : "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600",
+                          "bg-white dark:bg-slate-900 p-4 rounded-[1rem] shadow-sm hover:shadow-md border block transition-all group cursor-pointer relative",
+                          phone.status === "SOLD" && "opacity-90",
+                          isMultiSelect && selectedIds.includes(phone.id)
+                            ? "border-primary-500 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-500"
+                            : "border-slate-100 dark:border-slate-800 hover:border-primary-500/20 dark:hover:border-primary-500/30",
+                          isMultiSelect &&
+                            phone.status !== "IN_STOCK" &&
+                            "opacity-50 pointer-events-none",
                         )}
                       >
-                        {selectedIds.includes(phone.id) && (
-                          <svg
-                            className="w-4 h-4 text-white"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={3}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
+                        {/* Checkbox overlay for multi-select mode */}
+                        {isMultiSelect && phone.status === "IN_STOCK" && (
+                          <div className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 z-10 shadow-sm rounded-lg">
+                            <div
+                              className={clsx(
+                                "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
+                                selectedIds.includes(phone.id)
+                                  ? "bg-primary-500 border-primary-500"
+                                  : "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600",
+                              )}
+                            >
+                              {selectedIds.includes(phone.id) && (
+                                <svg
+                                  className="w-4 h-4 text-white"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={3}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
                         )}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1 pr-4">
-                      <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                        {phone.brand} {phone.model}
-                      </h3>
-                      <div className="flex items-center gap-1 text-[12px] text-slate-500 font-mono mt-1.5">
-                        <Fingerprint size={12} />
-                        <span>
-                          IMEI:{" "}
-                          {phone.imeis &&
-                          phone.imeis.filter((i) => i.length >= 4).length > 0
-                            ? phone.imeis
-                                .filter((i) => i.length >= 4)
-                                .map((i) => `•••• ${i.slice(-4)}`)
-                                .join(" / ")
-                            : "—"}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium text-slate-500 mt-1">
-                        <Cpu size={14} />
-                        <span>
-                          {phone.ram !== "N/A" ? `${phone.ram} / ` : ""}
-                          {phone.storage} / {phone.color}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      {phone.status === "SOLD" && phone.salePrice ? (
-                        <div
-                          className={clsx(
-                            "flex items-center gap-1 font-extrabold",
-                            phone.salePrice -
-                              (phone.purchasePrice +
-                                ledgerEntries
-                                  .filter(
-                                    (e) =>
-                                      e.type === "REPAIR_COST" &&
-                                      e.referenceId === phone.id,
-                                  )
-                                  .reduce((sum, e) => sum + e.amount, 0)) >=
-                              0
-                              ? "text-emerald-500"
-                              : "text-rose-500",
-                          )}
-                        >
-                          {phone.salePrice -
-                            (phone.purchasePrice +
-                              ledgerEntries
-                                .filter(
-                                  (e) =>
-                                    e.type === "REPAIR_COST" &&
-                                    e.referenceId === phone.id,
-                                )
-                                .reduce((sum, e) => sum + e.amount, 0)) >=
-                          0 ? (
-                            <TrendingUp size={14} />
-                          ) : (
-                            <TrendingDown size={14} />
-                          )}
-                          <span className="text-lg leading-none">
-                            {formatCurrency(phone.salePrice)}
-                          </span>
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1 pr-4">
+                            <h4 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                              {phone.model}
+                            </h4>
+                            <div className="flex items-center gap-1 text-[12px] text-slate-500 font-mono mt-1.5">
+                              <Fingerprint size={12} />
+                              <span>
+                                IMEI:{" "}
+                                {phone.imeis &&
+                                phone.imeis.filter((i) => i.length >= 4)
+                                  .length > 0
+                                  ? phone.imeis
+                                      .filter((i) => i.length >= 4)
+                                      .map((i) => `•••• ${i.slice(-4)}`)
+                                      .join(" / ")
+                                  : "—"}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium text-slate-500 mt-1">
+                              <Cpu size={14} />
+                              <span>
+                                {phone.ram !== "N/A" ? `${phone.ram} / ` : ""}
+                                {phone.storage} / {phone.color}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            {phone.status === "SOLD" && phone.salePrice ? (
+                              <div
+                                className={clsx(
+                                  "flex items-center gap-1 font-extrabold",
+                                  phone.salePrice -
+                                    (phone.purchasePrice +
+                                      ledgerEntries
+                                        .filter(
+                                          (e) =>
+                                            e.type === "REPAIR_COST" &&
+                                            e.referenceId === phone.id,
+                                        )
+                                        .reduce((sum, e) => sum + Math.abs(e.amount), 0)) >=
+                                    0
+                                    ? "text-emerald-500"
+                                    : "text-rose-500",
+                                )}
+                              >
+                                {phone.salePrice -
+                                  (phone.purchasePrice +
+                                    ledgerEntries
+                                      .filter(
+                                        (e) =>
+                                          e.type === "REPAIR_COST" &&
+                                          e.referenceId === phone.id,
+                                      )
+                                      .reduce((sum, e) => sum + Math.abs(e.amount), 0)) >=
+                                0 ? (
+                                  <TrendingUp size={14} />
+                                ) : (
+                                  <TrendingDown size={14} />
+                                )}
+                                <span className="text-lg leading-none">
+                                  {formatCurrency(phone.salePrice)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-none">
+                                {formatCurrency(phone.purchasePrice)}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      ) : (
-                        <span className="text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-none">
-                          {formatCurrency(phone.purchasePrice)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-2">
-                      <Clock size={11} className="text-slate-400" />
-                      <p className="text-[10px] uppercase font-bold text-slate-400">
-                        {getRelativeDate(phone.createdAt)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {/* ONLY SHOW ISSUES BADGE IF ISSUES EXIST */}
-                      {phone.issueTags.length > 0 && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
-                          {phone.issueTags.length}{" "}
-                          {phone.issueTags.length === 1 ? "Issue" : "Issues"}
-                        </span>
-                      )}
-
-                      {/* STATUS BADGE PLACED AT THE END */}
-                      {activeTab === "ALL" && (
-                        <span
-                          className={clsx(
-                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
-                            phone.status === "IN_STOCK"
-                              ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
-                              : phone.status === "PENDING"
-                                ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
-                                : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
-                          )}
-                        >
-                          <span
-                            className={clsx(
-                              "size-1.5 rounded-full",
-                              phone.status === "IN_STOCK"
-                                ? "bg-emerald-500"
-                                : phone.status === "PENDING"
-                                  ? "bg-amber-500"
-                                  : "bg-slate-400",
+                        <div className="flex items-center justify-between mt-4">
+                          <div className="flex items-center gap-2">
+                            <Clock size={11} className="text-slate-400" />
+                            <p className="text-[10px] uppercase font-bold text-slate-400">
+                              {getRelativeDate(phone.createdAt)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {/* ONLY SHOW ISSUES BADGE IF ISSUES EXIST */}
+                            {phone.issueTags.length > 0 && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                                {phone.issueTags.length}{" "}
+                                {phone.issueTags.length === 1
+                                  ? "Issue"
+                                  : "Issues"}
+                              </span>
                             )}
-                          ></span>
-                          {phone.status.replace("_", " ")}
-                        </span>
-                      )}
 
-                      {activeTab !== "ALL" && (
-                        <span
-                          className={clsx(
-                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
-                            activeTab === "IN_STOCK"
-                              ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
-                              : activeTab === "PENDING"
-                                ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
-                                : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
-                          )}
-                        >
-                          <span
-                            className={clsx(
-                              "size-1.5 rounded-full",
-                              activeTab === "IN_STOCK"
-                                ? "bg-emerald-500"
-                                : activeTab === "PENDING"
-                                  ? "bg-amber-500"
-                                  : "bg-slate-400",
+                            {/* STATUS BADGE PLACED AT THE END */}
+                            {activeTab === "ALL" && (
+                              <span
+                                className={clsx(
+                                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
+                                  phone.status === "IN_STOCK"
+                                    ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
+                                    : phone.status === "PENDING"
+                                      ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
+                                      : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
+                                )}
+                              >
+                                <span
+                                  className={clsx(
+                                    "size-1.5 rounded-full",
+                                    phone.status === "IN_STOCK"
+                                      ? "bg-emerald-500"
+                                      : phone.status === "PENDING"
+                                        ? "bg-amber-500"
+                                        : "bg-slate-400",
+                                  )}
+                                ></span>
+                                {phone.status.replace("_", " ")}
+                              </span>
                             )}
-                          ></span>
-                          {activeTab.replace("_", " ")}
-                        </span>
-                      )}
-                    </div>
+
+                            {activeTab !== "ALL" && (
+                              <span
+                                className={clsx(
+                                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border",
+                                  activeTab === "IN_STOCK"
+                                    ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
+                                    : activeTab === "PENDING"
+                                      ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
+                                      : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/60",
+                                )}
+                              >
+                                <span
+                                  className={clsx(
+                                    "size-1.5 rounded-full",
+                                    activeTab === "IN_STOCK"
+                                      ? "bg-emerald-500"
+                                      : activeTab === "PENDING"
+                                        ? "bg-amber-500"
+                                        : "bg-slate-400",
+                                  )}
+                                ></span>
+                                {activeTab.replace("_", " ")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))

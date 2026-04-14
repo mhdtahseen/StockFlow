@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   CheckCircle2,
   Package,
@@ -52,6 +52,7 @@ import { supabase } from "@/lib/supabase";
 import { addOrder, returnOrder } from "@/features/billing/slice";
 import { markAsInStock } from "@/features/inventory/slice";
 import { addEntry } from "@/features/ledger/slice";
+import { addPurchaseOrder } from "@/features/purchasing/slice";
 import { generateInvoicePDF } from "@/utils/generateInvoice";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -67,7 +68,7 @@ export default function OrderDetail() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { canUse } = usePlan();
-  const { tenant } = useAuth();
+  const { tenant, user } = useAuth();
 
   const order = useAppSelector(
     (state) =>
@@ -78,7 +79,14 @@ export default function OrderDetail() {
     state.customers.customers.find((c) => c.id === order?.counterpartyId),
   );
   const phones = useAppSelector((state) => state.inventory.phones);
-  const ledgerEntries = useAppSelector((state) => state.ledger.entries);
+  const _ledgerEntries = useAppSelector((state) => state.ledger.entries);
+  const _pendingEntries = useAppSelector((state) => state.ledger.pendingEntries || []);
+  // Merge confirmed + optimistic pending entries for Finance tab display.
+  // useMemo avoids creating a new array reference on every render (prevents Redux selector warning).
+  const ledgerEntries = React.useMemo(
+    () => [..._ledgerEntries, ..._pendingEntries],
+    [_ledgerEntries, _pendingEntries],
+  );
   const payments = useAppSelector((state) => state.customers.payments);
   const isPurchaseOrder = useAppSelector((state) =>
     state.purchasing.orders.some((o) => o.id === id),
@@ -121,29 +129,34 @@ export default function OrderDetail() {
 
           if (!mounted) return;
 
-          // Map PO to Order shape
+          // Map PO to PurchaseOrder shape
           dispatch(
-            addOrder({
+            addPurchaseOrder({
               id: poData.id,
               counterpartyId: poData.counterparty_id,
-              orderType: "PURCHASE",
+              acquisitionChannel: "DIRECT", // Fallback or map if exists
+              platformFee: 0,
+              phonesOrdered: (poData.purchase_order_items || []).length,
+              phonesReceived: (poData.purchase_order_items || []).length,
               status: poData.status,
               totalAmount: poData.total_amount,
               amountPaid: poData.amount_paid,
+              dueDate: poData.due_date,
               createdAt: poData.created_at,
               items: (poData.purchase_order_items || []).map((i: any) => ({
                 id: i.id,
+                purchaseOrderId: i.purchase_order_id,
                 phoneId: i.phone_id,
+                purchasePrice: i.purchase_price ?? 0,
+                status: i.status,
+                rejectionReason: i.rejection_reason,
                 brandSnapshot: i.brand_snapshot,
                 modelSnapshot: i.model_snapshot,
                 storageSnapshot: i.storage_snapshot,
                 colorSnapshot: i.color_snapshot,
-                imeiSnapshot: i.imei_snapshot || [],
-                purchasePrice: i.purchase_price ?? 0,
-                effectivePrice: i.purchase_price ?? 0,
-                status: i.status,
+                ramSnapshot: i.ram_snapshot,
               })),
-            } as any),
+            }),
           );
           return;
         }
@@ -262,12 +275,28 @@ export default function OrderDetail() {
   // ── Unified Payment Logic (Mapping Advances + Allocations) ──────────────
   // 1. Get Advance Payments from Ledger (recorded at SO/PO creation)
   const advancePayments = ledgerEntries
-    .filter(
-      (e) =>
-        e.referenceId === order.id &&
-        (e.type === "PHONE_SALE" || e.type === "FUNDS_CONSUMED") &&
-        e.amount > 0,
-    )
+    .filter((e: any) => {
+      const matchesOrder =
+        e.purchaseOrderId === order.id ||
+        e.saleOrderId === order.id ||
+        e.referenceId === order.id;
+
+      if (!matchesOrder) return false;
+
+      if (isPurchaseOrder) {
+        // For POs: initial payment is SUPPLIER_PAYMENT or FUNDS_CONSUMED (negative)
+        return (
+          (e.type === "SUPPLIER_PAYMENT" || e.type === "FUNDS_CONSUMED") &&
+          Math.abs(e.amount) > 0
+        );
+      } else {
+        // For SOs: initial payment is CUSTOMER_PAYMENT, PHONE_SALE, or FUNDS_CONSUMED
+        return (
+          (e.type === "CUSTOMER_PAYMENT" || e.type === "PHONE_SALE" || e.type === "FUNDS_CONSUMED") &&
+          Math.abs(e.amount) > 0
+        );
+      }
+    })
     .map((e) => ({
       id: e.id,
       amount: Math.abs(e.amount),
@@ -277,11 +306,16 @@ export default function OrderDetail() {
       note: e.note || "Initial Payment",
     }));
 
-  // 2. Get Subsequent Allocations from Customer/Vendor payments
+  // 2. Get Subsequent Allocations (payments after initial advance)
   const orderAllocations = isPurchaseOrder
     ? ledgerEntries
         .filter(
-          (e) => e.referenceId === order.id && e.type === "FUNDS_CONSUMED",
+          (e: any) =>
+            (e.purchaseOrderId === order.id || e.referenceId === order.id) &&
+            // Subsequent PO payments can be SUPPLIER_PAYMENT (from RecordPaymentSheet)
+            // FUNDS_CONSUMED is the initial advance (already in advancePayments)
+            (e.type === "SUPPLIER_PAYMENT" || e.type === "FUNDS_CONSUMED") &&
+            !advancePayments.some((ap) => ap.id === e.id),
         )
         .map((e) => ({
           id: e.id,
@@ -289,26 +323,77 @@ export default function OrderDetail() {
           receivedAt: e.createdAt,
           mode: e.paymentMode || "UNKNOWN",
           type: "ALLOCATION" as const,
-          note: e.note || "Allocation",
+          note: e.note || "Bill Payout",
         }))
-    : payments.flatMap((p) =>
-        (p.allocations || [])
-          .filter((a) => a.saleOrderId === order.id)
-          .map((a: any) => ({
-            id: p.id,
-            amount: a.amountAllocated,
-            receivedAt: p.receivedAt,
-            mode: p.mode,
-            type: "ALLOCATION" as const,
-            note: `Bulk Receipt #${p.id.slice(0, 5).toUpperCase()}`,
-            totalPaymentAmount: p.totalReceived, // for context
-          })),
-      );
+    : ledgerEntries
+        .filter(
+          (e: any) =>
+            (e.saleOrderId === order.id || e.referenceId === order.id) &&
+            (e.type === "CUSTOMER_PAYMENT" || e.type === "FUNDS_CONSUMED") &&
+            !advancePayments.some((ap) => ap.id === e.id),
+        )
+        .map((e) => ({
+          id: e.id,
+          amount: Math.abs(e.amount),
+          receivedAt: e.createdAt,
+          mode: e.paymentMode || "UNKNOWN",
+          type: "ALLOCATION" as const,
+          note: e.note || "Payment Received",
+        }));
 
-  // 3. Combined & Sorted Unified List
   const unifiedPayments = [...advancePayments, ...orderAllocations].sort(
     (a, b) =>
       new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+  );
+
+  // --- REVERSE CHRONOLOGICAL TIMELINE ---
+  const timelineEvents = [
+    {
+      id: 'creation',
+      type: 'CREATION',
+      title: 'Order Initiated',
+      description: `${isPurchaseOrder ? 'Purchase' : (order as any).orderType || 'Sales'} Order Generated`,
+      timestamp: order.createdAt,
+      note: undefined,
+      color: 'bg-primary-500',
+    },
+    ...unifiedPayments.map(p => ({
+      id: p.id,
+      type: 'PAYMENT',
+      title: isPurchaseOrder ? 'Payment Sent' : 'Payment Received',
+      description: `₹${p.amount.toLocaleString()} via ${p.mode}`,
+      note: p.note,
+      timestamp: p.receivedAt,
+      color: 'bg-emerald-500',
+    })),
+  ];
+
+  if (order.status === 'SETTLED' && unifiedPayments.length > 0) {
+    timelineEvents.push({
+      id: 'settlement',
+      type: 'SETTLEMENT',
+      title: 'Order Settled',
+      description: 'Account Fully Cleared',
+      timestamp: unifiedPayments[0].receivedAt, // Sorted by date desc, so index 0 is latest
+      note: undefined,
+      color: 'bg-emerald-600',
+    });
+  }
+
+  if (order.status === 'RETURNED' || order.status === 'CANCELLED') {
+    timelineEvents.push({
+      id: 'void',
+      type: 'VOID',
+      title: order.status === 'RETURNED' ? 'Order Returned' : 'Order Cancelled',
+      description: order.status === 'RETURNED' ? 'Devices restocked & Refunded' : 'Transaction Voided',
+      timestamp: new Date().toISOString(), // Use now as fallback for current status
+      note: undefined,
+      color: 'bg-rose-500',
+    });
+  }
+
+  const sortedTimeline = [...timelineEvents].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
   const handleReturn = () => {
@@ -318,39 +403,15 @@ export default function OrderDetail() {
       )
     ) {
       if (isPurchaseOrder) {
-        // Handle purchase order return (reverse the purchase)
-        dispatch(
-          addEntry({
-            id: crypto.randomUUID(),
-            type: "FUNDS_CONSUMED",
-            referenceId: order.id,
-            amount: order.totalAmount, // POSITIVE amount for refund (returning to escrow/purchases balance)
-            note: `Refund for returned items for Purchase Order ${order.id.slice(
-              0,
-              8,
-            )}`,
-            createdAt: new Date().toISOString(),
-          }),
-        );
-        toast.success("Purchase Order Returned", {
-          description: "Refund processed successfully.",
+        // Full PO returns are handled via item rejection or manual adjustments.
+        // If a full logic exists for PO return status, it should trigger here.
+        toast.info("PO Return", {
+          description: "Use individual item rejections for partial PO reconciliation.",
         });
       } else {
-        // Handle sale order return
+        // Handle sale order return - WATCHTOWER will auto-log the refund entry
         dispatch(returnOrder(order.id));
-        dispatch(
-          addEntry({
-            id: crypto.randomUUID(),
-            type: "PHONE_SALE",
-            referenceId: order.id,
-            amount: -order.amountPaid, // Reverse only what was actually collected
-            note: `Refund for returned item(s) for Sales Order ${order.id.slice(
-              0,
-              8,
-            )}`,
-            createdAt: new Date().toISOString(),
-          }),
-        );
+        
         // Restock phones
         order.items.forEach((item) => {
           if (item.phoneId) {
@@ -363,7 +424,7 @@ export default function OrderDetail() {
           }
         });
         toast.success("Order Returned", {
-          description: "Devices restocked successfully.",
+          description: "Devices restocked and refund initiated.",
         });
       }
     }
@@ -567,7 +628,8 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-10">
+      <div className="flex-1 overflow-y-auto">
+        <main className="p-4 sm:p-6 space-y-6 pb-10">
         {/* --- ITEMS TAB --- */}
         {activeTab === "items" && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -593,22 +655,25 @@ export default function OrderDetail() {
               </div>
             )}
 
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden divide-y divide-slate-50 dark:divide-slate-800">
+            <div className="space-y-3">
               {order.items.map((item) => {
                 const isPOItem = isPurchaseOrder;
                 const phone = phones.find((p) => p.id === item.phoneId);
                 const itemData = {
                   brand: isPOItem
-                    ? phone?.brand || "Unknown"
+                    ? phone?.brand || (item as any).brandSnapshot || "Unknown"
                     : (item as any).brandSnapshot || "Unknown",
                   model: isPOItem
-                    ? phone?.model || "Item"
+                    ? phone?.model || (item as any).modelSnapshot || "Item"
                     : (item as any).modelSnapshot || "Unknown",
                   storage: isPOItem
-                    ? phone?.storage || "N/A"
+                    ? phone?.storage || (item as any).storageSnapshot || "N/A"
                     : (item as any).storageSnapshot || "N/A",
+                  ram: isPOItem
+                    ? phone?.ram || (item as any).ramSnapshot || "N/A"
+                    : (item as any).ramSnapshot || "N/A",
                   color: isPOItem
-                    ? phone?.color || "N/A"
+                    ? phone?.color || (item as any).colorSnapshot || "N/A"
                     : (item as any).colorSnapshot || "N/A",
                   price: isPOItem
                     ? (item as any).purchasePrice || 0
@@ -652,22 +717,28 @@ export default function OrderDetail() {
                       : itemData.status === "REJECTED"
                         ? "bg-rose-500 text-white"
                         : "bg-primary-500 text-white",
-                  label: itemData.status?.replace("_", " ") || "Pending",
+                  label: itemData.status?.replace("_", " ") || (isPurchaseOrder ? "Pending" : "Sold"),
                 };
 
                 return (
-                  <DeviceListItem
+                  <Link
                     key={item.id}
-                    brand={itemData.brand}
-                    model={itemData.model}
-                    storage={itemData.storage}
-                    color={itemData.color}
-                    imeis={itemData.imeis}
-                    price={itemData.effectivePrice}
-                    isPurchaseOrder={isPurchaseOrder}
-                    unitProfit={unitProfit}
-                    config={config}
-                  />
+                    to={item.phoneId ? `/inventory/${item.phoneId}` : "#"}
+                    className="block bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md transition-all active:scale-[0.99] overflow-hidden"
+                  >
+                    <DeviceListItem
+                      brand={itemData.brand}
+                      model={itemData.model}
+                      storage={itemData.storage}
+                      ram={itemData.ram}
+                      color={itemData.color}
+                      imeis={itemData.imeis}
+                      price={itemData.effectivePrice}
+                      isPurchaseOrder={isPurchaseOrder}
+                      unitProfit={unitProfit}
+                      config={config}
+                    />
+                  </Link>
                 );
               })}
             </div>
@@ -756,76 +827,50 @@ export default function OrderDetail() {
 
               {/* Events */}
               <div className="space-y-10">
-                {/* 1. Creation */}
-                <div className="relative">
-                  <div className="absolute -left-[24px] z-10 size-4 rounded-full border-4 border-slate-50 dark:border-slate-950 bg-primary-500 shadow-lg shadow-primary-500/20" />
-                  <div>
-                    <p className="text-[10px] font-black text-primary-500 uppercase tracking-widest mb-1">
-                      Order Initiated
-                    </p>
-                    <p className="font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                      Sales Order Generated
-                    </p>
-                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5 italic">
-                      {format(parseISO(order.createdAt), "MMM d, h:mm a")}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 2. Payments (Interleaved) */}
-                {[...unifiedPayments].reverse().map((p, idx) => (
-                  <div key={p.id} className="relative">
-                    <div className="absolute -left-[24px] z-10 size-4 rounded-full border-4 border-slate-50 dark:border-slate-950 bg-emerald-500 shadow-lg shadow-emerald-500/20" />
+                {sortedTimeline.map((ev) => (
+                  <div key={ev.id} className="relative">
+                    <div className={clsx(
+                      "absolute -left-[24px] z-10 size-4 rounded-full border-4 border-slate-50 dark:border-slate-950 shadow-lg",
+                      ev.color,
+                      ev.type === 'CREATION' && "shadow-primary-500/20",
+                      ev.type === 'PAYMENT' && "shadow-emerald-500/20",
+                      ev.type === 'SETTLEMENT' && "shadow-emerald-500/20",
+                      ev.type === 'VOID' && "shadow-rose-500/20",
+                    )} />
                     <div>
-                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">
-                        Payment Received
+                      <p className={clsx(
+                        "text-[10px] font-black uppercase tracking-widest mb-1",
+                        ev.type === 'CREATION' ? "text-primary-500" : 
+                        ev.type === 'PAYMENT' ? "text-emerald-500" :
+                        ev.type === 'SETTLEMENT' ? "text-emerald-600" :
+                        ev.type === 'VOID' ? "text-rose-500" : "text-slate-500"
+                      )}>
+                        {ev.title}
                       </p>
-                      <p className="font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                        ₹{p.amount.toLocaleString()} via {p.mode}
+                      <p className={clsx(
+                        "font-bold leading-tight",
+                        ev.type === 'SETTLEMENT' ? "text-emerald-700" :
+                        ev.type === 'VOID' ? "text-rose-700" : "text-slate-900 dark:text-slate-100"
+                      )}>
+                        {ev.description}
                       </p>
-                      <p className="text-xs font-semibold text-slate-500 mt-1">
-                        {p.note}
-                      </p>
+                      {ev.note && (
+                        <p className="text-xs font-semibold text-slate-500 mt-1">
+                          {ev.note}
+                        </p>
+                      )}
                       <p className="text-[10px] font-semibold text-slate-400 mt-0.5 italic">
-                        {format(parseISO(p.receivedAt), "MMM d, h:mm a")}
+                        {format(parseISO(ev.timestamp), "MMM d, h:mm a")}
                       </p>
                     </div>
                   </div>
                 ))}
-
-                {/* 3. Settlement / Status */}
-                {order.status === "SETTLED" && (
-                  <div className="relative">
-                    <div className="absolute -left-[24px] z-10 size-4 rounded-full border-4 border-slate-50 dark:border-slate-950 bg-emerald-600 shadow-lg shadow-emerald-500/20" />
-                    <div>
-                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">
-                        Order Settled
-                      </p>
-                      <p className="font-bold text-emerald-700 leading-tight">
-                        Account Fully Cleared
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {order.status === "RETURNED" && (
-                  <div className="relative">
-                    <div className="absolute -left-[24px] z-10 size-4 rounded-full border-4 border-slate-50 dark:border-slate-950 bg-rose-500 shadow-lg shadow-rose-500/20" />
-                    <div>
-                      <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">
-                        Return Processed
-                      </p>
-                      <p className="font-bold text-rose-700 leading-tight">
-                        Order Voided & Restocked
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
         )}
       </main>
+    </div>
 
       <RecordPaymentSheet
         open={showPayment}

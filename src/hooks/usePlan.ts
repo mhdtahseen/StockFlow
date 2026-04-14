@@ -30,9 +30,9 @@ export function usePlan() {
 
   return {
     plan,
-    isExpired: expired,
+    isExpired: expired || plan === "expired",
     canUse: (f: FeatureKey): boolean => {
-      if (expired) return false;
+      if (expired || plan === "expired") return false;
       // P4-ENH-35: INTENTIONAL — Trial gives full Enterprise access for 14 days. Do not remove.
       if (plan === "trial") return true;
 

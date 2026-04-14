@@ -141,6 +141,12 @@ export const syncActionToSupabase = async (
           payment_mode: payload.paymentMode ?? null, // ← financial channel tracking
           note: payload.note ?? null,
           created_at: payload.createdAt,
+          // Audit metadata
+          customer_payment_id: payload.customerPaymentId ?? null,
+          supplier_payment_id: payload.supplierPaymentId ?? null,
+          sale_order_id: payload.saleOrderId ?? null,
+          purchase_order_id: payload.purchaseOrderId ?? null,
+          settlement_count: payload.settlementCount ?? null,
         });
         if (error) throw error;
         break;
@@ -248,6 +254,11 @@ export const syncActionToSupabase = async (
           p_items: payload.items.map((i: any) => ({
             phone_id: i.phoneId,
             purchase_price: i.purchasePrice,
+            brand_snapshot: i.brandSnapshot,
+            model_snapshot: i.modelSnapshot,
+            storage_snapshot: i.storageSnapshot,
+            color_snapshot: i.colorSnapshot,
+            ram_snapshot: i.ramSnapshot,
           })),
         });
         if (error) throw error;
@@ -415,24 +426,32 @@ export const syncActionToSupabase = async (
 
     return true; // Sync succeeded
   } catch (error: any) {
-    // 409 Conflict or 23505 Unique Violation means the record already exists.
-    // In an offline-sync context with client-generated UUIDs, this typically
-    // means the previous sync attempt succeeded but the ACK was lost.
-    // We treat this as a success so the action is removed from the outbox.
-    const isConflict =
-      error.status === 409 ||
-      error.code === "23505" ||
+    // 409 Conflict logic: In an offline-sync context with client-generated UUIDs, 
+    // a "Unique Violation" (23505) typically means the previous sync attempt 
+    // succeeded but the ACK was lost. We treat this as a success.
+    // However, a "Foreign Key Violation" (23503) means a required record (e.g. phone)
+    // is missing. This MUST be treated as an error so it stays in the outbox.
+    
+    const pgErrorCode = error.code;
+    const isUniqueViolation = pgErrorCode === "23505";
+    const isIdempotencyHit = error.status === 409 && 
       (error.message && error.message.toLowerCase().includes("already exists"));
 
-    if (isConflict) {
+    if (isUniqueViolation || isIdempotencyHit) {
       console.info(
-        "Supabase Sync: Record already exists (Conflict), marking as success.",
+        "Supabase Sync: Record already exists (Idempotency), marking as success.",
         action.type,
       );
       return true;
     }
 
-    console.warn("Supabase Sync Failed:", error.message || error);
+    // Explicitly log FK violations for debugging
+    if (pgErrorCode === "23503") {
+      console.warn("Supabase Sync: Foreign Key Violation. Dependency record missing.", error.message);
+    } else {
+      console.warn("Supabase Sync Failed:", error.message || error);
+    }
+    
     return false; // Sync failed
   }
 };

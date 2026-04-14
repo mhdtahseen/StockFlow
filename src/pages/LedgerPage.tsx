@@ -30,7 +30,9 @@ import {
   Package,
   ShoppingBag,
   ArrowUp,
+  ArrowUpRight,
   ArrowDown,
+  ArrowDownLeft,
   Calendar,
   X,
   Wrench,
@@ -221,12 +223,13 @@ export default function LedgerPage() {
   const getTransactionDetails = (entry: (typeof ledgerEntries)[0]) => {
     const cleanNote = (n?: string) => {
       if (!n) return "";
-      if (n.toLowerCase().includes("lump-sum settlement")) {
+      const ln = n.toLowerCase();
+      if (ln.includes("lump-sum") || ln.includes("bulk allocation") || ln.includes("bulk receipt") || ln.includes("fifo")) {
         const match = n.match(/\d+/);
         const count = match ? match[0] : "";
-        return count ? `Settled ${count} Bills` : "Bulk Settlement";
+        return count ? `Settled ${count} Bills` : "Bulk Allocation";
       }
-      return n;
+      return n.replace("Order", "Bill").replace("order", "bill");
     };
 
     switch (entry.type) {
@@ -237,23 +240,41 @@ export default function LedgerPage() {
           color: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400",
           note: "Owner Investment",
         };
-      case "CUSTOMER_PAYMENT":
+      case "MONEY_ADDED": // Support legacy/RPC-generated entries
+      case "CUSTOMER_PAYMENT": {
+        const count = entry.settlementCount || 0;
+        const note = entry.note ? cleanNote(entry.note) : "Collection";
         return {
-          label: "Customer Payment",
           icon: <User size={20} />,
-          color:
-            "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
-          note: cleanNote(entry.note) || "Collection",
-          isSettlement: (entry.settlementCount || 0) > 2,
+          color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
+          label: count > 2
+            ? `Settled ${count} Bills` 
+            : count === 2 && note.includes(" & ") 
+              ? note.split(" · ")[0] 
+              : count === 2 && note.startsWith("Settled #")
+                ? note
+                : "Bill Payment Received",
+          note,
+          isSettlement: !!(count > 2),
         };
-      case "SUPPLIER_PAYMENT":
+      }
+      case "SUPPLIER_PAYMENT": {
+        const count = entry.settlementCount || 0;
+        const note = entry.note ? cleanNote(entry.note) : "Payout";
         return {
-          label: "Supplier Payment",
           icon: <Building2 size={20} />,
           color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400",
-          note: cleanNote(entry.note) || "Payout",
-          isSettlement: (entry.settlementCount || 0) > 2,
+          label: count > 2
+            ? `Settled ${count} Bills`
+            : count === 2 && note.includes(" & ")
+              ? note.split(" · ")[0]
+              : count === 2 && note.startsWith("Settled #")
+                ? note
+                : "Bill Payment Given",
+          note,
+          isSettlement: !!(count > 2),
         };
+      }
       case "WITHDRAWAL":
         return {
           label: "Owner Withdrawal",
@@ -291,13 +312,14 @@ export default function LedgerPage() {
       }
       case "FUNDS_CONSUMED": {
         const c = phones.find((ph) => ph.id === entry.referenceId);
+        const poId = entry.purchaseOrderId || entry.referenceId;
         return {
           label: c
-            ? `Purchase: ${c.brand} ${c.model}`
-            : "Inventory Acquisition",
+            ? `Buy: ${c.brand} ${c.model}`
+            : "Inventory Purchase",
           icon: <Package size={20} />,
           color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400",
-          note: "Acquisition",
+          note: poId ? `PO: #${poId.slice(0, 8).toUpperCase()}` : "Acquisition",
         };
       }
       case "REPAIR_COST": {
@@ -311,13 +333,12 @@ export default function LedgerPage() {
         };
       }
       case "PHONE_SALE": {
-        const s = phones.find((ph) => ph.id === entry.referenceId);
+        const orderId = entry.saleOrderId || entry.referenceId;
         return {
-          label: s ? `${s.brand} ${s.model}` : "Phone Sale",
+          label: "Sale Order Income",
           icon: <ShoppingBag size={20} />,
-          color:
-            "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
-          note: s ? `Sale ID: #${s.id.slice(0, 4)}` : "Sale",
+          color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
+          note: orderId ? `Bill #${orderId.slice(0, 8).toUpperCase()}` : "Bill Payment",
         };
       }
       default:
@@ -652,11 +673,11 @@ export default function LedgerPage() {
               <h3 className="text-[10px] font-black text-amber-800 dark:text-amber-500 mb-1 uppercase tracking-widest">
                 Receivables (AR)
               </h3>
-              <p className="text-xl font-black text-amber-700 dark:text-amber-400 mb-3">
-                {formatCurrency(arMetrics.outstanding)}{" "}
-                <span className="text-[9px] uppercase font-bold tracking-widest text-amber-600 dark:text-amber-500">
-                  Uncollected
-                </span>
+              <p className="text-xl font-black text-amber-700 dark:text-amber-400 leading-none">
+                {formatCurrency(arMetrics.outstanding)}
+              </p>
+              <p className="text-[9px] uppercase font-bold tracking-widest text-amber-600 dark:text-amber-500 mt-1.5 mb-3">
+                Uncollected
               </p>
               <div className="flex justify-between text-[10px] font-bold text-amber-700/60 dark:text-amber-500/60">
                 <span>Invoiced: {formatCurrency(arMetrics.invoiced)}</span>
@@ -672,11 +693,11 @@ export default function LedgerPage() {
               <h3 className="text-[10px] font-black text-rose-800 dark:text-rose-500 mb-1 uppercase tracking-widest">
                 Payables (AP)
               </h3>
-              <p className="text-xl font-black text-rose-700 dark:text-rose-400 mb-3">
-                {formatCurrency(apMetrics.outstanding)}{" "}
-                <span className="text-[9px] uppercase font-bold tracking-widest text-rose-600 dark:text-rose-500">
-                  Owed
-                </span>
+              <p className="text-xl font-black text-rose-700 dark:text-rose-400 leading-none">
+                {formatCurrency(apMetrics.outstanding)}
+              </p>
+              <p className="text-[9px] uppercase font-bold tracking-widest text-rose-600 dark:text-rose-500 mt-1.5 mb-3">
+                Owed
               </p>
               <div className="flex justify-between text-[10px] font-bold text-rose-700/60 dark:text-rose-500/60">
                 <span>Commits: {formatCurrency(apMetrics.owed)}</span>
@@ -819,6 +840,7 @@ export default function LedgerPage() {
                       const isPositive = [
                         "CAPITAL_INJECTION",
                         "CUSTOMER_PAYMENT",
+                        "MONEY_ADDED",
                         "PHONE_SALE",
                         "FUNDS_RELEASED",
                       ].includes(entry.type);

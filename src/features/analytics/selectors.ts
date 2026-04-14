@@ -101,7 +101,7 @@ export const selectInventoryMetrics = createSelector(
     entries.forEach((e) => {
       if (e.type === "REPAIR_COST" && e.referenceId) {
         repairByPhone[e.referenceId] =
-          (repairByPhone[e.referenceId] || 0) + e.amount;
+          (repairByPhone[e.referenceId] || 0) + Math.abs(e.amount);
       }
     });
 
