@@ -6,8 +6,11 @@ import {
   ExternalLink, 
   ShieldAlert,
   Smartphone,
-  ChevronRight
+  ChevronRight,
+  Share,
+  PlusSquare
 } from "lucide-react";
+
 
 interface AppGateProps {
   children: React.ReactNode;
@@ -58,10 +61,9 @@ export default function AppGate({ children }: AppGateProps) {
         return;
       }
 
-      // 2. Block Android Mobile Browser (Mandatory App)
-      // We check for isAndroid AND isMobile to allow Android Tablets if they present as Desktop, 
-      // but primarily targeting Android Phones in the browser.
-      if (isAndroid && isMobile && !isStandalone) {
+      // 2. Block Mobile Browsers (Mandatory App)
+      // Targeting both Android and iOS phones in the browser.
+      if ((isAndroid || isIos) && isMobile && !isStandalone) {
         setIsBlocked(true);
         return;
       }
@@ -89,45 +91,73 @@ export default function AppGate({ children }: AppGateProps) {
             Use the Mobile App
           </h1>
           <p className="text-slate-400 text-sm font-medium leading-relaxed mb-8">
-            Web access is restricted on Android mobile devices. Please use the official application for a secure and optimized experience.
+            Web access is restricted on mobile devices. Please use the official application for a secure and optimized experience.
           </p>
 
           <div className="space-y-3">
-            <a 
-              href={getAppIntent()}
-              className="w-full bg-white text-slate-950 h-14 rounded-2xl flex items-center justify-center gap-3 text-sm font-black uppercase tracking-wider hover:bg-slate-100 transition-all active:scale-[0.98] shadow-xl shadow-white/10"
-            >
-
-              <ExternalLink size={18} />
-              Open In App
-            </a>
+            {deviceInfo.isAndroid && (
+              <a 
+                href={getAppIntent()}
+                className="w-full bg-white text-slate-950 h-14 rounded-2xl flex items-center justify-center gap-3 text-sm font-black uppercase tracking-wider hover:bg-slate-100 transition-all active:scale-[0.98] shadow-xl shadow-white/10"
+              >
+                <ExternalLink size={18} />
+                Open In App
+              </a>
+            )}
             
             <div className="pt-8 text-left space-y-4">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 text-center">
-                Installation Guide
+                Installation Guide {deviceInfo.isIos ? "(iOS)" : "(Android)"}
               </p>
               
-              <div className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
-                <div className="size-10 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center shrink-0">
-                  <span className="text-blue-500 font-black">1</span>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white mb-1">Download APK</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Get the latest version from our portal or admin.</p>
-                </div>
-              </div>
+              {deviceInfo.isIos ? (
+                <>
+                  <div className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="size-10 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center shrink-0">
+                      <Share className="text-blue-500" size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white mb-1">Step 1</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Tap the 'Share' icon in your Safari menu.</p>
+                    </div>
+                  </div>
 
-              <div className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
-                <div className="size-10 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center shrink-0">
-                  <span className="text-blue-500 font-black">2</span>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white mb-1">Instant Install</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Or tap 'Install App' in your Chrome menu options.</p>
-                </div>
-              </div>
+                  <div className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="size-10 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center shrink-0">
+                      <PlusSquare className="text-blue-500" size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white mb-1">Step 2</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Select 'Add to Home Screen' to install the app.</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="size-10 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center shrink-0">
+                      <Download className="text-blue-500" size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white mb-1">Download APK</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Get the latest version from our portal or admin.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="size-10 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center shrink-0">
+                      <Smartphone className="text-blue-500" size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white mb-1">Instant Install</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Or tap 'Install App' in your Chrome menu options.</p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
+
 
           <div className="mt-12 flex items-center justify-center gap-2 text-slate-600">
             <ShieldAlert size={14} />

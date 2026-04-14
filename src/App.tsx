@@ -42,7 +42,7 @@ import AdminNotifications from "@/pages/AdminNotifications";
 
 import "./index.css";
 import { useAuth } from "./context/AuthContext";
-import IosInstallPrompt from "./components/shared/IosInstallPrompt";
+
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
@@ -167,8 +167,8 @@ function App() {
               <Route path="about" element={<AboutApp />} />
             </Route>
           </Routes>
-          <IosInstallPrompt />
         </AppGate>
+
       </BrowserRouter>
     </TooltipProvider>
   );
