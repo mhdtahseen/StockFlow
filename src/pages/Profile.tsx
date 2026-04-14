@@ -134,10 +134,12 @@ export default function ProfilePage() {
         .from("profiles")
         .upsert({
           id: session.user.id,
+          tenant_id: tenant?.id || session.user.user_metadata.tenant_id,
           full_name: trimmedFullName,
           avatar_url: avatarUrl,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
+
 
       if (error) throw error;
 
