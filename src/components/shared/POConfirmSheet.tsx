@@ -35,6 +35,7 @@ import {
   MonitorSmartphone,
   Palette,
   HardDrive,
+  Loader2,
 } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
@@ -77,6 +78,7 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
   const [rejectionReason, setRejectionReason] =
     useState<RejectionReason>("OTHER");
   const [showRejectionForm, setShowRejectionForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [processed, setProcessed] = useState<
     Record<
@@ -146,6 +148,9 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
 
   if (currentIndex >= pendingItems.length) {
     const handleFinalSubmit = async () => {
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+
       const newItems = order.items.map((it) => {
         if (processed[it.id]) {
           return {
@@ -169,66 +174,38 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
         (p) => p.status === "ACCEPTED",
       ).length;
 
-      // A-004: Calculate final PO total based on accepted units only
+      // Calculate final PO total based on accepted units only
       const newTotalAmount = newItems
         .filter((item) => item.status === "ACCEPTED")
         .reduce((sum, item) => sum + (item.purchasePrice || 0), 0);
 
       try {
-        // Sync to Supabase - Persistent storage for inspection results
-        const { error: poError } = await supabase
-          .from("purchase_orders")
-          .update({
-            status: anyPending ? "PARTIAL" : "RECEIVED",
-            total_amount: newTotalAmount,
-            phones_received: order.phonesReceived + approvedCount,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order.id);
-
-        if (poError) throw poError;
-
-        // Update individual item statuses in DB
-        const itemUpdates = newItems
-          .filter(it => processed[it.id]) // Only update what we touched
-          .map((it) => ({
-            id: it.id,
-            purchase_order_id: order.id,
-            status: it.status,
-            phone_id: it.phoneId,
-            rejection_reason: it.rejectionReason,
-            purchase_price: it.purchasePrice,
-            brand_snapshot: it.brandSnapshot,
-            model_snapshot: it.modelSnapshot,
-            storage_snapshot: it.storageSnapshot,
-            color_snapshot: it.colorSnapshot,
-            ram_snapshot: it.ramSnapshot,
-          }));
-
-        const { error: itemsError } = await supabase
-          .from("purchase_order_items")
-          .upsert(itemUpdates);
-
-        if (itemsError) throw itemsError;
-
+        // Dispatch to background sync manager immediately
+        // This makes the UI feel instant and solves the Android "stalling" issue
         dispatch(
           confirmReceipt({
             id: order.id,
             items: newItems,
             status: anyPending ? "PARTIAL" : "RECEIVED",
-            phonesReceived: order.phonesReceived + approvedCount,
+            phonesReceived: (order.phonesReceived || 0) + approvedCount,
             totalAmount: newTotalAmount,
           }),
         );
 
-        toast.success("Manifest Updated", {
-          description: `Processed ${Object.keys(processed).length} units, Total updated to ₹${newTotalAmount.toLocaleString()}.`,
+        toast.success("Manifest Committing", {
+          description: `Processing ${Object.keys(processed).length} units. Sync will complete in background.`,
         });
-        onOpenChange(false);
+        
+        // Give a tiny delay for the feedback before closing
+        setTimeout(() => {
+          onOpenChange(false);
+          setIsSubmitting(false);
+        }, 300);
       } catch (err: any) {
-        console.error("Failed to commit manifest:", err);
-        toast.error("Database Sync Failed", {
-          description: err.message || "Please check your connection.",
+        setIsSubmitting(false);
+        console.error("Failed to queue manifest commit:", err);
+        toast.error("Process Failed", {
+          description: "Something went wrong locally. Please try again.",
         });
       }
     };
@@ -290,10 +267,20 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
 
             <Button
               onClick={handleFinalSubmit}
-              className="w-full max-w-sm h-16 rounded-2xl text-lg font-black tracking-wide bg-slate-900 hover:bg-black dark:bg-primary-500 dark:hover:bg-primary-600 text-white shadow-2xl shadow-slate-900/10 dark:shadow-primary-500/10 transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+              className="w-full max-w-sm h-16 rounded-2xl text-lg font-black tracking-wide bg-slate-900 hover:bg-black dark:bg-primary-500 dark:hover:bg-primary-600 text-white shadow-2xl shadow-slate-900/10 dark:shadow-primary-500/10 transition-all active:scale-[0.97] flex items-center justify-center gap-2 disabled:opacity-70"
             >
-              Commit Results
-              <ArrowRight size={20} strokeWidth={3} />
+              {isSubmitting ? (
+                <>
+                  Processing...
+                  <Loader2 className="animate-spin" size={20} />
+                </>
+              ) : (
+                <>
+                  Commit Results
+                  <ArrowRight size={20} strokeWidth={3} />
+                </>
+              )}
             </Button>
           </div>
         </SheetContent>

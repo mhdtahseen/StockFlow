@@ -333,6 +333,43 @@ export const syncActionToSupabase = async (
         if (error) throw error;
         break;
       }
+      case "purchasing/confirmReceipt": {
+        // consolidated update for PO status and item results (A-004)
+        const { error: poError } = await supabase
+          .from("purchase_orders")
+          .update({
+            status: payload.status,
+            total_amount: payload.totalAmount,
+            phones_received: payload.phonesReceived,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", payload.id);
+        
+        if (poError) throw poError;
+
+        if (payload.items && payload.items.length > 0) {
+          const itemUpdates = payload.items.map((it: any) => ({
+            id: it.id,
+            purchase_order_id: payload.id,
+            status: it.status,
+            phone_id: it.phoneId,
+            rejection_reason: it.rejectionReason,
+            purchase_price: it.purchasePrice,
+            brand_snapshot: it.brandSnapshot,
+            model_snapshot: it.modelSnapshot,
+            storage_snapshot: it.storageSnapshot,
+            color_snapshot: it.colorSnapshot,
+            ram_snapshot: it.ramSnapshot,
+          }));
+
+          const { error: itemsError } = await supabase
+            .from("purchase_order_items")
+            .upsert(itemUpdates);
+          
+          if (itemsError) throw itemsError;
+        }
+        break;
+      }
       case "customers/addCustomer": {
         // Get tenant_id from current user's profile
         const {
