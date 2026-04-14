@@ -94,6 +94,8 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+import AppGate from "./components/shared/AppGate";
+
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
@@ -102,10 +104,10 @@ function App() {
   }, []);
 
   return (
-    <>
-      {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
-      <TooltipProvider>
-        <BrowserRouter>
+    <TooltipProvider>
+      <BrowserRouter>
+        <AppGate>
+          {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
@@ -166,9 +168,9 @@ function App() {
             </Route>
           </Routes>
           <IosInstallPrompt />
-        </BrowserRouter>
-      </TooltipProvider>
-    </>
+        </AppGate>
+      </BrowserRouter>
+    </TooltipProvider>
   );
 }
 
