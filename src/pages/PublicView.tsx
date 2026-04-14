@@ -43,9 +43,9 @@ export default function PublicView() {
     if (!data) return;
     try {
       if (data.order.type === 'PURCHASE') {
-        await generatePurchaseOrderPDF(data.order, data.counterparty as any, data.tenant as any);
+        await generatePurchaseOrderPDF(data.order as any, data.counterparty as any, data.tenant as any);
       } else {
-        await generateInvoicePDF(data.order, data.counterparty as any, data.tenant as any);
+        await generateInvoicePDF(data.order as any, data.counterparty as any, data.tenant as any);
       }
       toast.success('Document downloaded');
     } catch (err) {

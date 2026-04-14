@@ -7,6 +7,8 @@ import {
   markAsInStock,
   markAsSold,
   removePhone,
+  addRepairLog,
+  removeRepairLog,
 } from "../features/inventory/slice";
 import { addEntry, removeEntry } from "../features/ledger/slice";
 import {

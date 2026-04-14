@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { BrowserMultiFormatReader } from "@zxing/library";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 import {
   X,
   Zap,
@@ -15,6 +15,12 @@ import { ocrService } from "../utils/ocrService";
 import { useHaptics } from "@/hooks/useHaptics";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+interface ImeiScannerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onScan: (imei: string) => void;
+}
 
 /** Extract all 15-digit runs from raw OCR text */
 function extractImeiFromText(raw: string): string | null {
@@ -66,7 +72,6 @@ export default function ImeiScannerModal({
       animationFrameRef.current = null;
     }
     if (readerRef.current) {
-      readerRef.current.reset();
       readerRef.current = null;
     }
     if (streamRef.current) {

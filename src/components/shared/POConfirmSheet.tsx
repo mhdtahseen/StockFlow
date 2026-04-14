@@ -81,7 +81,17 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
   const [processed, setProcessed] = useState<
     Record<
       string,
-      { status: POItemStatus; phoneId: string | null; reason?: string; price?: number }
+      {
+        status: POItemStatus;
+        phoneId: string | null;
+        reason?: string;
+        price?: number;
+        brandSnapshot?: string;
+        modelSnapshot?: string;
+        storageSnapshot?: string;
+        colorSnapshot?: string;
+        ramSnapshot?: string;
+      }
     >
   >({});
 

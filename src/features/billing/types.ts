@@ -26,6 +26,7 @@ export interface SaleOrder {
   paymentMode?: PayMode;
   dueDate?: string;
   notes?: string;
+  recordedBy?: string;
   createdAt: string;
   items: OrderItem[];
 }

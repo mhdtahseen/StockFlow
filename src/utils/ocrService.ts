@@ -28,7 +28,7 @@ class OcrService {
         
         await worker.setParameters({
           tessedit_char_whitelist: "0123456789",
-          tessedit_pageseg_mode: "6", // "Single uniform block" - more robust for IMEIs on boxes/labels
+          tessedit_pageseg_mode: 6 as any, // "Single uniform block" - more robust for IMEIs on boxes/labels
         });
         this.worker = worker;
         return worker;

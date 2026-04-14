@@ -36,6 +36,7 @@ export interface PurchaseOrder {
   paymentMode?: PayMode;
   dueDate?: string;
   notes?: string;
+  recordedBy?: string;
   createdAt: string;
   items: PurchaseOrderItem[];
 }
