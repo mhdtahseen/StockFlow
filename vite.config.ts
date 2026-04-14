@@ -26,6 +26,8 @@ export default defineConfig({
         background_color: "#064a98",
         display: "standalone",
         display_override: ["fullscreen", "standalone", "minimal-ui"],
+        categories: ["business", "finance"],
+        lang: "en",
         icons: [
           {
             src: "pwa-192x192.png",
@@ -38,6 +40,45 @@ export default defineConfig({
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable",
+          },
+        ],
+        screenshots: [
+          {
+            src: "screenshot-desktop.png",
+            sizes: "2880x1642",
+            type: "image/png",
+            form_factor: "wide",
+            label: "StockFlow Desktop Dashboard",
+          },
+          {
+            src: "screenshot-mobile.png",
+            sizes: "1170x2532",
+            type: "image/png",
+            form_factor: "narrow",
+            label: "StockFlow Mobile Dashboard",
+          },
+        ],
+        shortcuts: [
+          {
+            name: "Inventory",
+            short_name: "Inventory",
+            description: "View and manage stock",
+            url: "/inventory",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }],
+          },
+          {
+            name: "Add Entry",
+            short_name: "Add",
+            description: "Add new phone stock",
+            url: "/add",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }],
+          },
+          {
+            name: "Ledger",
+            short_name: "Ledger",
+            description: "View financial transactions",
+            url: "/ledger",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }],
           },
         ],
       },
