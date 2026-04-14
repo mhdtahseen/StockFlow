@@ -52,6 +52,10 @@ export default function AppGate({ children }: AppGateProps) {
         ("standalone" in window.navigator && (window.navigator as any).standalone) ||
         window.matchMedia("(display-mode: standalone)").matches;
 
+      // Detect if the device has a mouse/trackpad (fine pointer)
+      // Laptop/Desktop will have this, true Mobile devices will not.
+      const isDesktopPointer = window.matchMedia("(pointer: fine)").matches;
+
       setDeviceInfo({ isAndroid, isIos, isStandalone, isMobile });
 
       // Logic: 
@@ -62,11 +66,12 @@ export default function AppGate({ children }: AppGateProps) {
       }
 
       // 2. Block Mobile Browsers (Mandatory App)
-      // Targeting both Android and iOS phones in the browser.
-      if ((isAndroid || isIos) && isMobile && !isStandalone) {
+      // Only block if it's a mobile OS AND a touch-only device (no mouse/trackpad)
+      if ((isAndroid || isIos) && isMobile && !isStandalone && !isDesktopPointer) {
         setIsBlocked(true);
         return;
       }
+
 
       setIsBlocked(false);
     };
