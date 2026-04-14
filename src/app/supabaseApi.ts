@@ -334,7 +334,7 @@ export const syncActionToSupabase = async (
         break;
       }
       case "purchasing/confirmReceipt": {
-        // consolidated update for PO status and item results (A-004)
+        // 1. Update PO Status and Totals
         const { error: poError } = await supabase
           .from("purchase_orders")
           .update({
@@ -347,6 +347,7 @@ export const syncActionToSupabase = async (
         
         if (poError) throw poError;
 
+        // 2. Update PO Items (Snapshots & Results)
         if (payload.items && payload.items.length > 0) {
           const itemUpdates = payload.items.map((it: any) => ({
             id: it.id,
@@ -367,6 +368,38 @@ export const syncActionToSupabase = async (
             .upsert(itemUpdates);
           
           if (itemsError) throw itemsError;
+
+          // 3. Insert ACCEPTED phones into Inventory
+          const { data: { user } } = await supabase.auth.getUser();
+
+          const phonesToInsert = payload.items
+            .filter((it: any) => it.status === "ACCEPTED" && it.phone)
+            .map((it: any) => ({
+              id: it.phone.id,
+              tenant_id: tenant_id,
+              user_id: user?.id,
+              brand: it.phone.brand,
+              model: it.phone.model,
+              ram: it.phone.ram || "N/A",
+              storage: it.phone.storage,
+              color: it.phone.color,
+              imeis: it.phone.imeis || [],
+              purchase_price: it.phone.purchasePrice,
+              sale_price: it.phone.salePrice || null,
+              status: it.phone.status || "IN_STOCK",
+              issue_tags: it.phone.issueTags || [],
+              purchase_order_id: payload.id, 
+              created_at: it.phone.createdAt || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }));
+
+          if (phonesToInsert.length > 0) {
+            const { error: phonesError } = await supabase
+              .from("phones")
+              .upsert(phonesToInsert); 
+            
+            if (phonesError) throw phonesError;
+          }
         }
         break;
       }

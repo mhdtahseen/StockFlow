@@ -57,18 +57,17 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
 
         const state = store.getState();
 
-        // If offline, queue immediately
-        if (!state.sync.isOnline) {
-          store.dispatch(queueAction(action));
-          return;
-        }
+        // ONLINE MODE: "Queue-First" Strategy
+        // 1. Generate ID and queue immediately (ensures persistence before network call)
+        const syncId = crypto.randomUUID();
+        store.dispatch(queueAction({ id: syncId, action }));
 
-        // Online mode: attempt to sync instantly
+        // 2. Attempt to sync
         const success = await syncActionToSupabase(action);
 
-        // If it failed (e.g. timeout or sudden drop in connection), queue it
-        if (!success) {
-          store.dispatch(queueAction(action));
+        // 3. Cleanup: If success, remove from outbox. If fail, it's already there for retry.
+        if (success) {
+          store.dispatch(removeAction(syncId));
         }
       } catch (err) {
         console.error("Middleware Sync Exception:", err);

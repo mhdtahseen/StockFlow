@@ -41,6 +41,14 @@ if ("serviceWorker" in navigator) {
   let refreshing = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!refreshing) {
+      // CRITICAL: DONT RELOAD IF SYNC IS PENDING
+      // If we reload during a sync, we might lose local state if persistence hasn't finished.
+      const outboxCount = store.getState().sync.outbox.length;
+      if (outboxCount > 0) {
+        console.warn(`[PWA] Update available, but delaying reload for ${outboxCount} pending sync items.`);
+        return;
+      }
+
       refreshing = true;
       window.location.reload();
     }

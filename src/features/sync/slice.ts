@@ -24,10 +24,13 @@ const syncSlice = createSlice({
     setOnlineStatus: (state, action: PayloadAction<boolean>) => {
       state.isOnline = action.payload;
     },
-    queueAction: (state, action: PayloadAction<AnyAction>) => {
+    queueAction: (state, action: PayloadAction<AnyAction | { id: string; action: AnyAction }>) => {
+      const payload = action.payload;
+      const isFullPayload = "id" in payload && "action" in payload;
+      
       state.outbox.push({
-        id: crypto.randomUUID(),
-        action: action.payload,
+        id: isFullPayload ? (payload as any).id : crypto.randomUUID(),
+        action: isFullPayload ? (payload as any).action : (payload as AnyAction),
         timestamp: Date.now(),
         retryCount: 0,
         nextAttemptAt: Date.now(),
