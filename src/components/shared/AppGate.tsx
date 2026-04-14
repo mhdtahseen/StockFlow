@@ -23,6 +23,21 @@ export default function AppGate({ children }: AppGateProps) {
     isMobile: false,
   });
 
+  const getAppIntent = () => {
+    const host = window.location.hostname;
+    const path = window.location.pathname + window.location.search;
+    
+    // Choose package based on deployment
+    // Vercel: app.vercel.stock_flow_dev.twa
+    // Cloudflare: dev.pages.stockflow_48g.twa
+    const packageName = host.includes('vercel.app') 
+      ? 'app.vercel.stock_flow_dev.twa' 
+      : 'dev.pages.stockflow_48g.twa';
+
+    // Intent URL structure to force-open the app via its package name
+    return `intent://${host}${path}#Intent;scheme=https;package=${packageName};S.browser_fallback_url=${encodeURIComponent(window.location.href)};end`;
+  };
+
   useEffect(() => {
     const checkDevice = () => {
       const ua = window.navigator.userAgent.toLowerCase();
@@ -79,9 +94,10 @@ export default function AppGate({ children }: AppGateProps) {
 
           <div className="space-y-3">
             <a 
-              href={window.location.href}
+              href={getAppIntent()}
               className="w-full bg-white text-slate-950 h-14 rounded-2xl flex items-center justify-center gap-3 text-sm font-black uppercase tracking-wider hover:bg-slate-100 transition-all active:scale-[0.98] shadow-xl shadow-white/10"
             >
+
               <ExternalLink size={18} />
               Open In App
             </a>
