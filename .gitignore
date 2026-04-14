@@ -26,3 +26,10 @@ dist-ssr
 
 # Google Play / TWA signing — contains keystore & credentials, never commit
 StockFlow Beta - Google Play package/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
