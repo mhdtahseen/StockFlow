@@ -15,6 +15,16 @@ body {
     Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Native-Feel Hardening */
+  user-select: none;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  
+  /* Safe Area Padding - Global Defaults (Except Top) */
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @theme inline {

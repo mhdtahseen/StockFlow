@@ -12,6 +12,7 @@ import {
 import { sanitizeImei, isValidImeiLuhn } from "../utils/validateImei";
 import { applyAdaptiveThreshold, applySharpen } from "../utils/scannerUtils";
 import { ocrService } from "../utils/ocrService";
+import { useHaptics } from "@/hooks/useHaptics";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ export default function ImeiScannerModal({
   const isMounted = useRef(false);
   const ocrBadgeRef = useRef<HTMLDivElement>(null);
   const isScanningInternal = useRef(false);
+  const { triggerSuccess } = useHaptics();
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -172,6 +174,7 @@ export default function ImeiScannerModal({
       if (result) {
         const cleaned = sanitizeImei(result.getText());
         if (isValidImeiLuhn(cleaned)) {
+          triggerSuccess();
           onScan(cleaned);
           stopEverything();
           onClose();
@@ -197,6 +200,7 @@ export default function ImeiScannerModal({
 
           const found = extractImeiFromText(rawText);
           if (found && streamRef.current) {
+            triggerSuccess();
             onScan(found);
             stopEverything();
             onClose();

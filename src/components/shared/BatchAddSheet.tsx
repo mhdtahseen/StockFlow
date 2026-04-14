@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Sheet,
   SheetContent,
@@ -21,6 +21,7 @@ import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import { CatalogAutocomplete } from "@/components/ui/CatalogAutocomplete";
 import { useDeviceCatalog, sortBySize } from "@/hooks/useDeviceCatalog";
 import { usePlan } from "@/hooks/usePlan";
+import ImeiScannerModal from "../ImeiScannerModal";
 import {
   Search,
   Plus,
@@ -29,6 +30,8 @@ import {
   TrendingDown,
   Info,
   Calculator,
+  LayoutGrid,
+  Camera,
 } from "lucide-react";
 import CurrencyInput from "@/components/ui/CurrencyInput";
 import clsx from "clsx";
@@ -47,6 +50,7 @@ interface DeviceRow {
   storage: string;
   color: string;
   purchasePrice: string;
+  imei: string;
 }
 
 export function BatchAddSheet({ open, onOpenChange }: Props) {
@@ -67,7 +71,9 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
   const [cashAmountStr, setCashAmountStr] = useState<string>("0");
   const [upiAmountStr, setUpiAmountStr] = useState<string>("0");
   const [bankAmountStr, setBankAmountStr] = useState<string>("0");
-  const [selectedTab, setSelectedTab] = useState<"CASH" | "UPI" | "BANK_TRANSFER">("CASH");
+  const [selectedTab, setSelectedTab] = useState<
+    "CASH" | "UPI" | "BANK_TRANSFER"
+  >("CASH");
   const [dueDateStr, setDueDateStr] = useState<string>("");
 
   // Multi-row State
@@ -80,21 +86,155 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       storage: "",
       color: "",
       purchasePrice: "",
+      imei: "",
     },
   ]);
   const [bulkPriceStr, setBulkPriceStr] = useState("");
 
+  // Scanner State
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanningRowId, setScanningRowId] = useState<string | null>(null);
+
+  // Draft Persistence logic
+  const DRAFT_KEY = `sf_draft_po_${user?.id}`;
+
+  // Load draft on open
   useEffect(() => {
     if (open) {
-      setSupplier(null);
-      setChannel("DIRECT");
-      setPlatformFeeStr("0");
-      setCashAmountStr("");
-      setUpiAmountStr("0");
-      setBankAmountStr("0");
-      setSelectedTab("CASH");
-      setDueDateStr("");
-      setRows([
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        try {
+          const { rows: savedRows, bulkPriceStr: savedBulk, supplier: savedSup, channel: savedChan } = JSON.parse(saved);
+          setRows(savedRows);
+          setBulkPriceStr(savedBulk);
+          if (savedSup) setSupplier(savedSup);
+          if (savedChan) setChannel(savedChan);
+        } catch (e) {
+          console.error("Failed to load draft", e);
+        }
+      } else {
+        // Default clear
+        setSupplier(null);
+        setChannel("DIRECT");
+        setPlatformFeeStr("0");
+        setCashAmountStr("");
+        setUpiAmountStr("0");
+        setBankAmountStr("0");
+        setSelectedTab("CASH");
+        setDueDateStr("");
+        setRows([
+          {
+            id: crypto.randomUUID(),
+            brand: "",
+            model: "",
+            ram: "",
+            storage: "",
+            color: "",
+            purchasePrice: "",
+            imei: "",
+          },
+        ]);
+        setBulkPriceStr("");
+      }
+    }
+  }, [open, user?.id]);
+
+  const clearDraft = useCallback(() => {
+    localStorage.removeItem(DRAFT_KEY);
+  }, [DRAFT_KEY]);
+
+  // Save draft on change
+  useEffect(() => {
+    if (open && rows.length > 0) {
+      const draft = { rows, bulkPriceStr, supplier, channel };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    }
+  }, [rows, bulkPriceStr, supplier, channel, open]);
+
+  const updateRow = (id: string, updates: Partial<DeviceRow>) => {
+    setRows((prev) => {
+      const rowIndex = prev.findIndex((r) => r.id === id);
+      if (rowIndex === -1) return prev;
+
+      const next = [...prev];
+      next[rowIndex] = { ...next[rowIndex], ...updates };
+
+      // IMEI Duplicate Check
+      if (updates.imei !== undefined && updates.imei.length > 0) {
+        const isDuplicate = prev.some(r => r.id !== id && r.imei === updates.imei);
+        if (isDuplicate) {
+          toast.error(`Duplicate IMEI detected: ${updates.imei}`, {
+            id: `dup-imei-${id}`,
+            duration: 3000,
+          });
+        }
+      }
+
+      // If we updated a price
+      if (updates.purchasePrice !== undefined) {
+        const target = parseFloat(bulkPriceStr) || 0;
+        const lastIndex = next.length - 1;
+
+        // Logic: If user edits any row EXCEPT the last, and we have a target total,
+        // we balance the LAST row to keep the target total consistent.
+        if (target > 0 && rowIndex < lastIndex && next.length > 1) {
+          const othersSum = next
+            .slice(0, lastIndex)
+            .reduce((sum, r) => sum + (parseFloat(r.purchasePrice) || 0), 0);
+
+          // If the sum of others already exceeds target, we cap residual at 0
+          // and let the total expand
+          const residual = Math.max(0, target - othersSum);
+          next[lastIndex] = {
+            ...next[lastIndex],
+            purchasePrice: residual > 0 ? residual.toString() : "",
+          };
+
+          // If manual inputs exceeded target, update the target to the true sum
+          const totalNow = othersSum + residual;
+          if (totalNow !== target) {
+            setBulkPriceStr(totalNow === 0 ? "" : totalNow.toString());
+          }
+        } else {
+          // Otherwise (editing last row OR no target set), we update the target total to the new sum
+          const newTotalCost = next.reduce(
+            (sum, r) => sum + (parseFloat(r.purchasePrice) || 0),
+            0,
+          );
+          setBulkPriceStr(newTotalCost === 0 ? "" : newTotalCost.toString());
+        }
+      }
+
+      return next;
+    });
+  };
+
+  const handleBulkPriceChange = (val: string) => {
+    setBulkPriceStr(val);
+    const target = parseFloat(val) || 0;
+
+    if (rows.length > 0) {
+      setRows((prev) => {
+        const next = [...prev];
+        const lastIndex = next.length - 1;
+        const othersSum = next
+          .slice(0, lastIndex)
+          .reduce((sum, r) => sum + (parseFloat(r.purchasePrice) || 0), 0);
+
+        const residual = Math.max(0, target - othersSum);
+        next[lastIndex] = {
+          ...next[lastIndex],
+          purchasePrice: residual > 0 ? residual.toString() : "",
+        };
+        return next;
+      });
+    }
+  };
+
+  const addRow = () => {
+    setRows((prev) => {
+      const next = [
+        ...prev,
         {
           id: crypto.randomUUID(),
           brand: "",
@@ -103,46 +243,54 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
           storage: "",
           color: "",
           purchasePrice: "",
+          imei: "",
         },
-      ]);
-      setBulkPriceStr("");
-    }
-  }, [open]);
-
-  const addRow = () => {
-    setRows((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        brand: "",
-        model: "",
-        ram: "",
-        storage: "",
-        color: "",
-        purchasePrice: "",
-      },
-    ]);
+      ];
+      // When adding a row, we just update the total sum (the new row starts at 0)
+      const newTotalCost = next.reduce(
+        (sum, r) => sum + (parseFloat(r.purchasePrice) || 0),
+        0,
+      );
+      setBulkPriceStr(newTotalCost === 0 ? "" : newTotalCost.toString());
+      return next;
+    });
   };
 
   const removeRow = (id: string) => {
     if (rows.length > 1) {
-      setRows((prev) => prev.filter((r) => r.id !== id));
+      setRows((prev) => {
+        const next = prev.filter((r) => r.id !== id);
+        const newTotalCost = next.reduce(
+          (sum, r) => sum + (parseFloat(r.purchasePrice) || 0),
+          0,
+        );
+        setBulkPriceStr(newTotalCost === 0 ? "" : newTotalCost.toString());
+        return next;
+      });
     }
   };
 
-  const updateRow = (id: string, updates: Partial<DeviceRow>) => {
-    setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...updates } : r)),
-    );
+  const startScanning = (id: string) => {
+    setScanningRowId(id);
+    setIsScanning(true);
   };
 
-  const applyBulkPrice = () => {
+  const handleScanSuccess = (imei: string) => {
+    if (scanningRowId) {
+      updateRow(scanningRowId, { imei });
+      setIsScanning(false);
+      setScanningRowId(null);
+    }
+  };
+
+  const applyEqualDistribution = () => {
     const price = parseFloat(bulkPriceStr);
-    if (isNaN(price) || price <= 0) return toast.error("Invalid Bulk Price");
+    if (isNaN(price) || price <= 0)
+      return toast.error("Enter a bulk price first");
     const perUnit = (price / rows.length).toFixed(2);
     setRows((prev) => prev.map((r) => ({ ...r, purchasePrice: perUnit })));
-    toast.success("Distributed Cost", {
-      description: `₹${perUnit} assigned to ${rows.length} units.`,
+    toast.success("Equal Distribution Applied", {
+      description: `₹${perUnit} assigned to each of the ${rows.length} units.`,
     });
   };
 
@@ -190,6 +338,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       ramSnapshot: r.ram,
       storageSnapshot: r.storage,
       colorSnapshot: r.color,
+      imei: r.imei,
     }));
 
     const order: PurchaseOrder = {
@@ -213,7 +362,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
     // The create_purchase_order RPC handles the FUNDS_CONSUMED ledger entry server-side.
     // The addPurchaseOrder extraReducer in ledger/slice creates a virtual pendingEntry for optimistic display.
     dispatch(addPurchaseOrder(order));
-
+    clearDraft();
     onOpenChange(false);
     toast.success("Purchase Order Committed");
   };
@@ -224,14 +373,14 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
         side="bottom"
         className="h-[95vh] flex flex-col p-0 rounded-t-[2.5rem] border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-hidden"
       >
-        <SheetHeader className="p-6 pb-4 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+        <SheetHeader className="px-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-4 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
           <div className="flex justify-between items-center">
             <div>
               <SheetTitle className="text-2xl font-black">
-                Stock Up Manifest
+                Stock Manifest
               </SheetTitle>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                Batch Purchase Recorder
+                Batch Purchase
               </p>
             </div>
             <div className="text-right">
@@ -298,25 +447,42 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
-                  <div className="relative w-40">
-                    <CurrencyInput
-                      placeholder="Bulk Total"
-                      value={bulkPriceStr}
-                      onChange={setBulkPriceStr}
-                      className="h-9 text-sm! font-bold rounded-xl border-transparent focus:border-primary-500 pl-10! py-0! "
-                    />
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden group focus-within:border-primary-500 transition-all">
+                    <div className="flex-1">
+                      <CurrencyInput
+                        placeholder="Total Value"
+                        value={bulkPriceStr}
+                        onChange={handleBulkPriceChange}
+                        className="h-10 text-sm! font-black border-transparent bg-transparent pl-11! py-0! focus:ring-0"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={applyEqualDistribution}
+                      className="h-10 px-4 flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-primary-500 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all border-l border-slate-100 dark:border-slate-800 uppercase tracking-[0.15em]"
+                    >
+                      <LayoutGrid size={12} />
+                      Distribute
+                    </button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={applyBulkPrice}
-                    className="h-9 px-3 text-[10px] font-black uppercase tracking-tight rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
-                  >
-                    Distribute
-                  </Button>
+                  <div className="flex items-center gap-2 pl-2">
+                    <span className="flex-shrink-0 w-1 h-1 rounded-full bg-primary-500 animate-pulse" />
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      Last item fills residual balance
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              <ImeiScannerModal
+                isOpen={isScanning}
+                onClose={() => {
+                  setIsScanning(false);
+                  setScanningRowId(null);
+                }}
+                onScan={handleScanSuccess}
+              />
 
               <div className="divide-y divide-slate-50 dark:divide-slate-800">
                 {rows.map((row, index) => (
@@ -384,7 +550,9 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                             label="RAM"
                             value={row.ram}
                             onChange={(v) => updateRow(row.id, { ram: v })}
-                            options={sortBySize(getRamOptions(row.brand, row.model))}
+                            options={sortBySize(
+                              getRamOptions(row.brand, row.model),
+                            )}
                             disabled={!row.model}
                             placeholder="RAM"
                           />
@@ -420,6 +588,32 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                           className="h-12 text-sm! font-black py-0! rounded-xl pl-10!"
                           placeholder="0.00"
                         />
+                      </div>
+                    </div>
+
+                    {/* IMEI & SCANNER SECTION */}
+                    <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800/50">
+                      <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500 block mb-2">
+                        Serial / IMEI
+                      </label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1 group">
+                          <input
+                            type="text"
+                            value={row.imei}
+                            onChange={(e) => updateRow(row.id, { imei: e.target.value })}
+                            className="w-full h-11 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 text-sm font-bold focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                            placeholder="Enter 15-digit IMEI..."
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => startScanning(row.id)}
+                          className="h-11 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-primary-500 hover:text-white transition-all flex items-center gap-2 group"
+                        >
+                          <Camera size={16} className="group-hover:scale-110 transition-transform" />
+                          <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Scan</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -476,8 +670,13 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                   {/* Mode Tabs */}
                   <div className="flex gap-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
                     {(["CASH", "UPI", "BANK_TRANSFER"] as const).map((mode) => {
-                       const val = mode === "CASH" ? cashPaid : mode === "UPI" ? upiPaid : bankPaid;
-                       return (
+                      const val =
+                        mode === "CASH"
+                          ? cashPaid
+                          : mode === "UPI"
+                            ? upiPaid
+                            : bankPaid;
+                      return (
                         <button
                           key={mode}
                           type="button"
@@ -486,7 +685,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                             "flex-1 py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all relative flex flex-col items-center gap-1",
                             selectedTab === mode
                               ? "bg-white dark:bg-slate-800 text-primary-500 shadow-sm border border-slate-100 dark:border-slate-700"
-                              : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                              : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200",
                           )}
                         >
                           {mode.replace("_", " ")}
@@ -496,91 +695,97 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                             </span>
                           )}
                         </button>
-                       );
+                      );
                     })}
                   </div>
 
                   {/* Single Visible Input */}
                   <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
-                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1 mb-2 block">
-                        Record {selectedTab.replace("_", " ")} Amount
-                     </label>
-                     {selectedTab === "CASH" && (
-                        <CurrencyInput
-                          value={cashAmountStr}
-                          onChange={setCashAmountStr}
-                          className="h-16 text-2xl! py-0! rounded-2xl"
-                        />
-                     )}
-                     {selectedTab === "UPI" && (
-                        <CurrencyInput
-                          value={upiAmountStr}
-                          onChange={setUpiAmountStr}
-                          className="h-16 text-2xl! py-0! rounded-2xl"
-                        />
-                     )}
-                     {selectedTab === "BANK_TRANSFER" && (
-                        <CurrencyInput
-                          value={bankAmountStr}
-                          onChange={setBankAmountStr}
-                          className="h-16 text-2xl! py-0! rounded-2xl"
-                        />
-                     )}
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1 mb-2 block">
+                      Record {selectedTab.replace("_", " ")} Amount
+                    </label>
+                    {selectedTab === "CASH" && (
+                      <CurrencyInput
+                        value={cashAmountStr}
+                        onChange={setCashAmountStr}
+                        className="h-16 text-2xl! py-0! rounded-2xl"
+                      />
+                    )}
+                    {selectedTab === "UPI" && (
+                      <CurrencyInput
+                        value={upiAmountStr}
+                        onChange={setUpiAmountStr}
+                        className="h-16 text-2xl! py-0! rounded-2xl"
+                      />
+                    )}
+                    {selectedTab === "BANK_TRANSFER" && (
+                      <CurrencyInput
+                        value={bankAmountStr}
+                        onChange={setBankAmountStr}
+                        className="h-16 text-2xl! py-0! rounded-2xl"
+                      />
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                     <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-tighter">Initial Payment Sum</span>
-                        <span className="text-sm font-black text-slate-900 dark:text-slate-100">
-                           ₹{amountPaid.toLocaleString()}
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-tighter">
+                        Initial Payment Sum
+                      </span>
+                      <span className="text-sm font-black text-slate-900 dark:text-slate-100">
+                        ₹{amountPaid.toLocaleString()}
+                      </span>
+                    </div>
+                    {amountPaid < totalAmount && (
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-rose-400 uppercase block tracking-tighter text-right">
+                          Remaining Balance
                         </span>
-                     </div>
-                     {amountPaid < totalAmount && (
-                        <div className="text-right">
-                           <span className="text-[10px] font-bold text-rose-400 uppercase block tracking-tighter text-right">Remaining Balance</span>
-                           <span className="text-sm font-black text-rose-500 italic">
-                              ₹{(totalAmount - amountPaid).toLocaleString()}
-                           </span>
-                        </div>
-                     )}
+                        <span className="text-sm font-black text-rose-500 italic">
+                          ₹{(totalAmount - amountPaid).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {amountPaid < totalAmount && (
                     <div className="animate-in fade-in slide-in-from-top-2 border-t border-slate-100 dark:border-slate-800 pt-6">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                         <div>
-                           <label className="text-sm font-black text-rose-500 block mb-1">
-                            Pending Balance: ₹{(totalAmount - amountPaid).toLocaleString()}
+                          <label className="text-sm font-black text-rose-500 block mb-1">
+                            Pending Balance: ₹
+                            {(totalAmount - amountPaid).toLocaleString()}
                           </label>
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             Credit Settlement Layout
                           </p>
                         </div>
                         <div className="flex-1 max-w-xs">
-                           <Input
-                              required
-                              type="date"
-                              value={dueDateStr}
-                              onChange={(e) => setDueDateStr(e.target.value)}
-                              className="h-12 font-black border-2 border-amber-100 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 rounded-xl"
-                            />
+                          <Input
+                            required
+                            type="date"
+                            value={dueDateStr}
+                            onChange={(e) => setDueDateStr(e.target.value)}
+                            className="h-12 font-black border-2 border-amber-100 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 rounded-xl"
+                          />
                         </div>
                       </div>
                       <p className="text-[10px] text-slate-400 italic font-medium">
-                        * A due date is required safely capture credit/partial payments.
+                        * A due date is required safely capture credit/partial
+                        payments.
                       </p>
                     </div>
                   )}
-                  
+
                   {amountPaid === totalAmount && (
-                     <div className="bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 flex items-center gap-3">
-                        <div className="size-8 bg-emerald-500 rounded-full flex items-center justify-center text-white">
-                           <Info size={16} />
-                        </div>
-                        <p className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tight">
-                           Full Payment Reconciled - No Debt
-                        </p>
-                     </div>
+                    <div className="bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 flex items-center gap-3">
+                      <div className="size-8 bg-emerald-500 rounded-full flex items-center justify-center text-white">
+                        <Info size={16} />
+                      </div>
+                      <p className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tight">
+                        Full Payment Reconciled - No Debt
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -588,7 +793,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
           </form>
         </div>
 
-        <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div className="px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <div className="size-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-primary-500">
               <Smartphone size={24} />

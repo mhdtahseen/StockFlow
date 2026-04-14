@@ -54,6 +54,8 @@ import { markAsInStock } from "@/features/inventory/slice";
 import { addEntry } from "@/features/ledger/slice";
 import { addPurchaseOrder } from "@/features/purchasing/slice";
 import { generateInvoicePDF } from "@/utils/generateInvoice";
+import { generatePurchaseOrderPDF } from "@/utils/generatePurchaseOrderPDF";
+import { createShareLink } from "@/services/shareService";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import clsx from "clsx";
@@ -98,6 +100,7 @@ export default function OrderDetail() {
   const [showPayment, setShowPayment] = useState(false);
   const [showConfirmSheet, setShowConfirmSheet] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const [fetchFailed, setFetchFailed] = useState(false);
 
   // Lazy-fetch settled/historical orders not in Redux state (A-004 / QA-011)
@@ -430,40 +433,93 @@ export default function OrderDetail() {
     }
   };
 
-  const generateInvoice = () => {
+  const generateInvoice = async () => {
     try {
       if (isPurchaseOrder) {
-        toast.error("Not Available", {
-          description: "Invoice generation not available for Purchase Orders",
-        });
-        return;
+        await generatePurchaseOrderPDF(order as any, customer, tenant);
+      } else {
+        await generateInvoicePDF(order as any, customer, tenant);
       }
-      generateInvoicePDF(order as any, customer, tenant);
-      toast.success("Invoice Generated", {
+      toast.success("Document Generated", {
         description: `PDF for Order ${order.id.slice(0, 8)} saved.`,
       });
     } catch (error) {
-      console.error("Invoice Gen Error:", error);
+      console.error("Document Gen Error:", error);
       toast.error("Generation Failed", {
-        description: "Could not create PDF invoice.",
+        description: "Could not create PDF document.",
       });
+    }
+  };
+
+  const handleShare = async () => {
+    if (isSharing || !tenant) return;
+    setIsSharing(true);
+    
+    try {
+      const shareUrl = await createShareLink(
+        order.id, 
+        isPurchaseOrder ? 'PURCHASE' : 'SALE', 
+        tenant.id
+      );
+
+      const shareData = {
+        title: `StockFlow: ${order.id.slice(0, 8).toUpperCase()}`,
+        text: `View the ${isPurchaseOrder ? "Purchase Order" : "Invoice"} for ${customer?.name || "Order"}.`,
+        url: shareUrl,
+      };
+
+      if (navigator.share && navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+        } catch (err) {
+          if ((err as Error).name !== "AbortError") {
+            toast.error("Sharing failed");
+          }
+        }
+      } else {
+        // Fallback: Copy to clipboard
+        try {
+          await navigator.clipboard.writeText(shareData.url);
+          toast.success("Link copied", {
+            description: "Sharing link copied to clipboard.",
+          });
+        } catch (err) {
+          toast.error("Could not copy link");
+        }
+      }
+    } catch (err) {
+      console.error("Share Link Gen Error:", err);
+      toast.error("Generation Failed", {
+        description: "Could not create sharing link.",
+      });
+    } finally {
+      setIsSharing(false);
     }
   };
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-4">
       <HeaderActions>
-        <FeatureGate feature="pdf_invoice">
-          {!isPurchaseOrder && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleShare}
+            disabled={isSharing}
+            className="size-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+            title="Share Document"
+          >
+            {isSharing ? <Loader2 size={16} className="animate-spin" /> : <Share size={18} />}
+          </button>
+          
+          <FeatureGate feature="pdf_invoice">
             <button
               onClick={generateInvoice}
               className="size-10 rounded-full flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-primary-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-              title="Download Invoice"
+              title="Download Document"
             >
               <FileText size={20} />
             </button>
-          )}
-        </FeatureGate>
+          </FeatureGate>
+        </div>
       </HeaderActions>
 
       <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shrink-0 z-20 relative">
@@ -591,7 +647,7 @@ export default function OrderDetail() {
               onClick={generateInvoice}
               className="px-6 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold h-12 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
             >
-              <FileText size={18} /> Invoice
+              <FileText size={18} /> Document
             </button>
           </div>
         </div>

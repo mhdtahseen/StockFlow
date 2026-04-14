@@ -18,6 +18,8 @@ import {
   Filter,
   BadgeCheck,
   SlidersHorizontal,
+  Share,
+  Loader2,
 } from "lucide-react";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { format, parseISO, compareDesc } from "date-fns";
@@ -27,12 +29,16 @@ import { CustomerPayment } from "@/features/customers/types";
 import { AllocationSheet } from "@/components/shared/AllocationSheet";
 import { SupplierAllocationSheet } from "@/components/shared/SupplierAllocationSheet";
 import { CustomerEditSheet } from "@/components/shared/CustomerEditSheet";
+import { createShareLink } from "@/services/shareService";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 type Tab = "orders" | "payments" | "timeline";
 
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { tenant } = useAuth();
 
   const customer = useAppSelector((state) =>
     state.customers.customers.find((c) => c.id === id),
@@ -52,6 +58,7 @@ export default function CustomerDetail() {
   const [orderTypeFilter, setOrderTypeFilter] = useState<"ALL" | "SALE" | "PURCHASE">("ALL");
   const [orderStatusFilter, setOrderStatusFilter] = useState<"ALL" | "ACTIVE" | "SETTLED">("ALL");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [sharingOrderId, setSharingOrderId] = useState<string | null>(null);
 
   const orders = React.useMemo(() => {
     const saleOrders = allSaleOrders
@@ -403,24 +410,57 @@ export default function CustomerDetail() {
                       </span>
                     </div>
                     <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex flex-col gap-1">
-                      {/* <span>
-                        {o.items.length} item{o.items.length !== 1 ? "s" : ""}
-                      </span> */}
                       {/* DATE */}
                       <span className="text-[10px] font-bold text-slate-400">
                         {format(parseISO(o.createdAt), "MMM d, yyyy")}
                       </span>
                     </div>
                   </div>
-                  <div className="text-right flex flex-col items-end">
-                    <span className="font-black text-slate-900 dark:text-slate-100">
-                      ₹{o.totalAmount.toLocaleString()}
-                    </span>
-                    {o.status !== "SETTLED" && o.status !== "RETURNED" && (
-                      <span className="text-xs font-bold text-amber-600 dark:text-amber-500 block mt-0.5">
-                        Bal: ₹{(o.totalAmount - o.amountPaid).toLocaleString()}
+                  <div className="flex items-center gap-3">
+                    <div className="text-right flex flex-col items-end">
+                      <span className="font-black text-slate-900 dark:text-slate-100">
+                        ₹{o.totalAmount.toLocaleString()}
                       </span>
-                    )}
+                      {o.status !== "SETTLED" && o.status !== "RETURNED" && (
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-500 block mt-0.5">
+                          Bal: ₹{(o.totalAmount - o.amountPaid).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const isPO = (o as any).isPurchaseOrder;
+                        if (sharingOrderId || !tenant) return;
+                        
+                        setSharingOrderId(o.id);
+                        createShareLink(o.id, isPO ? 'PURCHASE' : 'SALE', tenant.id)
+                          .then(async (shareUrl) => {
+                            const shareData = {
+                              title: `StockFlow: ${o.id.slice(0, 8).toUpperCase()}`,
+                              text: `View the ${isPO ? "Purchase Order" : "Invoice"} for ${customer.name}.`,
+                              url: shareUrl,
+                            };
+  
+                            if (navigator.share && navigator.canShare(shareData)) {
+                              await navigator.share(shareData);
+                            } else {
+                              await navigator.clipboard.writeText(shareData.url);
+                              toast.success("Link copied to clipboard");
+                            }
+                          })
+                          .catch(() => toast.error("Failed to share"))
+                          .finally(() => setSharingOrderId(null));
+                      }}
+                      className="size-8 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary-500 flex items-center justify-center transition-colors border border-slate-100 dark:border-slate-700 active:scale-95"
+                    >
+                      {sharingOrderId === o.id ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Share size={14} />
+                      )}
+                    </button>
                   </div>
                 </div>
               ))

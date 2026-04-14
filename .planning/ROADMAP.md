@@ -9,10 +9,10 @@
 ## Active Milestone: Milestone 3 — Android TWA & Production Prep (v2.3)
 *Goal: Native-feel Android app and biometric security.*
 
-### Phase 5: Android TWA & Production Prep
-- [ ] **M2.5.1**: Android Trusted Web Activity (TWA) optimization via PWABuilder.
-- [ ] **M2.5.2**: Splash Screen & Manifest hardening for native feel.
-- [ ] **M2.5.3**: WebAuthn (Passkey) biometric login integration.
+### Phase 5: Android TWA & Production Prep [COMPLETED]
+- [x] **M2.5.1**: Android Trusted Web Activity (TWA) optimization (Notch/Safe Areas).
+- [x] **M2.5.2**: Native Feel (Haptics, Manifest hardening, Opaque headers).
+- [ ] **M2.5.3**: WebAuthn (Passkey) biometric login integration [DEFERRED to v2.4+].
 - [ ] **M2.5.4**: Multi-Tenant security audit & Production Deployment.
 
 ### Phase 6: Expansion & Scaling (v2.4)

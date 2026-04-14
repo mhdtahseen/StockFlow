@@ -22,7 +22,7 @@ export default defineConfig({
         description:
           "Smart Inventory & Wallet Manager for Smartphone Resellers",
         theme_color: "#064a98",
-        background_color: "#F9FAFB",
+        background_color: "#064a98",
         display: "standalone",
         display_override: ["fullscreen", "standalone", "minimal-ui"],
         icons: [

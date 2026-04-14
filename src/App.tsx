@@ -30,6 +30,7 @@ import ManageTeam from "@/pages/ManageTeam";
 import Profile from "@/pages/Profile";
 import Settings from "@/pages/Settings";
 import AboutApp from "@/pages/AboutApp";
+import PublicView from "@/pages/PublicView";
 
 // Admin pages
 import AdminLayout from "@/pages/AdminLayout";
@@ -110,6 +111,7 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/join" element={<InviteSignup />} />
             <Route path="/verified" element={<Verified />} />
+            <Route path="/public/view/:token" element={<PublicView />} />
 
             <Route
               path="/admin"
