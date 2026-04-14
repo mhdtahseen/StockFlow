@@ -1,6 +1,6 @@
 import { Middleware } from "@reduxjs/toolkit";
 import { RootState } from "./store";
-import { queueAction } from "@/features/sync/slice";
+import { queueAction, removeAction } from "@/features/sync/slice";
 import { syncActionToSupabase } from "./supabaseApi";
 
 export const supabaseMiddleware: Middleware<{}, RootState> =
@@ -33,6 +33,8 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
           "tenant/",
         ];
         // Ignore setPhones, setEntries, setAll which are used for initial hydrations
+        // NOTE: Old customers remain visible because they are cached in local storage/Redux 
+        // and the sync logic only pushes new changes rather than performing a full state overwrite.
         const ignoredHydrationTypes = [
           "inventory/setPhones",
           "ledger/setEntries",

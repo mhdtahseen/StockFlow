@@ -337,13 +337,13 @@ export const syncActionToSupabase = async (
         // 1. Update PO Status and Totals
         const { error: poError } = await supabase
           .from("purchase_orders")
-          .update({
+          .upsert({
+            id: payload.id,
             status: payload.status,
-            total_amount: payload.totalAmount,
             phones_received: payload.phonesReceived,
+            total_amount: payload.totalAmount,
             updated_at: new Date().toISOString(),
-          })
-          .eq("id", payload.id);
+          }, { onConflict: 'id' });
         
         if (poError) throw poError;
 
