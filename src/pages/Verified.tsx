@@ -132,7 +132,7 @@ export default function Verified() {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-[#064a98] hover:bg-blue-800 text-white font-semibold py-2.5 transition-all"
+                  className="w-full bg-primary-500 hover:bg-blue-800 text-white font-semibold py-2.5 transition-all"
                 >
                   {isSubmitting ? (
                     <>
@@ -151,7 +151,7 @@ export default function Verified() {
             {isDone && (
               <Button
                 onClick={() => navigate("/login")}
-                className="w-full bg-[#064a98] hover:bg-blue-800 text-white font-semibold py-2.5 flex items-center justify-center gap-2"
+                className="w-full bg-primary-500 hover:bg-blue-800 text-white font-semibold py-2.5 flex items-center justify-center gap-2"
               >
                 Go to Login <ArrowRight size={16} />
               </Button>

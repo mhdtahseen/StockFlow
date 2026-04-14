@@ -45,7 +45,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 -- Drop trigger if it exists (for redeployments)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;

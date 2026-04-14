@@ -15,6 +15,16 @@ body {
     Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Native-Feel Hardening */
+  user-select: none;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  
+  /* Safe Area Padding - Global Defaults (Except Top) */
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @theme inline {
@@ -100,8 +110,8 @@ body {
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.55 0.15 240); /* Lighter Brand Blue for Dark Mode */
+  --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -112,10 +122,10 @@ body {
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-1: oklch(0.6 0.15 220); /* Azure Blue (Replacing Purple) */
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-4: oklch(0.65 0.12 190); /* Cyan-Blue (Replacing Purple) */
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
@@ -141,4 +151,78 @@ body {
   @apply w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium outline-none transition-colors;
   @apply focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900;
   @apply placeholder:text-slate-400 dark:placeholder:text-slate-500;
+}
+
+/* react-phone-input-2 overrides */
+.phone-input-wrapper .react-tel-input .form-control {
+  background-color: rgb(248 250 252) !important;
+  border-color: rgb(226 232 240) !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  color: rgb(15 23 42) !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.phone-input-wrapper .react-tel-input .form-control:focus {
+  border-color: #064a98 !important;
+  box-shadow: 0 0 0 3px rgb(6 74 152 / 0.15) !important;
+  outline: none !important;
+}
+
+.phone-input-wrapper .react-tel-input .flag-dropdown {
+  background-color: rgb(248 250 252) !important;
+  border-color: rgb(226 232 240) !important;
+  border-radius: 12px 0 0 12px !important;
+}
+
+.phone-input-wrapper .react-tel-input .selected-flag:hover,
+.phone-input-wrapper .react-tel-input .selected-flag:focus,
+.phone-input-wrapper .react-tel-input .flag-dropdown.open .selected-flag {
+  background-color: rgb(241 245 249) !important;
+  border-radius: 12px 0 0 12px !important;
+}
+
+.phone-input-wrapper .react-tel-input .country-list {
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.15) !important;
+  border: 1px solid rgb(226 232 240) !important;
+  font-size: 13px !important;
+}
+
+/* Dark mode phone input overrides */
+.dark .phone-input-wrapper .react-tel-input .form-control {
+  background-color: rgb(15 23 42) !important;
+  border-color: rgb(30 41 59) !important;
+  color: rgb(248 250 252) !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .flag-dropdown {
+  background-color: rgb(15 23 42) !important;
+  border-color: rgb(30 41 59) !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .selected-flag:hover,
+.dark .phone-input-wrapper .react-tel-input .selected-flag:focus {
+  background-color: rgb(30 41 59) !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .country-list {
+  background-color: rgb(15 23 42) !important;
+  border-color: rgb(30 41 59) !important;
+  color: rgb(248 250 252) !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .country-list .country:hover,
+.dark .phone-input-wrapper .react-tel-input .country-list .country.highlight {
+  background-color: rgb(30 41 59) !important;
+}
+
+/* Hide scrollbars utility */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

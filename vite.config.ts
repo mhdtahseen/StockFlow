@@ -5,6 +5,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 
 export default defineConfig({
+  base: "/",
   plugins: [
     react(),
     tailwindcss(),
@@ -22,9 +23,13 @@ export default defineConfig({
         description:
           "Smart Inventory & Wallet Manager for Smartphone Resellers",
         theme_color: "#064a98",
-        background_color: "#F9FAFB",
+        background_color: "#064a98",
+        start_url: "/",
+        scope: "/",
         display: "standalone",
         display_override: ["fullscreen", "standalone", "minimal-ui"],
+        categories: ["business", "finance"],
+        lang: "en",
         icons: [
           {
             src: "pwa-192x192.png",

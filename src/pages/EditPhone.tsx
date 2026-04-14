@@ -24,6 +24,7 @@ import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
 import CurrencyInput from "../components/ui/CurrencyInput";
+import HeaderActions from "@/components/layout/HeaderActions";
 import clsx from "clsx";
 import {
   Smartphone,
@@ -40,6 +41,7 @@ import {
   HardDrive,
   ChevronDown,
   ChevronUp,
+  X,
 } from "lucide-react";
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -87,7 +89,7 @@ export default function EditPhone() {
         </p>
         <button
           onClick={() => navigate(-1)}
-          className="mt-4 text-[#064a98] font-bold text-sm"
+          className="mt-4 text-primary-500 font-bold text-sm"
         >
           Go Back
         </button>
@@ -103,7 +105,7 @@ export default function EditPhone() {
         </p>
         <button
           onClick={() => navigate(-1)}
-          className="mt-4 text-[#064a98] font-bold text-sm"
+          className="mt-4 text-primary-500 font-bold text-sm"
         >
           Go Back
         </button>
@@ -288,49 +290,25 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
       if (!masterData.issueTags.includes(tag)) dispatch(addIssueTag(tag));
     });
 
-    const updatedPhone: Phone = {
-      ...phone,
+    const updatedFields: Partial<Phone> = {
       brand,
       model,
       ram: ram || "N/A",
       storage,
       color,
       imeis: filledImeis.map((e) => e.value).slice(0, 2),
-      purchasePrice: parseFloat(price),
+      purchasePrice: parseFloat(price) || 0,
       issueTags: selectedTags,
     };
 
-    dispatch(updatePhone(updatedPhone));
-
-    // Handle price changes if phone is still pending
-    if (
-      phone.status === "PENDING" &&
-      parseFloat(price) !== phone.purchasePrice
-    ) {
-      const priceDifference = parseFloat(price) - phone.purchasePrice;
-
-      if (priceDifference > 0) {
-        dispatch(
-          addEntry({
-            id: crypto.randomUUID(),
-            type: "FUNDS_PLEDGED",
-            referenceId: phone.id,
-            amount: priceDifference,
-            createdAt: new Date().toISOString(),
-          }),
-        );
-      } else if (priceDifference < 0) {
-        dispatch(
-          addEntry({
-            id: crypto.randomUUID(),
-            type: "FUNDS_RELEASED",
-            referenceId: phone.id,
-            amount: Math.abs(priceDifference),
-            createdAt: new Date().toISOString(),
-          }),
-        );
-      }
-    }
+    // Watchtower will automatically log INVENTORY_ADJUSTMENT if purchasePrice changed
+    dispatch(
+      updatePhone({
+        id: phone.id,
+        phone: updatedFields,
+        prevPrice: phone.purchasePrice,
+      }),
+    );
 
     toast.success("Device Updated", {
       description: `Changes to ${brand} ${model} saved successfully.`,
@@ -371,28 +349,16 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300 relative">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3 w-full">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="size-10 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
-          >
-            <ChevronLeft size={24} strokeWidth={2.5} />
-          </button>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex-1">
-            Edit Device
-          </h2>
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="text-slate-500 dark:text-slate-400 font-bold text-sm px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </header>
+      <HeaderActions>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 shadow-sm"
+          title="Cancel"
+        >
+          <X size={20} />
+        </button>
+      </HeaderActions>
 
       <main className="w-full max-w-lg mx-auto p-4 pb-12 z-10">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -403,7 +369,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Smartphone
-                className="text-[#064a98]"
+                className="text-primary-500"
                 size={18}
                 strokeWidth={2.5}
               />
@@ -442,7 +408,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
             />
 
             {modelInCatalog && (
-              <p className="text-[10px] font-semibold text-[#064a98]/70 dark:text-blue-400/70 flex items-center gap-1 -mt-2">
+              <p className="text-[10px] font-semibold text-primary-500/70 dark:text-blue-400/70 flex items-center gap-1 -mt-2">
                 <Check size={11} strokeWidth={3} />
                 Catalog model — storage & colors auto-loaded
               </p>
@@ -452,7 +418,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
           {/* ── Specifications ───────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Cpu className="text-[#064a98]" size={18} strokeWidth={2.5} />
+              <Cpu className="text-primary-500" size={18} strokeWidth={2.5} />
               Specifications
             </h3>
 
@@ -528,7 +494,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Wrench
-                  className="text-[#064a98]"
+                  className="text-primary-500"
                   size={18}
                   strokeWidth={2.5}
                 />
@@ -671,15 +637,15 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
               </div>
             </div>
           </div>
-          {/* ── Financials ───────────────────────────────────────────────── */}
+          {/* ── Finance ───────────────────────────────────────────────── */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 space-y-4 mb-8">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <DollarSign
-                className="text-[#064a98]"
+                className="text-primary-500"
                 size={18}
                 strokeWidth={2.5}
               />
-              Financials
+              Finance
             </h3>
 
             <div className="relative group">
@@ -711,7 +677,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="w-full bg-[#064a98] hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+                className="w-full bg-primary-500 hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
               >
                 <Smartphone size={20} />
                 Update Device

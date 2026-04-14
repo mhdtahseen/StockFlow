@@ -178,15 +178,13 @@ export default function AdminCatalog() {
       toast.success("Model updated");
     } else {
       // Insert new model into V2 table
-      const { error } = await supabase
-        .from("catalog_models_v2")
-        .insert({
-          brand: data.brand,
-          model: data.model,
-          storage: data.storage,
-          ram: data.ram,
-          colors: data.colors || [],
-        });
+      const { error } = await supabase.from("catalog_models_v2").insert({
+        brand: data.brand,
+        model: data.model,
+        storage: data.storage,
+        ram: data.ram,
+        colors: data.colors || [],
+      });
 
       if (error) {
         toast.error("Failed to add model", { description: error.message });
@@ -248,11 +246,13 @@ export default function AdminCatalog() {
     toast.success(editingColor ? "Color updated" : "Color added");
     setShowColorModal(false);
     setEditingColor(null);
-    
+
     // Update local state for immediate feedback
     const updatedModel = { ...selectedModel, colors: updatedColors };
     setSelectedModel(updatedModel);
-    setModels(prev => prev.map(m => m.id === updatedModel.id ? updatedModel : m));
+    setModels((prev) =>
+      prev.map((m) => (m.id === updatedModel.id ? updatedModel : m)),
+    );
   };
 
   const deleteColor = async (colorToDelete: { label: string; hex: string }) => {
@@ -278,7 +278,9 @@ export default function AdminCatalog() {
     // Update local state
     const updatedModel = { ...selectedModel, colors: updatedColors };
     setSelectedModel(updatedModel);
-    setModels(prev => prev.map(m => m.id === updatedModel.id ? updatedModel : m));
+    setModels((prev) =>
+      prev.map((m) => (m.id === updatedModel.id ? updatedModel : m)),
+    );
   };
 
   /* ── Stats bar ──────────────────────────────────────── */
@@ -294,28 +296,18 @@ export default function AdminCatalog() {
   /* ── Render ──────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-slate-50 dark:bg-slate-950">
+      <div className="flex items-center justify-center min-h-dvh bg-slate-50 dark:bg-slate-950">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2">
-        <div className="flex flex-col gap-1 mb-2">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Device Catalog Manager
-          </h1>
-          <p className="text-sm text-slate-500">
-            Super Admin • Internal Tool
-          </p>
-        </div>
-      </div>
+    <div className="min-h-dvh bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6">
         {/* ── Stats Row ──────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
           {[
             {
               label: "Brands",
@@ -341,13 +333,15 @@ export default function AdminCatalog() {
           ].map((s) => (
             <div
               key={s.label}
-              className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 flex items-center gap-3"
+              className="bg-white dark:bg-slate-900 rounded-xl p-3 sm:p-4 border border-slate-200 dark:border-slate-800 flex items-center gap-3"
             >
               <div className={`p-2 rounded-lg ${s.bg}`}>
-                <s.icon className={s.color} size={18} />
+                <s.icon className={s.color} size={16} />
               </div>
               <div>
-                <p className="text-2xl font-bold">{s.value.toLocaleString()}</p>
+                <p className="text-xl sm:text-2xl font-bold">
+                  {s.value.toLocaleString()}
+                </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                   {s.label}
                 </p>
@@ -357,7 +351,7 @@ export default function AdminCatalog() {
         </div>
 
         {/* ── Search + Actions ──────────────────────────────────────── */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
           <div className="relative flex-1">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -386,34 +380,42 @@ export default function AdminCatalog() {
             )}
           </div>
 
-          {!selectedBrand && !selectedModel && (
+          <div className="flex gap-2 sm:gap-3">
+            {!selectedBrand && !selectedModel && (
+              <button
+                onClick={() => setShowBrandModal(true)}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
+              >
+                <Plus size={16} />
+                <span className="hidden sm:inline">Add Brand</span>
+                <span className="sm:hidden">Brand</span>
+              </button>
+            )}
             <button
-              onClick={() => setShowBrandModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
+              onClick={() => {
+                if (selectedModel) {
+                  setEditingColor(null);
+                  setShowColorModal(true);
+                } else {
+                  setEditingModel(null);
+                  setShowModelModal(true);
+                }
+              }}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
             >
               <Plus size={16} />
-              Add Brand
+              <span className="hidden sm:inline">
+                {selectedModel ? "Add Color" : "Add Model"}
+              </span>
+              <span className="sm:hidden">
+                {selectedModel ? "Color" : "Model"}
+              </span>
             </button>
-          )}
-          <button
-            onClick={() => {
-              if (selectedModel) {
-                setEditingColor(null);
-                setShowColorModal(true);
-              } else {
-                setEditingModel(null);
-                setShowModelModal(true);
-              }
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
-          >
-            <Plus size={16} />
-            {selectedModel ? "Add Color" : "Add Model"}
-          </button>
+          </div>
         </div>
 
         {/* ── Breadcrumb ──────────────────────────────────────── */}
-        <div className="flex items-center gap-2 mb-4 text-sm">
+        <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
           <button
             onClick={() => {
               setSelectedBrand(null);
@@ -441,7 +443,7 @@ export default function AdminCatalog() {
           {selectedModel && (
             <>
               <ChevronRight size={14} className="text-slate-400" />
-              <span className="font-semibold text-blue-600 dark:text-blue-400">
+              <span className="font-semibold text-blue-600 dark:text-blue-400 truncate max-w-[150px] sm:max-w-none">
                 {selectedModel.model}
               </span>
             </>
@@ -514,11 +516,7 @@ export default function AdminCatalog() {
       {showModelModal && (
         <JsonModelEditor
           model={editingModel}
-          existingColors={
-            editingModel
-              ? editingModel.colors || []
-              : []
-          }
+          existingColors={editingModel ? editingModel.colors || [] : []}
           defaultBrand={selectedBrand || ""}
           onSave={saveModel}
           onClose={() => {
@@ -587,22 +585,24 @@ function BrandListView({
         <button
           key={b.brand}
           onClick={() => onSelectBrand(b.brand)}
-          className="flex items-center justify-between bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all group text-left"
+          className="flex items-center justify-between bg-white dark:bg-slate-900 rounded-xl p-3 sm:p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all group text-left"
         >
-          <div>
-            <h3 className="font-bold text-base">{b.brand}</h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-sm sm:text-base truncate">
+              {b.brand}
+            </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {b.modelCount} models • {b.colorCount} colors
             </p>
           </div>
           <ChevronRight
-            size={18}
-            className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors"
+            size={16}
+            className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors shrink-0 ml-2"
           />
         </button>
       ))}
       {brands.length === 0 && (
-        <div className="col-span-full text-center py-12 text-slate-400">
+        <div className="col-span-full text-center py-8 sm:py-12 text-slate-400">
           No brands found
         </div>
       )}
@@ -639,78 +639,82 @@ function ModelListView({
           return (
             <div
               key={m.id}
-              className="flex items-center bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 transition-all group"
+              className="bg-white dark:bg-slate-900 rounded-xl p-3 sm:p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 transition-all group"
             >
-              <button
-                onClick={() => onSelectModel(m)}
-                className="flex-1 text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <div>
-                    <h3 className="font-bold text-sm">{m.model}</h3>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <HardDrive size={10} />
-                        {m.storage?.join(", ") || "–"}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MemoryStick size={10} />
-                        {m.ram?.join(", ") || "–"}
-                      </span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <button
+                  onClick={() => onSelectModel(m)}
+                  className="flex-1 text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <h3 className="font-bold text-sm sm:text-base truncate">
+                        {m.model}
+                      </h3>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <HardDrive size={10} />
+                          {m.storage?.join(", ") || "–"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MemoryStick size={10} />
+                          {m.ram?.join(", ") || "–"}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                </button>
+
+                {/* Color dots */}
+                <div className="flex items-center gap-1 mr-0 sm:mr-4">
+                  {mc.slice(0, 6).map((c, idx) => (
+                    <div
+                      key={idx}
+                      className="w-3 sm:w-4 h-3 sm:h-4 rounded-full border border-slate-200 dark:border-slate-700"
+                      style={{ backgroundColor: c.hex }}
+                      title={c.label}
+                    />
+                  ))}
+                  {mc.length > 6 && (
+                    <span className="text-[10px] text-slate-400 ml-1">
+                      +{mc.length - 6}
+                    </span>
+                  )}
                 </div>
-              </button>
 
-              {/* Color dots */}
-              <div className="flex items-center gap-1 mr-4">
-                {mc.slice(0, 6).map((c, idx) => (
-                  <div
-                    key={idx}
-                    className="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-700"
-                    style={{ backgroundColor: c.hex }}
-                    title={c.label}
+                {/* Actions */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditModel(m);
+                    }}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil size={14} className="text-slate-500" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteModel(m);
+                    }}
+                    className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} className="text-red-500" />
+                  </button>
+                  <ChevronRight
+                    size={16}
+                    className="text-slate-300 dark:text-slate-600 ml-1"
                   />
-                ))}
-                {mc.length > 6 && (
-                  <span className="text-[10px] text-slate-400 ml-1">
-                    +{mc.length - 6}
-                  </span>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditModel(m);
-                  }}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                  title="Edit"
-                >
-                  <Pencil size={14} className="text-slate-500" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteModel(m);
-                  }}
-                  className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={14} className="text-red-500" />
-                </button>
-                <ChevronRight
-                  size={16}
-                  className="text-slate-300 dark:text-slate-600 ml-1"
-                />
+                </div>
               </div>
             </div>
           );
         })}
         {models.length === 0 && (
-          <div className="text-center py-12 text-slate-400">
+          <div className="text-center py-8 sm:py-12 text-slate-400">
             No models found
           </div>
         )}
@@ -747,13 +751,13 @@ function ModelDetailView({
       </button>
 
       {/* Model info card */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 mb-6">
-        <div className="flex items-start justify-between">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold">
+            <h2 className="text-base sm:text-lg font-bold">
               {model.brand} {model.model}
             </h2>
-            <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1.5">
                 <HardDrive size={14} />
                 {model.storage?.join(", ") || "None"}
@@ -779,7 +783,7 @@ function ModelDetailView({
       </div>
 
       {/* Colors grid */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
         <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
           Colors ({colors.length})
         </h3>
@@ -799,7 +803,7 @@ function ModelDetailView({
             className="flex items-center gap-3 bg-white dark:bg-slate-900 rounded-xl p-3.5 border border-slate-200 dark:border-slate-800 group"
           >
             <div
-              className="w-10 h-10 rounded-lg border-2 border-slate-200 dark:border-slate-700 flex-shrink-0"
+              className="w-8 sm:w-10 h-8 sm:h-10 rounded-lg border-2 border-slate-200 dark:border-slate-700 shrink-0"
               style={{ backgroundColor: c.hex }}
             />
             <div className="flex-1 min-w-0">
@@ -823,7 +827,7 @@ function ModelDetailView({
           </div>
         ))}
         {colors.length === 0 && (
-          <div className="col-span-full text-center py-8 text-slate-400 text-sm">
+          <div className="col-span-full text-center py-6 sm:py-8 text-slate-400 text-sm">
             No colors added yet
           </div>
         )}
@@ -1024,10 +1028,10 @@ function JsonModelEditor({
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] flex flex-col">
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl p-4 sm:p-6 max-h-[90vh] flex flex-col">
         {/* Header with tabs */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">
+          <h2 className="text-base sm:text-lg font-bold">
             {model ? "Edit Model" : "Add Model"}
           </h2>
           <button
@@ -1042,7 +1046,7 @@ function JsonModelEditor({
         <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg mb-5 w-fit">
           <button
             onClick={() => (mode === "json" ? switchToForm() : null)}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+            className={`px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${
               mode === "form"
                 ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
@@ -1052,7 +1056,7 @@ function JsonModelEditor({
           </button>
           <button
             onClick={() => (mode === "form" ? switchToJson() : null)}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+            className={`px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${
               mode === "json"
                 ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
@@ -1064,7 +1068,7 @@ function JsonModelEditor({
 
         <div className="space-y-4 flex-1 overflow-y-auto min-h-0">
           {/* Shared: Brand + Model name */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FieldGroup label="Brand">
               <input
                 type="text"
@@ -1193,7 +1197,7 @@ function JsonModelEditor({
                     type="color"
                     value={newColorHex}
                     onChange={(e) => setNewColorHex(e.target.value)}
-                    className="w-10 h-[38px] rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer flex-shrink-0"
+                    className="w-10 h-[38px] rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer shrink-0"
                   />
                   <button
                     type="button"
@@ -1209,7 +1213,7 @@ function JsonModelEditor({
                       setNewColorLabel("");
                       setNewColorHex("#000000");
                     }}
-                    className="flex items-center gap-1 px-3 h-[38px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors flex-shrink-0"
+                    className="flex items-center gap-1 px-3 h-[38px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shrink-0"
                   >
                     <Plus size={12} />
                     Add
@@ -1238,7 +1242,7 @@ function JsonModelEditor({
               {jsonError && (
                 <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                   <AlertTriangle
-                    className="text-red-500 flex-shrink-0 mt-0.5"
+                    className="text-red-500 shrink-0 mt-0.5"
                     size={14}
                   />
                   <p className="text-xs text-red-600 dark:text-red-400 font-medium">
@@ -1476,7 +1480,7 @@ function DeleteConfirmModal({
       <div className="space-y-4">
         <div className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
           <AlertTriangle
-            className="text-red-500 flex-shrink-0 mt-0.5"
+            className="text-red-500 shrink-0 mt-0.5"
             size={18}
           />
           <div>
@@ -1528,9 +1532,9 @@ function ModalShell({
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold">{title}</h2>
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between mb-4 sm:mb-5">
+          <h2 className="text-base sm:text-lg font-bold">{title}</h2>
           <button
             onClick={onClose}
             className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"

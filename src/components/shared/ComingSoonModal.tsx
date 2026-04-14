@@ -24,7 +24,7 @@ export default function ComingSoonModal({
   title = "Feature Coming Soon",
   description = "We are currently hard at work building this feature! It will be available in our next major release.",
   icon = (
-    <Rocket className="h-10 w-10 text-[#064a98] dark:text-blue-500 mb-2 animate-bounce" />
+    <Rocket className="h-10 w-10 text-primary-500 dark:text-blue-500 mb-2 animate-bounce" />
   ),
 }: ComingSoonModalProps) {
   return (
@@ -51,7 +51,7 @@ export default function ComingSoonModal({
           <Button
             type="button"
             onClick={onClose}
-            className="bg-[#064a98] hover:bg-blue-800 text-white w-full sm:w-auto"
+            className="bg-primary-500 hover:bg-blue-800 text-white w-full sm:w-auto"
           >
             Got it
           </Button>

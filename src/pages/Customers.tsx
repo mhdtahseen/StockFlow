@@ -1,0 +1,131 @@
+import React, { useState } from "react";
+import { useAppSelector } from "@/app/hooks";
+import { useNavigate } from "react-router-dom";
+import Fuse from "fuse.js";
+import { Search, Users, ChevronRight, UserPlus, Filter } from "lucide-react";
+import { selectCustomers } from "@/features/customers/selectors";
+import HeaderActions from "@/components/layout/HeaderActions";
+import { CustomerPicker } from "@/components/ui/CustomerPicker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+export default function Customers() {
+  const customers = useAppSelector(selectCustomers);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<string>("ALL");
+  const navigate = useNavigate();
+
+  const fuse = new Fuse(customers, {
+    keys: ["name", "phone"],
+    threshold: 0.3,
+  });
+
+  const searched = search.trim()
+    ? fuse.search(search).map((r) => r.item)
+    : customers;
+
+  const filtered = filterType === "ALL" 
+    ? searched 
+    : searched.filter(c => c.type === filterType);
+
+  return (
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
+      <HeaderActions>
+        <CustomerPicker
+          mode="add"
+          onSelect={(c) => navigate(`/customers/${c.id}`)}
+          trigger={
+            <button className="size-10 rounded-full bg-primary-500 text-white flex items-center justify-center transition-all shadow-lg shadow-blue-500/20 active:scale-95">
+              <UserPlus size={20} />
+            </button>
+          }
+        />
+      </HeaderActions>
+
+      {/* Search Bar & Filter */}
+
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="relative flex-1">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Search by name or phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-12 pl-10 pr-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-semibold shadow-sm focus:border-primary-500 outline-none transition-colors"
+            />
+          </div>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[140px] h-12 px-3 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-semibold focus:ring-0">
+              <div className="flex items-center gap-2">
+                <Filter size={14} className="text-slate-400 shrink-0" />
+                <SelectValue placeholder="Type" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Types</SelectItem>
+              <SelectItem value="CUSTOMER">Customer</SelectItem>
+              <SelectItem value="RETAILER">Retailer</SelectItem>
+              <SelectItem value="WHOLESALER">Wholesaler</SelectItem>
+              <SelectItem value="PLATFORM">Platform</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-3 pb-24">
+          {filtered.length === 0 ? (
+            <div className="text-center py-12 px-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+              <p className="text-slate-500 font-semibold mb-2">
+                No customers found.
+              </p>
+              <p className="text-xs text-slate-400 font-medium">
+                Create sales orders to add customers to the directory
+                automatically.
+              </p>
+            </div>
+          ) : (
+            filtered.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => navigate(`/customers/${c.id}`)}
+                className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 cursor-pointer hover:border-primary-500/30 active:scale-[0.98] transition-all group"
+              >
+                <div className="size-12 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary-500 dark:text-blue-400 flex items-center justify-center font-black text-lg shrink-0">
+                  {c.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {c.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                      {c.type}
+                    </span>
+                    {c.phone && (
+                      <span className="text-xs font-medium text-slate-500 truncate">
+                        {c.phone}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight
+                  size={18}
+                  className="text-slate-300 group-hover:text-primary-500 transition-colors shrink-0"
+                />
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

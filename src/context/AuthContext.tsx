@@ -1,6 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+
+export interface TenantInfo {
+  id: string;
+  name: string;
+  plan: string;
+  planExpiresAt: string | null;
+  address?: string;
+  gstin?: string;
+  phone?: string;
+  isActive: boolean;
+  suspendedUntil: string | null;
+}
 
 interface AuthContextType {
   session: Session | null;
@@ -8,7 +21,12 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isLoading: boolean;
+  tenant: TenantInfo | null;
+  fullName: string | null;
+  avatarUrl: string | null;
   signOut: () => Promise<void>;
+  refreshTenant: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,71 +39,214 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [tenant, setTenant] = useState<TenantInfo | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isTenantLoading, setIsTenantLoading] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+      if (data) {
+        setFullName(data.full_name);
+        setAvatarUrl(data.avatar_url);
+      }
+    } catch (err) {
+      console.error("Error refreshing profile:", err);
+    }
+  };
 
-    async function getInitialSession() {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
+  const fetchTenant = async (tenantId: string) => {
+    setIsTenantLoading(true);
+    try {
+      const { data: tenantData } = await supabase
+        .from("tenants")
+        .select("id, name, plan, plan_expires_at, address, gstin, phone, is_active, suspended_until")
+        .eq("id", tenantId)
+        .single();
+      if (tenantData) {
+        setTenant({
+          id: tenantData.id,
+          name: tenantData.name,
+          plan: tenantData.plan,
+          planExpiresAt: tenantData.plan_expires_at,
+          address: tenantData.address,
+          gstin: tenantData.gstin,
+          phone: tenantData.phone,
+          isActive: tenantData.is_active,
+          suspendedUntil: tenantData.suspended_until,
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching tenant:", err);
+    } finally {
+      setIsTenantLoading(false);
+    }
+  };
 
-        if (mounted) {
-          const s = data.session;
-          setSession(s);
-          setUser(s?.user || null);
-          
-          const role = s?.user?.user_metadata?.role;
-          setIsSuperAdmin(role === 'super-admin');
-          setIsAdmin(role === 'admin' || role === 'super-admin');
+  const refreshTenant = async () => {
+    if (!user) return;
 
-          if (s) {
-            localStorage.setItem("stockflow_auth", "true");
-          } else {
-            localStorage.removeItem("stockflow_auth");
-            localStorage.removeItem("persist:stockflow-root");
-          }
-        }
-      } catch (error) {
-        console.error("Error getting session:", error);
-      } finally {
-        if (mounted) setIsLoading(false);
+    // Try to get tenant_id from metadata first, then fall back to profiles table
+    let tenantId = user.user_metadata.tenant_id;
+
+    if (!tenantId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("tenant_id")
+        .eq("id", user.id)
+        .single();
+      if (profile?.tenant_id) {
+        tenantId = profile.tenant_id;
       }
     }
 
-    getInitialSession();
+    if (tenantId) {
+      await fetchTenant(tenantId);
+    }
+  };
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user || null);
-        
-        const role = newSession?.user?.user_metadata?.role;
-        setIsSuperAdmin(role === 'super-admin');
-        setIsAdmin(role === 'admin' || role === 'super-admin');
+  const initialized = React.useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
 
-        if (newSession) {
+    async function initializeAuth() {
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        setSession(s);
+        setUser(s?.user || null);
+
+        if (s?.user) {
           localStorage.setItem("stockflow_auth", "true");
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role, tenant_id, full_name, avatar_url")
+            .eq("id", s.user.id)
+            .single();
+
+          if (profile) {
+            setFullName(profile.full_name);
+            setAvatarUrl(profile.avatar_url);
+            setIsSuperAdmin(profile.role === "super-admin");
+            setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
+            if (profile.tenant_id) await fetchTenant(profile.tenant_id);
+          }
         } else {
           localStorage.removeItem("stockflow_auth");
           localStorage.removeItem("persist:stockflow-root");
+        }
+      } catch (error) {
+        console.error("Auth init error:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    initializeAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        if (event === 'SIGNED_OUT') {
+          localStorage.removeItem("stockflow_auth");
+          localStorage.removeItem("persist:stockflow-root");
+          setSession(null);
+          setUser(null);
+          setIsSuperAdmin(false);
+          setIsAdmin(false);
+          setTenant(null);
+          setFullName(null);
+          setAvatarUrl(null);
+        } else if (newSession) {
+          setSession(newSession);
+          setUser(newSession.user);
+          localStorage.setItem("stockflow_auth", "true");
+          
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role, tenant_id, full_name, avatar_url")
+            .eq("id", newSession.user.id)
+            .single();
+
+          if (profile) {
+            setFullName(profile.full_name);
+            setAvatarUrl(profile.avatar_url);
+            setIsSuperAdmin(profile.role === "super-admin");
+            setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
+            const tid = newSession.user.user_metadata.tenant_id || profile.tenant_id;
+            if (tid) await fetchTenant(tid);
+          }
         }
         setIsLoading(false);
       },
     );
 
     return () => {
-      mounted = false;
       authListener.subscription.unsubscribe();
     };
   }, []);
 
+  useEffect(() => {
+    if (!session || !tenant) return;
+    const interval = setInterval(
+      async () => {
+        const { data } = await supabase
+          .from("tenants")
+          .select("plan, plan_expires_at, is_active, suspended_until")
+          .eq("id", tenant.id)
+          .single();
+        if (data && (data.plan !== tenant.plan || data.is_active !== tenant.isActive)) {
+          setTenant((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  plan: data.plan,
+                  planExpiresAt: data.plan_expires_at,
+                  isActive: data.is_active,
+                  suspendedUntil: data.suspended_until,
+                }
+              : null,
+          );
+          if (data.is_active !== tenant.isActive) {
+            toast.error(data.is_active ? "Access Restored" : "Access Revoked");
+          } else {
+            toast.info("Your subscription has been updated.");
+          }
+        }
+      },
+      15 * 60 * 1000,
+    );
+    return () => clearInterval(interval);
+  }, [session, tenant?.id, tenant?.plan]);
+
   const signOut = async () => {
+    // Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
+    import('@/app/supabaseApi').then(m => m.clearTenantCache?.());
     await supabase.auth.signOut();
   };
 
+
   return (
-    <AuthContext.Provider value={{ session, user, isAdmin, isSuperAdmin, isLoading, signOut }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        isAdmin,
+        isSuperAdmin,
+        isLoading: isLoading || isTenantLoading,
+        tenant,
+        fullName,
+        avatarUrl,
+        signOut,
+        refreshTenant,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

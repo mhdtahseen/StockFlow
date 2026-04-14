@@ -64,7 +64,7 @@ export default function IosInstallPrompt() {
         </button>
 
         <div className="flex gap-4">
-          <div className="mt-1 flex-shrink-0">
+          <div className="mt-1 shrink-0">
             <div className="size-12 bg-gradient-to-br from-[#064a98] to-blue-800 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20 text-white">
               <MonitorSmartphone size={24} />
             </div>

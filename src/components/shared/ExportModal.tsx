@@ -42,7 +42,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       <div className="bg-white dark:bg-slate-900 w-full sm:w-[400px] rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[#064a98] dark:text-blue-400">
+            <div className="size-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-primary-500 dark:text-blue-400">
               <Download size={20} />
             </div>
             <div>
@@ -75,7 +75,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
                 <button
                   key={p}
                   onClick={() => setPeriod(p as any)}
-                  className={`flex-1 py-2 text-xs font-bold capitalize rounded-lg transition-colors ${period === p ? "bg-white dark:bg-slate-900 text-[#064a98] dark:text-blue-400 shadow-sm" : "text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-700/50"}`}
+                  className={`flex-1 py-2 text-xs font-bold capitalize rounded-lg transition-colors ${period === p ? "bg-white dark:bg-slate-900 text-primary-500 dark:text-blue-400 shadow-sm" : "text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-700/50"}`}
                 >
                   {p}
                 </button>
@@ -86,7 +86,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
         <button
           onClick={handleExport}
-          className="w-full bg-[#064a98] hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] shadow-md shadow-blue-900/20"
+          className="w-full bg-primary-500 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] shadow-md shadow-blue-900/20"
         >
           Generate .xlsx File
         </button>

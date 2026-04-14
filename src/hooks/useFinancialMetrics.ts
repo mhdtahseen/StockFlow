@@ -1,0 +1,194 @@
+import { useMemo } from "react";
+import { useAppSelector } from "../app/hooks";
+import { selectLedgerEntries, selectWalletBuckets } from "../features/wallet/selectors";
+import { 
+  parseISO, 
+  isToday, 
+  startOfDay, 
+  subDays, 
+  isBefore, 
+  isAfter, 
+  endOfDay,
+  format,
+  isYesterday,
+} from "date-fns";
+
+export type FinancialHistoryFilter = "All" | "Sales" | "Purchases" | "Repairs";
+
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+export function useFinancialData(dateRange?: DateRange) {
+  const entries = useAppSelector(selectLedgerEntries);
+  const buckets = useAppSelector(selectWalletBuckets);
+  const billingOrders = useAppSelector((state) => state.billing.orders);
+  const purchasingOrders = useAppSelector((state) => state.purchasing.orders);
+  const phones = useAppSelector((state) => state.inventory.phones);
+
+  // ── ASSETS (B) ──────────────────────────────────────────────────────────
+  const stockValue = useMemo(() => {
+    return phones
+      .filter(p => p.status === "IN_STOCK")
+      .reduce((sum, p) => sum + p.purchasePrice, 0);
+  }, [phones]);
+
+  // ── LIQUIDITY (A) ────────────────────────────────────────────────────────
+  // availableToSpend is the 'Ready to Buy' budget (Wallet is already net of pledges in our selector)
+  const liquidity = useMemo(() => {
+    return {
+      availableToSpend: buckets.wallet,
+      lockedInPledges: buckets.lien,
+      cashAtHand: buckets.wallet + buckets.lien,
+      stockValue: stockValue,
+    };
+  }, [buckets, stockValue]);
+
+  // ── PERFORMANCE (C) ──────────────────────────────────────────────────────
+  const performance = useMemo(() => {
+    const from = dateRange?.from ? startOfDay(new Date(dateRange.from)) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const to = dateRange?.to ? endOfDay(new Date(dateRange.to)) : endOfDay(new Date());
+
+    const rangeEntries = entries.filter((e) => {
+      const d = parseISO(e.createdAt);
+      return (isAfter(d, from) || d.getTime() === from.getTime()) && 
+             (isBefore(d, to) || d.getTime() === to.getTime());
+    });
+
+    const revenue = rangeEntries
+      .filter((e) => e.type === "PHONE_SALE")
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    const inventoryCost = rangeEntries
+      .filter((e) => e.type === "FUNDS_CONSUMED")
+      .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+
+    const operationalCosts = rangeEntries
+      .filter((e) => e.type === "REPAIR_COST")
+      .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+    
+    // Other leakage (Withdrawals etc)
+    const leakage = rangeEntries
+      .filter((e) => e.type === "WITHDRAWAL")
+      .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+
+    return {
+      totalRevenue: revenue,
+      netProfit: revenue - inventoryCost - operationalCosts,
+      operationalCosts: operationalCosts,
+      leakage: leakage,
+      inflow: rangeEntries.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0),
+      outflow: rangeEntries.filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0)
+    };
+  }, [entries, dateRange]);
+
+  // AR Calculation (Accrual)
+  const arMetrics = useMemo(() => {
+    const invoiced = billingOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const outstanding = billingOrders
+      .filter((o) => o.status !== "SETTLED" && o.status !== "RETURNED")
+      .reduce((sum, o) => sum + (o.totalAmount - o.amountPaid), 0);
+    return { invoiced, outstanding, collected: invoiced - outstanding };
+  }, [billingOrders]);
+
+  // AP Calculation (Accrual)
+  const apMetrics = useMemo(() => {
+    const owed = purchasingOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const outstanding = purchasingOrders
+      .filter((o) => o.status !== "SETTLED" && o.status !== "CANCELLED")
+      .reduce((sum, o) => sum + Math.max(0, o.totalAmount - o.amountPaid), 0);
+    return { owed, outstanding, paid: owed - outstanding };
+  }, [purchasingOrders]);
+
+  // EOD / Daily Velocity
+  const dailyVelocity = useMemo(() => {
+    const todayEntries = entries.filter((e) => isToday(parseISO(e.createdAt)));
+    const moneyIn = todayEntries
+      .filter((e) => ["PHONE_SALE", "CAPITAL_INJECTION", "CUSTOMER_PAYMENT", "FUNDS_RELEASED"].includes(e.type))
+      .reduce((s, e) => s + Math.max(0, e.amount), 0);
+    const moneyOut = todayEntries
+      .filter((e) => ["FUNDS_PLEDGED", "WITHDRAWAL", "SUPPLIER_PAYMENT", "PROFIT_WITHDRAWAL", "REPAIR_COST"].includes(e.type))
+      .reduce((s, e) => s + Math.abs(Math.min(0, e.amount)), 0);
+    
+    // Reverse calculation for opening balance
+    const openingBalance = buckets.wallet - moneyIn + moneyOut;
+    return { moneyIn, moneyOut, openingBalance, closingBalance: buckets.wallet };
+  }, [entries, buckets.wallet]);
+
+  // ── Running Balances ──────────────────────────────────────────────────────
+  const runningBalances = useMemo(() => {
+    const balances: Record<string, number> = {};
+    let currentWallet = 0;
+
+    [...entries]
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .forEach((entry) => {
+        switch (entry.type) {
+          case "CAPITAL_INJECTION":
+          case "CUSTOMER_PAYMENT":
+          case "PHONE_SALE":
+          case "FUNDS_RELEASED":
+          case "WITHDRAWAL":
+          case "PROFIT_WITHDRAWAL":
+          case "REPAIR_COST":
+          case "FUNDS_PLEDGED":
+            currentWallet += entry.amount;
+            break;
+        }
+        balances[entry.id] = currentWallet;
+      });
+    return balances;
+  }, [entries]);
+
+  return {
+    liquidity,
+    performance,
+    arMetrics,
+    apMetrics,
+    dailyVelocity,
+    buckets,
+    runningBalances,
+    allEntries: entries
+  };
+}
+
+export function useGroupedTransactions(filter: FinancialHistoryFilter, dateRange: DateRange) {
+  const entries = useAppSelector(selectLedgerEntries);
+  const hasDateFilter = dateRange.from || dateRange.to;
+  const defaultCutoff = useMemo(() => startOfDay(subDays(new Date(), 2)), []);
+
+  return useMemo(() => {
+    const sorted = [...entries].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    const filtered = sorted.filter((entry) => {
+      if (filter === "Sales" && entry.type !== "PHONE_SALE") return false;
+      if (filter === "Purchases" && entry.type !== "FUNDS_CONSUMED") return false;
+      if (filter === "Repairs" && entry.type !== "REPAIR_COST") return false;
+
+      const entryDate = parseISO(entry.createdAt);
+      if (hasDateFilter) {
+        if (dateRange.from && isBefore(entryDate, startOfDay(new Date(dateRange.from)))) return false;
+        if (dateRange.to && isAfter(entryDate, endOfDay(new Date(dateRange.to)))) return false;
+      } else {
+        if (isBefore(entryDate, defaultCutoff)) return false;
+      }
+      return true;
+    });
+
+    const groups: Map<string, typeof entries> = new Map();
+    filtered.forEach((entry) => {
+      const date = parseISO(entry.createdAt);
+      let dateKey = format(date, "MMM d");
+      if (isToday(date)) dateKey = "Today";
+      else if (isYesterday(date)) dateKey = "Yesterday";
+
+      if (!groups.has(dateKey)) groups.set(dateKey, []);
+      groups.get(dateKey)!.push(entry);
+    });
+
+    return Array.from(groups.entries());
+  }, [entries, filter, dateRange, hasDateFilter, defaultCutoff]);
+}

@@ -1,3 +1,3 @@
-// Empty redirect placeholder — Wallet handles transactions in this Concept A architecture.
+// Concept A architecture: All financial transactions are centralized in the Ledger.
 import { Navigate } from 'react-router-dom';
-export default () => <Navigate to="/wallet" replace />;
+export default () => <Navigate to="/ledger" replace />;

@@ -5,13 +5,18 @@
 
 -- 1. Tenants (Organizations/Shops)
 CREATE TABLE IF NOT EXISTS public.tenants (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name          TEXT NOT NULL,
-  slug          TEXT NOT NULL UNIQUE,
-  plan          TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'enterprise')),
-  is_active     BOOLEAN NOT NULL DEFAULT true,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name              TEXT NOT NULL,
+  slug              TEXT NOT NULL UNIQUE,
+  plan              TEXT NOT NULL DEFAULT 'free' 
+    CHECK (plan IN ('trial', 'starter', 'pro', 'wholesaler', 'enterprise', 'free', 'expired')),
+  is_active         BOOLEAN NOT NULL DEFAULT true,
+  address           TEXT,
+  gstin             TEXT,
+  phone             TEXT,
+  plan_expires_at   TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- 2. Profiles (Users linked to Tenants)
@@ -21,7 +26,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email         TEXT,
   full_name     TEXT NOT NULL DEFAULT '',
   avatar_url    TEXT,
-  role          TEXT NOT NULL DEFAULT 'associate' CHECK (role IN ('admin', 'manager', 'associate')),
+  role          TEXT NOT NULL DEFAULT 'associate' 
+    CHECK (role IN ('super-admin', 'admin', 'manager', 'associate')),
   is_active     BOOLEAN NOT NULL DEFAULT true,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -39,8 +45,12 @@ CREATE TABLE IF NOT EXISTS public.phones (
   color         TEXT NOT NULL,
   purchase_price NUMERIC(12,2) NOT NULL CHECK (purchase_price > 0),
   sale_price     NUMERIC(12,2),
-  status        TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'IN_STOCK', 'SOLD')),
+  status        TEXT NOT NULL DEFAULT 'PENDING' 
+    CHECK (status IN ('PENDING', 'IN_STOCK', 'SOLD', 'REPAIR')),
   issue_tags    TEXT[] NOT NULL DEFAULT '{}',
+  imeis         TEXT[] NOT NULL DEFAULT '{}',
+  sale_order_id UUID,
+  purchase_order_id UUID,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -50,9 +60,15 @@ CREATE TABLE IF NOT EXISTS public.ledger (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id     UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  type          TEXT NOT NULL CHECK (type IN ('MONEY_ADDED', 'FUNDS_PLEDGED', 'FUNDS_RELEASED', 'FUNDS_CONSUMED', 'PHONE_SALE', 'WITHDRAWAL', 'PROFIT_WITHDRAWAL')),
+  type          TEXT NOT NULL 
+    CHECK (type IN ('MONEY_ADDED', 'FUNDS_PLEDGED', 'FUNDS_RELEASED', 'FUNDS_CONSUMED', 'PHONE_SALE', 'REPAIR_COST', 'WITHDRAWAL', 'PROFIT_WITHDRAWAL')),
   reference_id  UUID REFERENCES public.phones(id) ON DELETE SET NULL,
+  phone_id      UUID REFERENCES public.phones(id) ON DELETE SET NULL,
+  sale_order_id UUID,
+  purchase_order_id UUID,
   amount        NUMERIC(12,2) NOT NULL,
+  payment_mode  TEXT CHECK (payment_mode IN ('CASH', 'UPI', 'BANK_TRANSFER', 'CREDIT')),
+  note          TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -61,7 +77,8 @@ CREATE TABLE IF NOT EXISTS public.master_data (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id     UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  category      TEXT NOT NULL CHECK (category IN ('brand', 'model', 'ram', 'storage', 'color', 'issue_tag')),
+  category      TEXT NOT NULL 
+    CHECK (category IN ('brand', 'model', 'ram', 'storage', 'color', 'issue_tag')),
   value         TEXT NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(tenant_id, category, value)
@@ -87,26 +104,52 @@ CREATE TABLE IF NOT EXISTS public.catalog_model_colors (
   UNIQUE(model_id, label)
 );
 
--- ==========================================
--- INDEXES
--- ==========================================
-CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_slug ON public.tenants(slug);
+-- INDEXES (Hardened for Multi-Tenancy)
+CREATE INDEX IF NOT EXISTS idx_tenants_slug ON public.tenants(slug);
 CREATE INDEX IF NOT EXISTS idx_profiles_tenant ON public.profiles(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(tenant_id, role);
+CREATE INDEX IF NOT EXISTS idx_profiles_user ON public.profiles(id);
 CREATE INDEX IF NOT EXISTS idx_phones_tenant ON public.phones(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_phones_tenant_status ON public.phones(tenant_id, status);
-CREATE INDEX IF NOT EXISTS idx_phones_tenant_created ON public.phones(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_phones_user ON public.phones(user_id);
+CREATE INDEX IF NOT EXISTS idx_phones_status ON public.phones(tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON public.ledger(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_ledger_ref ON public.ledger(reference_id);
-CREATE INDEX IF NOT EXISTS idx_master_data_tenant_category ON public.master_data(tenant_id, category);
+CREATE INDEX IF NOT EXISTS idx_ledger_user ON public.ledger(user_id);
+CREATE INDEX IF NOT EXISTS idx_master_data_tenant ON public.master_data(tenant_id);
 
--- ==========================================
--- GET USER TENANT HELPER
--- ==========================================
+-- HELPER FUNCTIONS (Performance Optimized)
 CREATE OR REPLACE FUNCTION get_user_tenant_id()
 RETURNS UUID AS $$
-  SELECT tenant_id FROM public.profiles WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+  -- Inlined subquery for RLS performance (Avoids InitPlan traps)
+  SELECT tenant_id FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+$$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = '';
 
--- Trigger logic handled separately in 003_auth_triggers.sql
+CREATE OR REPLACE FUNCTION get_user_role()
+RETURNS TEXT AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+$$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = '';
+
+-- UPDATED AT TRIGGER
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_tenants_updated_at BEFORE UPDATE ON public.tenants FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_phones_updated_at BEFORE UPDATE ON public.phones FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- RLS ENABLEMENT
+ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.phones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.master_data ENABLE ROW LEVEL SECURITY;
+
+-- BASE POLICIES
+CREATE POLICY "tenant_access" ON public.tenants FOR SELECT USING (id = get_user_tenant_id());
+CREATE POLICY "profile_access" ON public.profiles FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "phone_access" ON public.phones FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "ledger_access" ON public.ledger FOR ALL USING (tenant_id = get_user_tenant_id());
+CREATE POLICY "master_data_access" ON public.master_data FOR ALL USING (tenant_id = get_user_tenant_id());

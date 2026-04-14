@@ -1,5 +1,6 @@
 import * as React from "react"
 import {
+  Bell,
   CheckCircle,
   Database,
   Store,
@@ -29,11 +30,35 @@ const data = {
   },
   navMain: [
     {
-      title: "Tenant Approvals",
-      url: "/admin/approvals",
-      icon: CheckCircle,
+      title: "Tenant Management",
+      url: "#",
+      icon: Store,
       isActive: true,
-      items: [],
+      items: [
+        {
+          title: "Approvals",
+          url: "/admin/approvals",
+        },
+        {
+          title: "Supervision",
+          url: "/admin/supervision",
+        },
+      ],
+    },
+    {
+      title: "Platform Controls",
+      url: "#",
+      icon: Bell,
+      items: [
+        {
+          title: "Notifications",
+          url: "/admin/notifications",
+        },
+        {
+          title: "Rate Pricing",
+          url: "/admin/pricing",
+        },
+      ],
     },
     {
       title: "Device Catalog V2",
@@ -52,7 +77,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link to="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-[#064a98] text-white">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary-500 text-white">
                   <Store className="size-4" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">

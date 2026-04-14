@@ -23,19 +23,37 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
           return;
         }
 
-        const trackablePrefixes = ["inventory/", "ledger/", "masterData/"];
+        const trackablePrefixes = [
+          "inventory/",
+          "ledger/",
+          "masterData/",
+          "billing/",
+          "purchasing/",
+          "customers/",
+          "tenant/",
+        ];
         // Ignore setPhones, setEntries, setAll which are used for initial hydrations
         const ignoredHydrationTypes = [
           "inventory/setPhones",
           "ledger/setEntries",
           "masterData/setAll",
+          "billing/setOrders",
+          "purchasing/setPurchaseOrders",
+          "customers/setAll",
+          "customers/setPayments",
         ];
 
         const isTrackable = trackablePrefixes.some((prefix) =>
           type.startsWith(prefix),
         );
 
-        if (!isTrackable || ignoredHydrationTypes.includes(type)) return;
+        // BETTER SOLUTION: Prevent double-sync for ledger entries included in RPC transactions
+        // If it's a ledger entry with a referenceId, it's part of an order/payment RPC.
+        // We let it update Redux locally (optimistic) but skip the cloud sync to avoid duplicates.
+        const isTransactionSegment = 
+          type === "ledger/addEntry" && action.payload?.referenceId;
+
+        if (!isTrackable || ignoredHydrationTypes.includes(type) || isTransactionSegment) return;
 
         const state = store.getState();
 

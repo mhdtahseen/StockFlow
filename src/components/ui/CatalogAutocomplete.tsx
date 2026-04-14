@@ -1,15 +1,3 @@
-/**
- * CatalogAutocomplete
- *
- * A fully-accessible, keyboard-navigable autocomplete component styled to
- * match the StockFlow design system (Tailwind + dark mode).
- *
- * It is intentionally generic — it accepts plain string options OR richer
- * ColorOption objects (with a hex swatch). The parent passes pre-computed
- * filtered options; filtering is done locally inside this component so the
- * parent never needs to re-derive options on every keystroke.
- */
-
 import React, {
   useState,
   useRef,
@@ -18,36 +6,24 @@ import React, {
   useMemo,
   KeyboardEvent,
 } from "react";
-import { Check } from "lucide-react";
+import { Check, Search } from "lucide-react";
 import clsx from "clsx";
 import { ColorOption } from "@/hooks/useDeviceCatalog";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type OptionItem = string | ColorOption;
 
 interface CatalogAutocompleteProps {
-  /** Plain-string or ColorOption items to suggest */
   options: OptionItem[];
-  /** Controlled value (the label string) */
   value: string;
-  /** Called with the new label string whenever user commits a value */
   onChange: (value: string) => void;
-  /** Label shown above the input */
-  label: string;
-  /** Placeholder text */
+  label?: string;
   placeholder?: string;
-  /** Icon rendered on the left side of the input */
   icon?: React.ReactNode;
-  /** Disabled state (grays out + no interaction) */
   disabled?: boolean;
-  /** Error message to display below */
   error?: string;
-  /** Whether this field is optional */
   optional?: boolean;
+  onSelect?: (val: string) => void;
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getLabel(item: OptionItem): string {
   return typeof item === "string" ? item : item.label;
@@ -66,8 +42,6 @@ function scoreMatch(label: string, query: string): number {
   return 0;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
   options,
   value,
@@ -77,7 +51,8 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
   icon,
   disabled = false,
   error,
-  optional = false,
+  optional,
+  onSelect,
 }) => {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
@@ -86,15 +61,13 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
   const listRef = useRef<HTMLUListElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Keep query in sync when value is reset externally (e.g. brand change)
   useEffect(() => {
     setQuery(value);
   }, [value]);
 
-  // Filtered + ranked options — computed only when options or query changes
   const filtered = useMemo<OptionItem[]>(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return options.slice(0, 50); // show first 50 when no query
+    if (!q) return options.slice(0, 50);
     return options
       .map((item) => ({ item, score: scoreMatch(getLabel(item), q) }))
       .filter(({ score }) => score > 0)
@@ -103,7 +76,6 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
       .slice(0, 50);
   }, [options, query]);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!containerRef.current?.contains(e.target as Node)) {
@@ -114,7 +86,6 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Scroll active item into view
   useEffect(() => {
     if (activeIndex >= 0 && listRef.current) {
       const el = listRef.current.querySelector<HTMLLIElement>(
@@ -129,16 +100,17 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
       const labelStr = getLabel(item);
       setQuery(labelStr);
       onChange(labelStr);
+      if (onSelect) onSelect(labelStr);
       setOpen(false);
       setActiveIndex(-1);
     },
-    [onChange],
+    [onChange, onSelect],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
     setQuery(v);
-    onChange(v); // propagate even custom text immediately
+    onChange(v);
     setOpen(true);
     setActiveIndex(-1);
   };
@@ -161,8 +133,11 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
         e.preventDefault();
         if (activeIndex >= 0 && filtered[activeIndex]) {
           commit(filtered[activeIndex]);
+        } else if (query.trim()) {
+           onChange(query.trim());
+           if (onSelect) onSelect(query.trim());
+           setOpen(false);
         } else {
-          // commit freeform text
           setOpen(false);
         }
         break;
@@ -178,24 +153,21 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
   const showDropdown = open && filtered.length > 0 && !disabled;
 
   return (
-    <div ref={containerRef} className="relative group scroll-mt-30">
-      {/* Label */}
-      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-        {label}
-        {optional && (
-          <span className="normal-case text-[9px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-            optional
-          </span>
-        )}
-      </label>
-
-      {/* Input */}
+    <div ref={containerRef} className="relative group w-full">
+      {label && (
+        <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-2 block ml-1 transition-colors group-focus-within:text-primary-500">
+          {label}
+          {optional && (
+            <span className="ml-1 text-[8px] text-slate-400 font-bold lowercase italic">
+              (optional)
+            </span>
+          )}
+        </label>
+      )}
       <div className="relative">
-        {icon && (
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none">
-            {icon}
-          </span>
-        )}
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none z-10">
+          {icon || <Search size={18} />}
+        </div>
         <input
           ref={inputRef}
           type="text"
@@ -211,37 +183,26 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
                   behavior: "smooth",
                   block: "start",
                 });
-              }, 250); // slight delay allowing keyboard to deploy
+              }, 250);
             }
           }}
           onKeyDown={handleKeyDown}
           placeholder={disabled ? "—" : placeholder}
-          aria-autocomplete="list"
-          aria-expanded={showDropdown}
-          role="combobox"
           className={clsx(
-            "w-full rounded-xl border py-3.5 text-sm font-bold transition-all",
-            "placeholder:font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500",
-            "focus:outline-none focus:ring-1",
-            icon ? "pl-10 pr-4" : "px-4",
+            "w-full h-12 rounded-xl border-2 transition-all font-black pl-11 pr-4 text-sm",
             disabled
-              ? "border-slate-100 dark:border-slate-800/50 bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+              ? "bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800 text-slate-400 cursor-not-allowed"
               : [
-                  "border-slate-200 dark:border-slate-700",
-                  "bg-slate-50 dark:bg-slate-800",
-                  "hover:bg-slate-100 dark:hover:bg-slate-750",
-                  "focus:bg-white dark:focus:bg-slate-800",
-                  "focus:border-[#064a98] dark:focus:border-blue-500",
-                  "focus:ring-[#064a98]/20 dark:focus:ring-blue-500/20",
-                  "text-slate-900 dark:text-slate-100",
+                  "bg-white dark:bg-slate-950 border-slate-100 dark:border-slate-800",
+                  "hover:border-slate-200 dark:hover:border-slate-700",
+                  "focus:border-primary-500 dark:focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500/10",
+                  "text-slate-900 dark:text-slate-100 placeholder:text-slate-400 placeholder:font-bold",
                 ],
           )}
         />
-        {/* Clear button when value is set */}
         {query && !disabled && (
           <button
             type="button"
-            tabIndex={-1}
             onMouseDown={(e) => {
               e.preventDefault();
               setQuery("");
@@ -249,25 +210,17 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
               setOpen(true);
               inputRef.current?.focus();
             }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 transition-colors text-lg leading-none"
-            aria-label="Clear"
+            className="absolute right-3 top-1/2 -translate-y-1/2 size-6 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"
           >
-            ×
+            <XIcon size={14} strokeWidth={3} />
           </button>
         )}
       </div>
 
-      {/* Dropdown */}
       {showDropdown && (
         <ul
           ref={listRef}
-          role="listbox"
-          className={clsx(
-            "absolute z-[200] mt-1.5 w-full rounded-xl border shadow-lg overflow-auto",
-            "bg-white dark:bg-slate-900",
-            "border-slate-100 dark:border-slate-700",
-            "max-h-56",
-          )}
+          className="absolute z-[100] mt-2 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden max-h-64 py-2"
         >
           {filtered.map((item, idx) => {
             const labelStr = getLabel(item);
@@ -279,36 +232,32 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
               <li
                 key={labelStr}
                 data-index={idx}
-                role="option"
-                aria-selected={isSelected}
                 onMouseDown={(e) => {
-                  e.preventDefault(); // don't blur input
+                  e.preventDefault();
                   commit(item);
                 }}
                 onMouseEnter={() => setActiveIndex(idx)}
                 className={clsx(
-                  "flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer text-sm font-semibold transition-colors",
+                  "flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm font-black transition-colors",
                   isActive
-                    ? "bg-[#064a98]/5 dark:bg-blue-500/10 text-[#064a98] dark:text-blue-400"
+                    ? "bg-primary-500/10 text-primary-500"
                     : isSelected
-                      ? "bg-blue-50 dark:bg-blue-950/40 text-[#064a98] dark:text-blue-300"
-                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800",
+                      ? "bg-slate-50 dark:bg-slate-800 text-primary-500"
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800",
                 )}
               >
-                {/* Color swatch */}
                 {hasColor && (
                   <span
-                    className="shrink-0 size-4 rounded-full border border-black/10 dark:border-white/10 shadow-sm"
+                    className="size-4 rounded-full border border-black/10 shadow-sm"
                     style={{ backgroundColor: (item as ColorOption).hex }}
-                    title={(item as ColorOption).hex}
                   />
                 )}
-                <span className="flex-1 truncate">{labelStr}</span>
+                <span className="flex-1 truncate tracking-tight">{labelStr}</span>
                 {isSelected && (
                   <Check
-                    size={14}
-                    strokeWidth={2.5}
-                    className="shrink-0 text-[#064a98] dark:text-blue-400"
+                    size={16}
+                    strokeWidth={3}
+                    className="text-primary-500"
                   />
                 )}
               </li>
@@ -317,14 +266,31 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
         </ul>
       )}
 
-      {/* Error */}
       {error && (
-        <span className="text-red-500 text-xs font-semibold block mt-1">
+        <span className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-1 ml-1 block">
           {error}
         </span>
       )}
     </div>
   );
 };
+
+const XIcon = ({ size = 20, strokeWidth = 2, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </svg>
+);
 
 export default CatalogAutocomplete;

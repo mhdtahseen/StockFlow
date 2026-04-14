@@ -158,7 +158,7 @@ export default function Login() {
                 type="button"
                 onClick={handleSubmit(onSubmit)}
                 disabled={isLoading}
-                className="w-full bg-[#064a98] hover:bg-blue-800 text-white font-semibold py-2.5 mt-2 transition-all active:scale-[0.98]"
+                className="w-full bg-primary-500 hover:bg-blue-800 text-white font-semibold py-2.5 mt-2 transition-all active:scale-[0.98]"
               >
                 {isLoading ? (
                   <>
@@ -176,7 +176,7 @@ export default function Login() {
               Don't have an account?{" "}
               <Link
                 to="/signup"
-                className="text-[#064a98] dark:text-blue-500 hover:underline font-medium"
+                className="text-primary-500 dark:text-blue-500 hover:underline font-medium"
               >
                 Create one
               </Link>

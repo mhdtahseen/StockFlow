@@ -85,6 +85,13 @@ export function useOfflineSyncManager() {
           continue;
         }
 
+        // Hard cap: permanently discard after 5 retries to prevent infinite loops
+        if (item.retryCount >= 5) {
+          console.error(`[Outbox] Permanently dropping action after 5 retries:`, item.action.type);
+          dispatch(removeAction(item.id));
+          continue;
+        }
+
         const success = await syncActionToSupabase(item.action);
 
         if (success) {
@@ -170,7 +177,13 @@ export function useOfflineSyncManager() {
             type: e.type as any,
             referenceId: e.reference_id ?? undefined,
             amount: Number(e.amount),
+            paymentMode: e.payment_mode ?? undefined,
             note: e.note ?? undefined,
+            settlementCount: e.settlement_count ?? undefined,
+            customerPaymentId: e.customer_payment_id ?? undefined,
+            supplierPaymentId: e.supplier_payment_id ?? undefined,
+            saleOrderId: e.sale_order_id ?? undefined,
+            purchaseOrderId: e.purchase_order_id ?? undefined,
             createdAt: e.created_at,
           }));
           if (store.getState().sync.outbox.length === 0) {
@@ -210,6 +223,122 @@ export function useOfflineSyncManager() {
                 colorOptions: categorized.color,
                 issueTags: categorized.issue_tag,
               },
+            });
+          }
+        }
+
+        if (session?.user?.user_metadata?.tenant_id) {
+          const tenantId = session.user.user_metadata.tenant_id;
+          
+          // Customers (counterparties)
+          const { data: cpData } = await supabase
+            .from("counterparties")
+            .select("*")
+            .eq("tenant_id", tenantId)
+            .order("name");
+          if (cpData && mounted && store.getState().sync.outbox.length === 0) {
+            dispatch({
+              type: "customers/setAll",
+              payload: cpData.map((c) => ({
+                id: c.id,
+                name: c.name,
+                type: c.type,
+                phone: c.phone,
+                email: c.email,
+                platformName: c.platform_name,
+                linkedTenantId: c.linked_tenant_id,
+                notes: c.notes,
+                createdAt: c.created_at,
+              })),
+            });
+          }
+
+          // All recent sale orders (all statuses, last 90 days to avoid huge payloads)
+          const ninetyDaysAgo = new Date(
+            Date.now() - 90 * 24 * 3600 * 1000,
+          ).toISOString();
+          const { data: soData } = await supabase
+            .from("sale_orders")
+            .select("*, sale_order_items(*)")
+            .eq("tenant_id", tenantId)
+            .gte("created_at", ninetyDaysAgo)
+            .order("created_at", { ascending: false });
+          if (soData && mounted && store.getState().sync.outbox.length === 0) {
+            dispatch({ type: "billing/setOrders", payload: soData.map((o: any) => ({
+              id: o.id, counterpartyId: o.counterparty_id, orderType: o.order_type,
+              totalAmount: o.total_amount, amountPaid: o.amount_paid,
+              status: o.status, paymentMode: o.payment_mode, dueDate: o.due_date,
+              notes: o.notes, createdAt: o.created_at,
+              items: o.sale_order_items.map((i: any) => ({
+                id: i.id, saleOrderId: i.sale_order_id, phoneId: i.phone_id,
+                salePrice: i.sale_price, discountAmount: i.discount_amount,
+                imeiSnapshot: i.imei_snapshot || [], brandSnapshot: i.brand_snapshot,
+                modelSnapshot: i.model_snapshot, storageSnapshot: i.storage_snapshot, colorSnapshot: i.color_snapshot
+              }))
+            })) });
+          }
+
+          // All non-archived purchase orders (all active statuses including SETTLED/CANCELLED)
+          const { data: poData } = await supabase
+            .from("purchase_orders")
+            .select("*, purchase_order_items(*)")
+            .eq("tenant_id", tenantId)
+            .in("status", ["AWAITING_RECEIPT", "RECEIVED", "PARTIAL", "SETTLED", "CANCELLED"])
+            .order("created_at", { ascending: false });
+          if (poData && mounted && store.getState().sync.outbox.length === 0) {
+            dispatch({
+              type: "purchasing/setPurchaseOrders",
+              payload: poData.map((o: any) => ({
+                id: o.id, counterpartyId: o.counterparty_id, acquisitionChannel: o.acquisition_channel,
+                platformFee: o.platform_fee, phonesOrdered: o.phones_ordered,
+                phonesReceived: o.phones_received, totalAmount: o.total_amount,
+                amountPaid: o.amount_paid, status: o.status, paymentMode: o.payment_mode,
+                dueDate: o.due_date, notes: o.notes, createdAt: o.created_at,
+                items: o.purchase_order_items.map((i: any) => ({
+                  id: i.id, purchaseOrderId: i.purchase_order_id, phoneId: i.phone_id,
+                  purchasePrice: i.purchase_price, status: i.status, rejectionReason: i.rejection_reason
+                }))
+              })),
+            });
+          }
+
+          // Customer payments (last 90 days — aligned with order window)
+          const { data: cpPayData } = await supabase
+            .from("customer_payments")
+            .select("*, payment_allocations(*)")
+            .eq("tenant_id", tenantId)
+            .gte("received_at", ninetyDaysAgo)
+            .order("received_at", { ascending: false });
+          if (cpPayData && mounted && store.getState().sync.outbox.length === 0) {
+            dispatch({
+              type: "customers/setPayments",
+              payload: cpPayData.map((p: any) => ({
+                id: p.id, counterpartyId: p.counterparty_id, totalReceived: p.total_received,
+                mode: p.mode, receivedAt: p.received_at, note: p.note, recordedBy: p.recorded_by,
+                allocations: p.payment_allocations.map((a: any) => ({
+                  saleOrderId: a.sale_order_id, amountAllocated: a.amount_allocated, note: a.note
+                }))
+              })),
+            });
+          }
+
+          // Supplier payments (last 90 days — aligned with order window)
+          const { data: spPayData } = await supabase
+            .from("supplier_payments")
+            .select("*, supplier_allocations(*)")
+            .eq("tenant_id", tenantId)
+            .gte("paid_at", ninetyDaysAgo)
+            .order("paid_at", { ascending: false });
+          if (spPayData && mounted && store.getState().sync.outbox.length === 0) {
+            dispatch({
+              type: "purchasing/setPayments",
+              payload: spPayData.map((p: any) => ({
+                id: p.id, counterpartyId: p.counterparty_id, totalPaid: p.total_paid,
+                mode: p.mode, paidAt: p.paid_at, note: p.note, recordedBy: p.recorded_by,
+                allocations: p.supplier_allocations.map((a: any) => ({
+                  purchaseOrderId: a.purchase_order_id, amountAllocated: a.amount_allocated, note: a.note
+                }))
+              })),
             });
           }
         }

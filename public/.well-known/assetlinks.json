@@ -4,6 +4,16 @@
       "delegate_permission/common.microphone"],
     "target": {
       "namespace": "android_app",
+      "package_name": "dev.pages.stockflow_48g.twa",
+      "sha256_cert_fingerprints": [
+        "75:B9:A2:27:30:D0:3A:CA:22:04:71:A0:5D:4C:9A:CA:C0:D7:6D:43:9F:AC:12:6A:E6:22:42:47:07:E9:B1:EE"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
       "package_name": "app.vercel.stock_flow_dev.twa",
       "sha256_cert_fingerprints": [
         "5C:59:9A:5B:EE:DF:5C:F6:D4:96:80:AE:9A:72:44:C9:C8:73:8D:8D:D5:B8:DA:32:73:7D:07:0A:D0:03:F5:36"

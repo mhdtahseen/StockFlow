@@ -26,3 +26,11 @@ dist-ssr
 
 # Google Play / TWA signing — contains keystore & credentials, never commit
 StockFlow Beta - Google Play package/
+
+# Antigravity Agent Caches & Metadata
+.agent/**/__pycache__/
+.agent/**/*.pyc
+.agent/logs/
+.agent/hooks/
+.agent/node_modules/
+.agent/gsd-file-manifest.json

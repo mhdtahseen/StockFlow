@@ -25,22 +25,24 @@ export const generateExport = (
   const ledgerData = sortedLedger.map((entry) => {
     let change = 0;
     switch (entry.type) {
-      case "MONEY_ADDED":
+      case "CAPITAL_INJECTION":
+      case "CUSTOMER_PAYMENT":
       case "FUNDS_RELEASED":
-        change = entry.amount;
+      case "PHONE_SALE":
+        change = entry.amount; // positive
         break;
       case "WITHDRAWAL":
-        change = entry.amount; // usually negative
+      case "SUPPLIER_PAYMENT":
+      case "PROFIT_WITHDRAWAL":
+      case "REPAIR_COST":
+        change = entry.amount; // negative
         break;
       case "FUNDS_PLEDGED":
-        change = -entry.amount;
-        break;
-      case "PHONE_SALE":
-        // In the selector, it only adds to sales, but typically cash is received
-        // We'll follow the exact wallet selector logic for running balance:
-        change = 0;
+        // This moves money OUT of wallet into lien
+        change = entry.amount; // usually negative
         break;
       case "FUNDS_CONSUMED":
+        // This is money spent from the lien, doesn't affect wallet balance again
         change = 0;
         break;
     }
@@ -105,19 +107,18 @@ export const generateExport = (
 
     let change = 0;
     switch (entry.type) {
-      case "MONEY_ADDED":
+      case "CAPITAL_INJECTION":
+      case "CUSTOMER_PAYMENT":
       case "FUNDS_RELEASED":
+      case "PHONE_SALE":
         change = entry.amount;
         break;
       case "WITHDRAWAL":
-        change = entry.amount; // negative
-        break;
+      case "SUPPLIER_PAYMENT":
+      case "PROFIT_WITHDRAWAL":
+      case "REPAIR_COST":
       case "FUNDS_PLEDGED":
-        change = -entry.amount;
-        break;
-      case "PHONE_SALE":
-        // if sales are considered cash in:
-        change = entry.amount;
+        change = entry.amount; // usually negative
         break;
       case "FUNDS_CONSUMED":
         change = 0;

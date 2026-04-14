@@ -11,10 +11,16 @@ import {
   Pencil,
   Save,
   Phone,
+  Building2,
+  MapPin,
+  ClipboardCheck,
+  LogOut,
 } from "lucide-react";
+import { Loader } from "@/components/shared/Loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea.tsx";
 import {
   Card,
   CardContent,
@@ -46,9 +52,10 @@ const generateRandomAvatars = () => {
 };
 
 export default function ProfilePage() {
-  const { session } = useAuth();
+  const { session, tenant, refreshTenant, refreshProfile, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingBusiness, setIsSavingBusiness] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
 
   const [fullName, setFullName] = useState("");
@@ -56,14 +63,21 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [email, setEmail] = useState("");
 
+  // Business State
+  const [storeName, setStoreName] = useState("");
+  const [storeAddress, setStoreAddress] = useState("");
+  const [storeGSTIN, setStoreGSTIN] = useState("");
+
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [modalAvatars, setModalAvatars] = useState<string[]>([]);
 
   useEffect(() => {
-    async function loadProfile() {
+    async function loadProfileData() {
       if (!session?.user.id) return;
+      
+      setIsLoading(true);
       try {
         const { data, error } = await supabase
           .from("profiles")
@@ -71,52 +85,143 @@ export default function ProfilePage() {
           .eq("id", session.user.id)
           .single();
 
-        if (error) throw error;
+        if (error && error.code !== "PGRST116") {
+          console.error("Error loading profile:", error);
+        }
 
         if (data) {
           setFullName(data.full_name || "");
           setAvatarUrl(data.avatar_url || "");
           setEmail(data.email || session.user.email || "");
-          setPhone(session.user.user_metadata?.phone || "");
+        } else {
+          setEmail(session.user.email || "");
+          setFullName(session.user.user_metadata?.full_name || "");
+          setAvatarUrl(session.user.user_metadata?.avatar_url || "");
         }
+        
+        setPhone(session.user.user_metadata?.phone || "");
       } catch (err: any) {
-        toast.error("Error loading profile", { description: err.message });
+        console.error("Profile load catch:", err);
       } finally {
         setIsLoading(false);
       }
     }
-    loadProfile();
-  }, [session]);
+
+    // Proactive sync for business details from tenant source-of-truth
+    if (tenant) {
+      setStoreName(tenant.name || session?.user.user_metadata?.org_name || "");
+      setStoreAddress(tenant.address || "");
+      setStoreGSTIN(tenant.gstin || "");
+    }
+
+    loadProfileData();
+  }, [session, tenant]);
 
   const handleUpdateProfile = async () => {
     if (!session?.user.id) return;
-    setIsSaving(true);
+    const trimmedFullName = fullName.trim();
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedFullName) {
+      toast.error("Full name is required");
+      setIsSaving(false);
+      return;
+    }
+
     try {
+      // Use upsert to ensure the profile record exists
       const { error } = await supabase
         .from("profiles")
-        .update({
-          full_name: fullName,
+        .upsert({
+          id: session.user.id,
+          full_name: trimmedFullName,
           avatar_url: avatarUrl,
-        })
-        .eq("id", session.user.id);
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
 
       if (error) throw error;
 
       const { error: authError } = await supabase.auth.updateUser({
         data: {
-          full_name: fullName,
+          full_name: trimmedFullName,
           avatar_url: avatarUrl,
-          phone: phone,
+          phone: trimmedPhone,
         },
       });
 
       if (authError) throw authError;
 
+      // Also sync to tenant if it exists
+      if (tenant?.id) {
+        const { error: tenantError } = await supabase
+          .from("tenants")
+          .update({ phone: trimmedPhone })
+          .eq("id", tenant.id);
+        
+        if (tenantError) {
+          console.warn("Could not update phone in tenant table (likely RLS), but auth metadata updated.", tenantError);
+        }
+      }
+
+      await refreshTenant();
+      await refreshProfile();
+      
       toast.success("Profile updated successfully");
     } catch (err: any) {
-      toast.error("Failed to update profile", { description: err.message });
+      console.error("Error updating profile:", err);
+      toast.error(err.message || "Failed to update profile");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleUpdateBusiness = async () => {
+    const trimmedStoreName = storeName.trim();
+    const trimmedStoreAddress = storeAddress.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedGSTIN = storeGSTIN.trim().toUpperCase();
+
+    if (!trimmedStoreName || !trimmedStoreAddress || !trimmedPhone) {
+      toast.error("Please fill in all mandatory fields (Name, Address, Phone)");
+      return;
+    }
+
+    if (!tenant?.id) {
+      toast.error("No business account associated with your profile.");
+      return;
+    }
+
+    setIsSavingBusiness(true);
+    try {
+      const { error } = await supabase
+        .from("tenants")
+        .update({
+          name: trimmedStoreName,
+          address: trimmedStoreAddress,
+          phone: trimmedPhone,
+          gstin: trimmedGSTIN || null,
+        })
+        .eq("id", tenant.id);
+
+      if (error) throw error;
+
+      // Also sync to auth metadata
+      await supabase.auth.updateUser({
+        data: {
+          phone: trimmedPhone,
+          org_name: trimmedStoreName,
+        },
+      });
+
+      await refreshTenant();
+      toast.success("Business profile updated successfully");
+      // Note: Tenant info in AuthContext will refresh on next poll or page reload
+    } catch (err: any) {
+      toast.error("Failed to update business profile", {
+        description: err.message,
+      });
+    } finally {
+      setIsSavingBusiness(false);
     }
   };
 
@@ -156,33 +261,21 @@ export default function ProfilePage() {
     setIsAvatarModalOpen(false);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-950 p-4">
-        <Loader2 className="h-8 w-8 animate-spin text-[#064a98] dark:text-blue-500" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      <header className="sticky top-0 z-30 flex items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 border-b border-slate-100 dark:border-slate-800">
-        <Link
-          to="/"
-          className="mr-3 p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Your Profile</h1>
-          <p className="text-slate-400 dark:text-slate-500 text-[11px] font-semibold uppercase tracking-wider mt-0.5">
-            Manage your account
-          </p>
-        </div>
-      </header>
+      <Loader isLoading={isLoading} />
 
       <main className="flex-1 p-4 max-w-lg mx-auto w-full space-y-6">
         <div className="flex flex-col items-center pt-2">
+          {tenant?.name && (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-primary-500/10 dark:bg-blue-500/10 text-primary-500 dark:text-blue-400 rounded-full border border-primary-500/10 dark:border-blue-500/10 mb-5">
+              <Building2 size={12} className="fill-current/10" />
+              <span className="text-[10px] font-black uppercase tracking-[0.15em] leading-none">
+                {tenant.name}
+              </span>
+            </div>
+          )}
+          
           <div
             className="relative mb-4 group cursor-pointer"
             onClick={handleOpenAvatarModal}
@@ -201,7 +294,7 @@ export default function ProfilePage() {
             <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="text-white" size={24} />
             </div>
-            <div className="absolute bottom-0 right-0 bg-[#064a98] dark:bg-blue-600 p-2 rounded-full border-2 border-white dark:border-slate-900 text-white shadow-md">
+            <div className="absolute bottom-0 right-0 bg-primary-500 dark:bg-blue-600 p-2 rounded-full border-2 border-white dark:border-slate-900 text-white shadow-md transition-transform hover:scale-110">
               <Pencil size={14} />
             </div>
           </div>
@@ -244,7 +337,9 @@ export default function ProfilePage() {
                 <Input
                   id="fullName"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setFullName(e.target.value)
+                  }
                   placeholder="John Doe"
                   className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 />
@@ -258,7 +353,9 @@ export default function ProfilePage() {
                 <Input
                   id="phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setPhone(e.target.value)
+                  }
                   placeholder="+1 (555) 000-0000"
                   className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 />
@@ -268,7 +365,7 @@ export default function ProfilePage() {
             <Button
               onClick={handleUpdateProfile}
               disabled={isSaving}
-              className="w-full bg-[#064a98] hover:bg-blue-800 text-white font-semibold mt-2"
+              className="w-full bg-primary-500 hover:bg-blue-800 text-white font-semibold mt-2"
             >
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -280,7 +377,83 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900 overflow-hidden border-t-[3px] border-t-amber-500">
+        {/* Business Profile Card */}
+        <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900 border-t-[3px]">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Building2 className="text-primary-500" size={20} />
+              <CardTitle className="text-lg">Business Identity</CardTitle>
+            </div>
+            <CardDescription>
+              Details used for invoices and financial headers.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="storeName">Business Name</Label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Input
+                  id="storeName"
+                  value={storeName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setStoreName(e.target.value)
+                  }
+                  placeholder="Smart Inventory HQ"
+                  className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="storeAddress">Business Address</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Textarea
+                  id="storeAddress"
+                  value={storeAddress}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    setStoreAddress(e.target.value)
+                  }
+                  placeholder="Full address with city, state, and pincode"
+                  className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 resize-none"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="storeGSTIN">GSTIN (Optional)</Label>
+              <div className="relative">
+                <ClipboardCheck className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Input
+                  id="storeGSTIN"
+                  value={storeGSTIN}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setStoreGSTIN(e.target.value.toUpperCase())
+                  }
+                  placeholder="29AAAAA0000A1Z5"
+                  className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 uppercase"
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={handleUpdateBusiness}
+              disabled={isSavingBusiness}
+              className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold mt-2"
+            >
+              {isSavingBusiness ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Save Business Details
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900 overflow-hidden border-t-[3px] mb-30">
           <CardHeader>
             <CardTitle className="text-lg">Security Settings</CardTitle>
             <CardDescription>
@@ -296,7 +469,9 @@ export default function ProfilePage() {
                   id="newPassword"
                   type="password"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setNewPassword(e.target.value)
+                  }
                   placeholder="••••••••"
                   className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 />
@@ -310,7 +485,9 @@ export default function ProfilePage() {
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setConfirmPassword(e.target.value)
+                  }
                   placeholder="••••••••"
                   className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 />
@@ -331,6 +508,15 @@ export default function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Button
+          onClick={() => signOut()}
+          variant="ghost"
+          className="w-full h-14 rounded-2xl text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-950/40 border border-rose-100 dark:border-rose-900/30 shadow-xs mt-4 transition-all active:scale-[0.98]"
+        >
+          <LogOut className="mr-3 h-5 w-5" />
+          Sign Out of Account
+        </Button>
       </main>
 
       <Dialog open={isAvatarModalOpen} onOpenChange={setIsAvatarModalOpen}>
@@ -351,7 +537,7 @@ export default function ProfilePage() {
                 onClick={() => handleSelectAvatar(url)}
                 className={`w-full aspect-square rounded-2xl bg-slate-100 dark:bg-slate-800 overflow-hidden border-2 transition-all hover:scale-105 hover:shadow-lg ${
                   avatarUrl === url
-                    ? "border-[#064a98] dark:border-blue-500 shadow-xl shadow-blue-900/10"
+                    ? "border-primary-500 dark:border-blue-500 shadow-xl shadow-blue-900/10"
                     : "border-transparent hover:border-slate-300 dark:hover:border-slate-700"
                 }`}
               >

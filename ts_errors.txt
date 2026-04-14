@@ -1,0 +1,20 @@
+src/components/shared/AllocationSheet.tsx(51,8): error TS2322: Type 'PayMode' is not assignable to type '"CASH" | "UPI" | "BANK_TRANSFER"'.
+  Type '"CREDIT"' is not assignable to type '"CASH" | "UPI" | "BANK_TRANSFER"'.
+src/components/shared/CreateOrderSheet.tsx(8,10): error TS2614: Module '"@/features/inventory/slice"' has no exported member 'updatePhoneStatus'. Did you mean to use 'import updatePhoneStatus from "@/features/inventory/slice"' instead?
+src/components/shared/CreateOrderSheet.tsx(97,16): error TS2304: Cannot find name 'markAsSold'.
+src/components/shared/PhoneSelectorSheet.tsx(7,39): error TS2307: Cannot find module '@/features/inventory/inventorySlice' or its corresponding type declarations.
+src/components/shared/PhoneSelectorSheet.tsx(20,18): error TS2571: Object is of type 'unknown'.
+src/components/shared/PhoneSelectorSheet.tsx(20,63): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/components/shared/PhoneSelectorSheet.tsx(30,26): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/components/shared/PhoneSelectorSheet.tsx(46,43): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/components/shared/PhoneSelectorSheet.tsx(69,25): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/components/shared/PhoneSelectorSheet.tsx(111,52): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/components/shared/POConfirmSheet.tsx(92,30): error TS2353: Object literal may only specify known properties, and 'condition' does not exist in type 'Phone'.
+src/components/ui/CustomerPicker.tsx(25,60): error TS2345: Argument of type '"RETAIL"' is not assignable to parameter of type 'CustomerType | (() => CustomerType)'.
+src/pages/CustomerDetail.tsx(156,104): error TS2339: Property 'amount' does not exist on type '{ saleOrderId: string; amountAllocated: number; note?: string | undefined; }'.
+src/pages/OrderDetail.tsx(9,10): error TS2614: Module '"@/features/inventory/slice"' has no exported member 'updatePhoneStatus'. Did you mean to use 'import updatePhoneStatus from "@/features/inventory/slice"' instead?
+src/pages/OrderDetail.tsx(40,22): error TS2339: Property 'orderId' does not exist on type '{ saleOrderId: string; amountAllocated: number; note?: string | undefined; }'.
+src/pages/OrderDetail.tsx(57,9): error TS2561: Object literal may only specify known properties, but 'notes' does not exist in type 'LedgerEntry'. Did you mean to write 'note'?
+src/pages/OrderDetail.tsx(195,89): error TS2339: Property 'amount' does not exist on type '{ paymentId: string; receivedAt: string; mode: "CASH" | "UPI" | "BANK_TRANSFER"; saleOrderId: string; amountAllocated: number; note?: string | undefined; }'.
+src/pages/OrderDetail.tsx(209,10): error TS2322: Type '{ open: boolean; onOpenChange: Dispatch<SetStateAction<boolean>>; target: { type: string; id: string; relationId: string; currentBalance: number; }; }' is not assignable to type 'IntrinsicAttributes & Props'.
+  Property 'target' does not exist on type 'IntrinsicAttributes & Props'.

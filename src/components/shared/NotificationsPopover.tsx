@@ -10,6 +10,7 @@ import {
   History,
   TrendingUp,
   ShieldAlert,
+  Trash2,
 } from "lucide-react";
 import clsx from "clsx";
 import { supabase } from "@/lib/supabase";
@@ -17,7 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 
 type Notification = {
   id: string;
-  type: "ROLE_PROMOTED" | "PHONE_SOLD" | "LEDGER_ENTRY" | "SYSTEM_ALERT";
+  type: "ROLE_PROMOTED" | "PHONE_SOLD" | "LEDGER_ENTRY" | "SYSTEM_ALERT" | "PAYMENT_DUE";
   title: string;
   message: string;
   read_at: string | null;
@@ -118,6 +119,18 @@ export default function NotificationsPopover() {
     }
   };
 
+  const clearNotifications = async () => {
+    if (!session?.user.id) return;
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("user_id", session.user.id);
+
+    if (!error) {
+      setNotifications([]);
+    }
+  };
+
   const getIcon = (type: Notification["type"]) => {
     switch (type) {
       case "PHONE_SOLD":
@@ -126,11 +139,12 @@ export default function NotificationsPopover() {
         return (
           <CheckCircle2
             size={14}
-            className="text-[#064a98] dark:text-blue-500"
+            className="text-primary-500 dark:text-blue-500"
           />
         );
       case "LEDGER_ENTRY":
         return <History size={14} className="text-amber-500" />;
+      case "PAYMENT_DUE":
       case "SYSTEM_ALERT":
         return <ShieldAlert size={14} className="text-rose-500" />;
       default:
@@ -149,7 +163,7 @@ export default function NotificationsPopover() {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <button className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors relative focus:outline-none focus:ring-2 focus:ring-[#064a98]/20">
+        <button className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors relative focus:outline-none focus:ring-2 focus:ring-primary-500/20">
           <Bell size={18} className="text-slate-600 dark:text-slate-400" />
           {unreadCount > 0 && (
             <span className="absolute top-2 right-2.5 size-2.5 bg-rose-500 border-2 border-white dark:border-slate-800 rounded-full animate-pulse z-10"></span>
@@ -159,9 +173,9 @@ export default function NotificationsPopover() {
 
       <PopoverContent
         align="end"
-        className="w-80 p-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-slate-200 dark:border-slate-800 shadow-2xl dark:shadow-black/50 z-[100] rounded-xl overflow-hidden"
+        className="w-[340px] h-[450px] flex flex-col p-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-slate-200 dark:border-slate-800 shadow-2xl dark:shadow-black/50 z-[100] rounded-xl overflow-hidden"
       >
-        <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+        <div className="shrink-0 flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">
               Notifications
@@ -175,16 +189,16 @@ export default function NotificationsPopover() {
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="text-[11px] font-semibold text-[#064a98] dark:text-blue-500 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+              className="text-[11px] font-semibold text-primary-500 dark:text-blue-500 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
             >
               Mark all read
             </button>
           )}
         </div>
 
-        <div className="max-h-[350px] overflow-y-auto w-full custom-scrollbar divide-y divide-slate-50 dark:divide-slate-800/50">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden w-full custom-scrollbar divide-y divide-slate-50 dark:divide-slate-800/50">
           {notifications.length === 0 ? (
-            <div className="p-8 text-center flex flex-col items-center">
+            <div className="h-full p-8 flex flex-col items-center justify-center">
               <div className="size-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-3">
                 <Bell
                   size={20}
@@ -236,22 +250,33 @@ export default function NotificationsPopover() {
                       {getRelativeTime(n.created_at)}
                     </span>
                   </div>
-                  <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 line-clamp-2">
+                  <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
                     {n.message}
                   </p>
                 </div>
                 {n.read_at === null && (
-                  <div className="size-2 rounded-full bg-[#064a98] dark:bg-blue-500 shrink-0 mt-1.5 shadow-sm shadow-blue-500/50" />
+                  <div className="size-2 rounded-full bg-primary-500 dark:bg-blue-500 shrink-0 mt-1.5 shadow-sm shadow-blue-500/50" />
                 )}
               </button>
             ))
           )}
         </div>
 
-        <div className="p-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 text-center">
-          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
             Live Updates
           </span>
+          
+          {notifications.length > 0 && (
+            <button 
+              onClick={clearNotifications}
+              className="group flex items-center gap-1.5 text-[11px] font-medium text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 transition-colors"
+            >
+              <Trash2 size={12} className="group-hover:scale-110 transition-transform" />
+              Clear
+            </button>
+          )}
         </div>
       </PopoverContent>
     </Popover>
