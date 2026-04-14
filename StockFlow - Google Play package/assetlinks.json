@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "dev.pages.stockflow_48g.twa",
+        "sha256_cert_fingerprints": ["75:B9:A2:27:30:D0:3A:CA:22:04:71:A0:5D:4C:9A:CA:C0:D7:6D:43:9F:AC:12:6A:E6:22:42:47:07:E9:B1:EE"]
+      }
+    }]
