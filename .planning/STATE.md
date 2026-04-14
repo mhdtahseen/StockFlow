@@ -1,40 +1,38 @@
 # StockFlow: STATE.md
 
-**Current Phase**: Phase 2: Financial Integrity (P&L Tracking)
-**Current Task**: Audit P&L math and Ledger reconciliation
+**Current Phase**: Phase 3: Procurement Documentation & Pricing Logic
+**Current Task**: Finalizing reactive PO creation & Public Viewer RLS
 
 ## Milestone Progress
 - `[x]` Milestone 1: Performance & Financial Stabilization (100%)
-- `[/]` Milestone 2: Production Readiness & Native Experience (10%)
+- `[x]` Milestone 2: Document Automation & Sharing (v2.2) (100%)
 - [ ] Milestone 3: Beta & Delivery (0%)
 
-## Active Phase Breakdown (Milestone 1)
+## Active Phase Breakdown (Milestone 2)
 
-### Phase 1: Scanner Persistence & Performance
-- `[x]` Audit `ImeiScannerModal.tsx` bottlenecks (Completed)
-- `[x]` implement Unified Canvas-Based Decoding loop in `ImeiScannerModal.tsx`
-- `[x]` develop and integrate Adaptive Thresholding (Otsu) preprocessor
-- `[x]` implement convolution-based Sharpening filter
-- `[x]` add Hardware Zoom (1.5x) and Exposure Compensation logic
-- `[x]` update Scanner UI with Zoom controls and status indicators
-- `[x]` verify performance and accuracy improvements in various lighting conditions
+### Phase 3: Procurement Documentation & Branding
+- `[x]` Standardize terminology (Purchase Order / Invoice) across all UI
+- `[x]` Create `PurchaseOrderPrintable` component (Supplier logic)
+- `[x]` Implement **Reactive Pricing Manifest** (Last-Item-Fill logic) in `BatchAddSheet`
+- `[/]` Implement `generatePurchaseOrderPDF` utility (Pending)
 
-### Phase 2: Financial Integrity (Watchtower Logic)
-- `[x]` Standardize Ledger Entry Types and Metadata (`ledger/types.ts`)
-- `[x]` Implement Ledger Watchtower (extraReducers) for `addSaleOrder`
-- `[x]` Implement Ledger Watchtower (extraReducers) for `addCustomerSettlement`
-- `[x]` Fix blank `note` fields in `PhoneDetail.tsx` and manual `addEntry` calls
-- `[x]` Implement `selectTrueProfit` selector with Landed Cost logic
-- `[x]` Implement `selectCustomerBalance` with automated Ledger scanning
-- `[x]` Verify logic by simulating Sale -> Settlement flows
+### Phase 4: Secure Document Sharing
+- `[x]` Create Public Viewer Route (`/public/view/:token`)
+- `[x]` Implement 30-day link expiry logic (`shared_links`)
+- `[x]` Integrate Native Mobile Share API
+- `[x]` Configure Supabase RLS for anonymous record access
+
+## Refinements (Off-Track Accomplishments)
+- **Smart Manifest**: Implemented a spreadsheet-like reactive pricing system where the last item balances the total manifest value automatically.
+- **Terminology Guard**: Cleaned up legacy "Procurement Request" labels to ensure professional "Purchase Order" branding throughout the workflow.
+- **Manifest Hardening**: Added IMEI verification, row-level scanning, and draft persistence to the Batch Add workflow.
 
 ## Blockers & Risk
-- **Risk**: Device-specific camera behavior (focus/torch) varies on Android TWA.
-- **Risk**: Tesseract.js initialization latency on slow networks.
-- **Risk**: RLS validation depth for complex ledger aggregations.
+- **Risk**: Cache invalidation for public links if DB tokens are manually altered.
+- **Risk**: Large manifest performance (UI lag) during reactive price recalculation (>50 items).
 
 ## Current Context
-We are shifting from "Build" mode to "Stabilization" mode. Most core features exist but require reliability hardening before MVP 2 release.
+We have advanced rapidly through the Document Automation phase. The reactive pricing logic provides a premium "Power User" feel to PO creation. Next focus is on PDF generation and the "Edit" flow for existing orders.
 
 ---
-*Last updated: 2026-04-12*
+*Last updated: 2026-04-14*

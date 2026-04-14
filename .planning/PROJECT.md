@@ -20,12 +20,13 @@ A mobile-first, offline-resilient PWA designed for high-frequency inventory mana
 - ✓ **v2.1 Financial Watchtower**: Automated `extraReducer` audit engine (Phase 2).
 - ✓ **Offline-First Resilience**: Redux/Localforage persistence with sync manager.
 - ✓ **Multi-Tenancy**: Tenant ID isolation logic injected into database and state layers.
+- ✓ **v2.2 PO Invoicing**: Professional PDF generation with rejected items logic.
+- ✓ **v2.2 Secure Sharing**: Token-based document sharing with 30-day expiry.
 
-### Active (MVP 2 Release)
-- [ ] **Android TWA Compatibility**: Optimization for TWA (PWABuilder) wrapping (Phase 3).
-- [ ] **Native Auth**: WebAuthn passkey integration for secure TWA login.
-- [ ] **Production CI/CD**: Setup deployment procedures for Vercel/Supabase (Phase 4).
-- [ ] **Global UI Audit**: Glassmorphism and touch target consistency (Phase 5).
+### Active (Milestone 3 - Production & Alpha Prep)
+- [ ] **Android TWA Optimization**: Optimization for TWA (PWABuilder) wrapping (Phase 5).
+- [ ] **Biometric Login**: WebAuthn/Passkey integration for fast checkout/access.
+- [ ] **Multi-Tenant Security Audit**: Third-party review of RLS and isolation logic.
 
 ### Out of Scope (For Now)
 - **Overhead Accounting**: Rent, electricity, and salaries are deferred to post-MVP 2.
@@ -36,13 +37,14 @@ A mobile-first, offline-resilient PWA designed for high-frequency inventory mana
 
 | Decision | Rationale | Outcome |
 | :--- | :--- | :--- |
+| **Separate PO Printable** | Keep the PO "Rejected Items" logic isolated from the Sales invoice code. | — Active |
+| **Token-Based Sharing** | Ensure 30-day security without complex background cleanup jobs. | — Active |
 | **TWA vs PWA** | Native feel on Android via Play Store deployment while maintaining web codebase. | — Active |
 | **SAT OCR Logic** | Switched to Summed Area Tables (Integral Image) for O(N) thresholding to eliminate UI freezes. | — v2.1 |
-| **Passive HUD** | Use Ref-based direct DOM updates for scanner to avoid React re-render flicker. | — v2.1 |
-| **Event-Driven Audit**| Ledger listens to business events globally (Watchtower) to eliminate manual entry errors. | — v1.2 |
 
 ## Evolution
-Current Version: **v2.1** (Shipped 2026-04-14)
+Current Version: **v2.2** (Document Automation & Sharing)
+Next Version: **v2.3** (Android TWA & Biometrics)
 
 ---
-*Last updated: 2026-04-14 after v2.1 completion*
+*Last updated: 2026-04-14 after Milestone 2 Activation*
