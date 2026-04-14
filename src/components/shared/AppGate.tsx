@@ -52,9 +52,13 @@ export default function AppGate({ children }: AppGateProps) {
         ("standalone" in window.navigator && (window.navigator as any).standalone) ||
         window.matchMedia("(display-mode: standalone)").matches;
 
-      // Detect if the device has a mouse/trackpad (fine pointer)
-      // Laptop/Desktop will have this, true Mobile devices will not.
-      const isDesktopPointer = window.matchMedia("(pointer: fine)").matches;
+      // Deep detection for Desktop/Laptop bypass
+      // 1. any-pointer: fine -> checks if any input (like a trackpad) is precise
+      const hasFinePointer = window.matchMedia("(any-pointer: fine)").matches;
+      
+      // 2. Platform check -> DevTools often leaves the real OS platform exposed
+      const platform = (navigator as any).userAgentData?.platform || navigator.platform || "";
+      const isDesktopOS = /mac|win|linux/i.test(platform) && !/android/i.test(platform);
 
       setDeviceInfo({ isAndroid, isIos, isStandalone, isMobile });
 
@@ -66,11 +70,18 @@ export default function AppGate({ children }: AppGateProps) {
       }
 
       // 2. Block Mobile Browsers (Mandatory App)
-      // Only block if it's a mobile OS AND a touch-only device (no mouse/trackpad)
-      if ((isAndroid || isIos) && isMobile && !isStandalone && !isDesktopPointer) {
+      // We only block if: 
+      // - It has a mobile UA
+      // - It's NOT in standalone mode
+      // - It does NOT have a desktop OS platform (prevents DevTools blocking)
+      // - It does NOT have a fine pointer (trackpad/mouse)
+      const shouldBlock = (isAndroid || isIos) && isMobile && !isStandalone && !isDesktopOS && !hasFinePointer;
+
+      if (shouldBlock) {
         setIsBlocked(true);
         return;
       }
+
 
 
       setIsBlocked(false);
