@@ -41,9 +41,36 @@ A mobile-first, offline-resilient PWA designed for high-frequency inventory mana
 | **TWA vs PWA** | Native feel on Android via Play Store deployment while maintaining web codebase. | — Active |
 | **SAT OCR Logic** | Switched to Summed Area Tables (Integral Image) for O(N) thresholding to eliminate UI freezes. | — v2.1 |
 
+## Current Milestone: v2.4 PO Stability & Lifecycle Management
+
+**Goal**: Resolve critical data persistence issues, stabilize inspection/timeline logic, and implement full CRUD for Purchase Orders.
+
+**Target features**:
+- **PO Data Integrity**: Fix data loss on refresh and PR download.
+- **Inspection Logic**: Stabilize inspection state and IMEI tracking.
+- **Financial & Timeline**: Breakdown Note tabs and fix timeline ordering/payments.
+- **PO Management**: Implement full Edit (with cascade) and Delete flows.
+- **UI/UX Refinement**: Fix mobile autocomplete and share button.
+
 ## Evolution
-Current Version: **v2.3** (Android TWA & Production Prep)
-Next Version: **v2.4** (Expansion & Scaling)
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
+Current Version: **v2.4** (PO Stability & CRUD)
+Next Version: **v2.5** (Expansion & Scaling)
 
 ---
 *Last updated: 2026-04-14 after Milestone 2 Activation*

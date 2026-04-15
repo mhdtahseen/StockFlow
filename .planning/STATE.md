@@ -1,38 +1,27 @@
 # StockFlow: STATE.md
 
-**Current Phase**: Phase 3: Procurement Documentation & Pricing Logic
-**Current Task**: Finalizing reactive PO creation & Public Viewer RLS
+**Current Position**
+
+Phase: Not started (defining requirements)
+Plan: —
+Status: Initializing Milestone v2.4
+Last activity: 2026-04-16 — Milestone v2.4: PO Stability & Lifecycle Management started
 
 ## Milestone Progress
 - `[x]` Milestone 1: Performance & Financial Stabilization (100%)
 - `[x]` Milestone 2: Document Automation & Sharing (v2.2) (100%)
-- [ ] Milestone 3: Beta & Delivery (0%)
+- `[x]` Milestone 3: Android TWA & Production Prep (v2.3) (100%)
+- [ ] Milestone 4: PO Stability & Lifecycle Management (v2.4) (0%)
 
-## Active Phase Breakdown (Milestone 2)
+## Active Phase Breakdown (Milestone 4)
 
-### Phase 3: Procurement Documentation & Branding
-- `[x]` Standardize terminology (Purchase Order / Invoice) across all UI
-- `[x]` Create `PurchaseOrderPrintable` component (Supplier logic)
-- `[x]` Implement **Reactive Pricing Manifest** (Last-Item-Fill logic) in `BatchAddSheet`
-- `[/]` Implement `generatePurchaseOrderPDF` utility (Pending)
+### Phase 7: PO Stability & Core Refinement (Next Up)
+- [ ] Define granular requirements for PO bug fixes
+- [ ] Research database cascade and Note breakdown patterns
+- [ ] Map out PO Edit/Delete impact surface
 
-### Phase 4: Secure Document Sharing
-- `[x]` Create Public Viewer Route (`/public/view/:token`)
-- `[x]` Implement 30-day link expiry logic (`shared_links`)
-- `[x]` Integrate Native Mobile Share API
-- `[x]` Configure Supabase RLS for anonymous record access
-
-## Refinements (Off-Track Accomplishments)
-- **Smart Manifest**: Implemented a spreadsheet-like reactive pricing system where the last item balances the total manifest value automatically.
-- **Terminology Guard**: Cleaned up legacy "Procurement Request" labels to ensure professional "Purchase Order" branding throughout the workflow.
-- **Manifest Hardening**: Added IMEI verification, row-level scanning, and draft persistence to the Batch Add workflow.
-
-## Blockers & Risk
-- **Risk**: Cache invalidation for public links if DB tokens are manually altered.
-- **Risk**: Large manifest performance (UI lag) during reactive price recalculation (>50 items).
-
-## Current Context
-We have advanced rapidly through the Document Automation phase. The reactive pricing logic provides a premium "Power User" feel to PO creation. Next focus is on PDF generation and the "Edit" flow for existing orders.
+## Accumulated Context
+We have stabilized the mobile experience (TWA) and document sharing. The reactive pricing logic is functional but requires hardening against data loss on refresh and download. Multi-tenant isolation is in place but needs audit coverage during the PO CRUD implementation.
 
 ---
-*Last updated: 2026-04-14*
+*Last updated: 2026-04-16*
