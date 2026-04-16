@@ -254,12 +254,13 @@ export const syncActionToSupabase = async (
           p_items: payload.items.map((i: any) => ({
             phone_id: i.phoneId,
             purchase_price: i.purchasePrice,
-            brand_snapshot: i.brandSnapshot,
-            model_snapshot: i.modelSnapshot,
-            storage_snapshot: i.storageSnapshot,
-            color_snapshot: i.colorSnapshot,
-            ram_snapshot: i.ramSnapshot,
-            imei_snapshot: i.imei, // BatchAddSheet uses 'imei' property
+            brand: i.brand,
+            model: i.model,
+            storage: i.storage,
+            color: i.color,
+            ram: i.ram,
+            imei: i.imei,
+            issue_tags: i.issueTags || [],
           })),
         });
         if (error) throw error;
@@ -318,6 +319,7 @@ export const syncActionToSupabase = async (
       }
       case "purchasing/markPOItemAccepted": {
         const { error } = await supabase.rpc("mark_po_item_accepted", {
+          p_item_id: payload.itemId,
           p_purchase_order_id: payload.purchaseOrderId,
           p_phone_id: payload.phoneId,
           p_final_price: payload.finalPrice,
@@ -327,8 +329,8 @@ export const syncActionToSupabase = async (
       }
       case "purchasing/markPOItemRejected": {
         const { error } = await supabase.rpc("mark_po_item_rejected", {
+          p_item_id: payload.itemId,
           p_purchase_order_id: payload.purchaseOrderId,
-          p_phone_id: payload.phoneId,
           p_reason: payload.reason,
         });
         if (error) throw error;
@@ -357,11 +359,13 @@ export const syncActionToSupabase = async (
             phone_id: it.phoneId,
             rejection_reason: it.rejectionReason,
             purchase_price: it.purchasePrice,
-            brand_snapshot: it.brandSnapshot,
-            model_snapshot: it.modelSnapshot,
-            storage_snapshot: it.storageSnapshot,
-            color_snapshot: it.colorSnapshot,
-            ram_snapshot: it.ramSnapshot,
+            brand: it.brand,
+            model: it.model,
+            storage: it.storage,
+            color: it.color,
+            ram: it.ram,
+            imei: it.imei,
+            issue_tags: it.issueTags || [],
           }));
 
           const { error: itemsError } = await supabase

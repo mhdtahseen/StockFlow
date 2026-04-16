@@ -9,7 +9,7 @@ export interface PublicOrderData {
     createdAt: string;
     type: 'SALE' | 'PURCHASE';
     orderType?: string;
-    items: any[];
+    items: any[]; // Polymorphic items (Sales include snapshots, Purchase include standard fields)
   };
   counterparty: {
     name: string;
@@ -24,6 +24,7 @@ export interface PublicOrderData {
   };
   expires_at: string;
 }
+
 
 /**
  * Creates a public sharing token for a document.
@@ -52,12 +53,31 @@ export async function createShareLink(orderId: string, orderType: 'SALE' | 'PURC
  * Security is handled by the 'get_shared_order' security-definer function in Postgres.
  */
 export async function fetchPublicOrder(token: string): Promise<PublicOrderData | null> {
-  const { data, error } = await supabase.rpc('get_shared_order', { share_token: token });
+  const cleanToken = token.trim();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  
+  if (!uuidRegex.test(cleanToken)) {
+    console.error('Invalid token format');
+    return null;
+  }
 
-  if (error || !data) {
-    console.error('Failed to fetch public order:', error);
+  const { data, error } = await supabase.rpc('get_shared_order', { share_token: cleanToken });
+
+  if (error) {
+    console.error('Database error fetching public order:', error.message, error.details);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  // Handle the custom error object from our robust RPC
+  if (data.error === 'ORDER_NOT_FOUND') {
+    console.warn('Order record no longer exists, but share token is valid.');
     return null;
   }
 
   return data as PublicOrderData;
 }
+

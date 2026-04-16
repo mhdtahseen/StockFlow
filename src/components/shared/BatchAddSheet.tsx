@@ -333,11 +333,11 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       phoneId: null, // Linked later during receipt
       status: "PENDING_INSPECTION" as const,
       purchasePrice: parseFloat(r.purchasePrice) || 0,
-      brandSnapshot: r.brand,
-      modelSnapshot: r.model,
-      ramSnapshot: r.ram,
-      storageSnapshot: r.storage,
-      colorSnapshot: r.color,
+      brand: r.brand,
+      model: r.model,
+      ram: r.ram,
+      storage: r.storage,
+      color: r.color,
       imei: r.imei,
     }));
 

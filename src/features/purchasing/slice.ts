@@ -78,6 +78,7 @@ const purchasingSlice = createSlice({
       state,
       action: PayloadAction<{
         purchaseOrderId: string;
+        itemId: string;
         phoneId: string;
         finalPrice: number;
       }>,
@@ -86,8 +87,12 @@ const purchasingSlice = createSlice({
         (o) => o.id === action.payload.purchaseOrderId,
       );
       if (!po) return;
-      const item = po.items.find((i) => i.phoneId === action.payload.phoneId);
-      if (item) item.status = "ACCEPTED";
+      const item = po.items.find((i) => i.id === action.payload.itemId);
+      if (item) {
+        item.status = "ACCEPTED";
+        item.phoneId = action.payload.phoneId;
+        item.purchasePrice = action.payload.finalPrice;
+      }
       po.phonesReceived = (po.phonesReceived ?? 0) + 1;
       // Check if all items resolved → update PO status
       const allResolved = po.items.every(
@@ -99,7 +104,7 @@ const purchasingSlice = createSlice({
       state,
       action: PayloadAction<{
         purchaseOrderId: string;
-        phoneId: string;
+        itemId: string;
         reason?: string;
       }>,
     ) => {
@@ -107,11 +112,10 @@ const purchasingSlice = createSlice({
         (o) => o.id === action.payload.purchaseOrderId,
       );
       if (!po) return;
-      const item = po.items.find((i) => i.phoneId === action.payload.phoneId);
+      const item = po.items.find((i) => i.id === action.payload.itemId);
       if (item) {
         item.status = "REJECTED";
-        if (action.payload.reason)
-          (item as any).rejectionReason = action.payload.reason;
+        if (action.payload.reason) item.rejectionReason = action.payload.reason;
         
         // RECONCILIATION: Subtract price from total since we no longer owe for this unit
         po.totalAmount = (po.totalAmount || 0) - (item.purchasePrice || 0);

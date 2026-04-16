@@ -226,8 +226,8 @@ export const PurchaseOrderPrintable: React.FC<PurchaseOrderPrintableProps> = ({
               <tr key={item.id} id={`invoice-row-${index}`} style={{ borderBottom: `1px solid ${HEX.slate100}` }}>
                 <td style={{ color: HEX.slate400, fontSize: "13px", padding: "16px 24px", textAlign: "center" }}>{(index + 1).toString().padStart(2, "0")}</td>
                 <td style={{ padding: "16px 24px" }}>
-                  <div style={{ color: HEX.slate900, fontSize: "14px", fontWeight: "700" }}>{item.brandSnapshot} {item.modelSnapshot}</div>
-                  <div style={{ color: HEX.slate500, fontSize: "11px", fontWeight: "600" }}>{item.ramSnapshot} / {item.storageSnapshot}</div>
+                  <div style={{ color: HEX.slate900, fontSize: "14px", fontWeight: "700" }}>{item.brand} {item.model}</div>
+                  <div style={{ color: HEX.slate500, fontSize: "11px", fontWeight: "600" }}>{item.ram} / {item.storage}</div>
                 </td>
                 <td style={{ color: HEX.slate700, fontSize: "13px", fontWeight: "700", padding: "16px 24px", textAlign: "right" }}>{formatCurrency(item.purchasePrice)}</td>
               </tr>
@@ -249,7 +249,7 @@ export const PurchaseOrderPrintable: React.FC<PurchaseOrderPrintableProps> = ({
                   <tr key={item.id} style={{ borderBottom: `1px solid ${HEX.rose500}10` }}>
                     <td style={{ color: HEX.rose500, opacity: 0.6, fontSize: "12px", padding: "12px 24px", width: "40px" }}>R-{index + 1}</td>
                     <td style={{ padding: "12px 24px" }}>
-                      <div style={{ color: HEX.slate900, fontSize: "13px", fontWeight: "700" }}>{item.brandSnapshot} {item.modelSnapshot}</div>
+                      <div style={{ color: HEX.slate900, fontSize: "13px", fontWeight: "700" }}>{item.brand} {item.model}</div>
                       <div style={{ color: HEX.rose500, fontSize: "10px", fontWeight: "600" }}>Reason: {item.rejectionReason || "Mismatch"}</div>
                     </td>
                     <td style={{ color: HEX.slate400, fontSize: "12px", padding: "12px 24px", textAlign: "right", textDecoration: "line-through" }}>

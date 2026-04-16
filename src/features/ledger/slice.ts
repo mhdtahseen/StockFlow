@@ -36,12 +36,39 @@ const ledgerSlice = createSlice({
       });
     },
     addEntry: (state, action: PayloadAction<LedgerEntry>) => {
-      const exists = state.entries.some((e) => e.id === action.payload.id);
+      const entry = action.payload;
+      const exists = state.entries.some((e) => e.id === entry.id);
       if (!exists) {
-        state.entries.push(action.payload);
+        state.entries.push(entry);
+
+        // CLEANUP: If this is an order-linked payment, remove matching pending entries
+        const poId = entry.purchaseOrderId || (entry as any).purchase_order_id;
+        const soId = entry.saleOrderId || (entry as any).sale_order_id;
+        if (poId || soId) {
+          state.pendingEntries = (state.pendingEntries || []).filter((pending) => {
+            const pPoId = pending.purchaseOrderId || (pending as any).purchase_order_id;
+            const pSoId = pending.saleOrderId || (pending as any).sale_order_id;
+
+            // 1. Match by specific transition IDs
+            if (poId && pending.id === `v-po-init-${poId}`) return false;
+            if (soId && pending.id === `v-so-pay-${soId}`) return false;
+
+            // 2. Semantic matching (Same Order + Same Amount + Proximity)
+            // Audit Fix: Only prune if timestamps are within 30 mins to avoid collision with distinct payments
+            const timeDiffMs = Math.abs(
+              new Date(pending.createdAt).getTime() - new Date(entry.createdAt).getTime()
+            );
+            const isTimeMatch = timeDiffMs < 30 * 60 * 1000;
+
+            if (poId && pPoId === poId && pending.amount === entry.amount && isTimeMatch) return false;
+            if (soId && pSoId === soId && pending.amount === entry.amount && isTimeMatch) return false;
+
+            return true;
+          });
+        }
       } else {
-        const idx = state.entries.findIndex((e) => e.id === action.payload.id);
-        if (idx !== -1) state.entries[idx] = action.payload;
+        const idx = state.entries.findIndex((e) => e.id === entry.id);
+        if (idx !== -1) state.entries[idx] = entry;
       }
     },
     removeEntry: (state, action: PayloadAction<string>) => {

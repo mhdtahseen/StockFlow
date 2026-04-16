@@ -39,6 +39,7 @@ import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
 import { repairsFlatList } from "../data/repairCatalog";
 import { CreateOrderSheet } from "../components/shared/CreateOrderSheet";
 import HeaderActions from "@/components/layout/HeaderActions";
+import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 
 export default function PhoneDetail() {
   const { id } = useParams<{ id: string }>();
@@ -66,15 +67,16 @@ export default function PhoneDetail() {
   const [editNote, setEditNote] = useState("");
   const [editAmount, setEditAmount] = useState("");
 
+  const ledgerEntries = useAppSelector((state) => state.ledger.entries);
   // All repair costs tied to this phone (sorted oldest first)
-  const repairEntries = useAppSelector((state) =>
-    [...state.ledger.entries]
+  const repairEntries = useMemo(() => {
+    return [...ledgerEntries]
       .filter((e) => e.type === "REPAIR_COST" && e.referenceId === id)
       .sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      ),
-  );
+      );
+  }, [ledgerEntries, id]);
   const totalRepairCost = useMemo(
     () => repairEntries.reduce((sum, e) => sum + Math.abs(e.amount), 0),
     [repairEntries],
@@ -331,14 +333,27 @@ export default function PhoneDetail() {
 
           {phone.issueTags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-              {phone.issueTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2.5 py-1 bg-rose-50 dark:bg-rose-950 border border-rose-100 dark:border-rose-900 text-rose-700 dark:text-rose-400 text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1"
-                >
-                  <ShieldAlert size={12} /> {tag}
-                </span>
-              ))}
+              {phone.issueTags.map((tag) => {
+                const item = issuesFlatList.find(
+                  (i) => i.label === tag || i.aliases?.includes(tag),
+                );
+                const severity = (item?.severity || 1) as 1 | 2 | 3 | 4 | 5;
+                const colors = severityColorMap[severity];
+
+                return (
+                  <span
+                    key={tag}
+                    className={clsx(
+                      "px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1 border",
+                      colors.bg,
+                      colors.text,
+                      colors.border,
+                    )}
+                  >
+                    <ShieldAlert size={12} /> {tag}
+                  </span>
+                );
+              })}
             </div>
           )}
         </section>

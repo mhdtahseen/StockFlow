@@ -85,10 +85,44 @@ export default function OrderDetail() {
   const _pendingEntries = useAppSelector((state) => state.ledger.pendingEntries || []);
   // Merge confirmed + optimistic pending entries for Finance tab display.
   // useMemo avoids creating a new array reference on every render (prevents Redux selector warning).
-  const ledgerEntries = React.useMemo(
-    () => [..._ledgerEntries, ..._pendingEntries],
-    [_ledgerEntries, _pendingEntries],
-  );
+  const ledgerEntries = React.useMemo(() => {
+    const official = [..._ledgerEntries];
+    const filteredPending = (_pendingEntries || []).filter((pending) => {
+      // 1. Explicit ID match
+      if (official.some((o) => o.id === pending.id)) return false;
+
+      // 2. Semantic match: same order + same type + same amount
+      // This is the "Safety Net" for the FE buffer vs DB overlap
+      const isRedundant = official.some((o) => {
+        const oPoId = o.purchaseOrderId || (o as any).purchase_order_id;
+        const oSoId = o.saleOrderId || (o as any).sale_order_id;
+        const pPoId = pending.purchaseOrderId || (pending as any).purchase_order_id;
+        const pSoId = pending.saleOrderId || (pending as any).sale_order_id;
+
+        const matchesOrder =
+          (oPoId && oPoId === pPoId) || (oSoId && oSoId === pSoId);
+
+        // --- AUDIT FIX: Proximity check ---
+        // Only deduplicate if they were created within 30 minutes of each other.
+        // This stops UI from hiding legitimate separate payments of the same amount.
+        const timeDiffMs = Math.abs(
+          new Date(o.createdAt).getTime() - new Date(pending.createdAt).getTime()
+        );
+        const isTimeMatch = timeDiffMs < 30 * 60 * 1000; // 30 mins
+
+        return (
+          matchesOrder &&
+          o.type === pending.type &&
+          Math.abs(o.amount) === Math.abs(pending.amount) &&
+          isTimeMatch
+        );
+      });
+
+      return !isRedundant;
+    });
+
+    return [...official, ...filteredPending];
+  }, [_ledgerEntries, _pendingEntries]);
   const payments = useAppSelector((state) => state.customers.payments);
   const isPurchaseOrder = useAppSelector((state) =>
     state.purchasing.orders.some((o) => o.id === id),
@@ -153,12 +187,12 @@ export default function OrderDetail() {
                 purchasePrice: i.purchase_price ?? 0,
                 status: i.status,
                 rejectionReason: i.rejection_reason,
-                brandSnapshot: i.brand_snapshot,
-                modelSnapshot: i.model_snapshot,
-                storageSnapshot: i.storage_snapshot,
-                colorSnapshot: i.color_snapshot,
-                ramSnapshot: i.ram_snapshot,
-                imeiSnapshot: i.imei_snapshot,
+                brand: i.brand,
+                model: i.model,
+                storage: i.storage,
+                color: i.color,
+                ram: i.ram,
+                imei: i.imei,
               })),
             }),
           );
@@ -302,6 +336,18 @@ export default function OrderDetail() {
   const poPendingCount = isPurchaseOrder
     ? order.items.filter((i: any) => i.status === "PENDING_INSPECTION").length
     : 0;
+
+  const isInspected = React.useMemo(() => {
+    if (!isPurchaseOrder) return true;
+    return (order.items || []).some((item: any) => 
+      item.status === "ACCEPTED" || item.status === "REJECTED"
+    );
+  }, [isPurchaseOrder, order.items]);
+
+  const isAwaitingReceipt =
+    isPurchaseOrder &&
+    ["AWAITING_RECEIPT", "RECEIVED", "PARTIAL"].includes(order.status) &&
+    poPendingCount > 0;
 
   const outstanding = (order.totalAmount || 0) - (order.amountPaid || 0);
 
@@ -547,6 +593,7 @@ export default function OrderDetail() {
     setIsSharing(true);
     
     try {
+      // 1. Generate the public link
       const shareUrl = await createShareLink(
         order.id, 
         isPurchaseOrder ? 'PURCHASE' : 'SALE', 
@@ -559,44 +606,51 @@ export default function OrderDetail() {
         url: shareUrl,
       };
 
-      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        await Promise.race([
-          navigator.share(shareData),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
-        ]).catch(err => {
-           if (err.message !== "Timeout" && (err as Error).name !== "AbortError") {
-             throw err;
-           }
-           return navigator.clipboard.writeText(shareData.url).then(() => {
-             toast.success("Link copied", { description: "Share sheet unavailable, link copied to clipboard." });
-           });
-        });
+      // 2. Attempt Native Share with aggressive fallback
+      // Note: Awaiting createShareLink might invalidate user activation on some browsers.
+      // We handle this by falling back to clipboard if navigator.share fails or is blocked.
+      if (navigator.share) {
+        try {
+          // Some browsers throw if share is called after an await (lost activation)
+          await navigator.share(shareData);
+          toast.success("Shared successfully");
+        } catch (shareErr) {
+          // If native share fails (e.g. cancelled or activation lost), copy to clipboard
+          await navigator.clipboard.writeText(shareUrl);
+          toast.success("Link copied", { 
+            description: "Native share unavailable or cancelled. Link copied to clipboard." 
+          });
+        }
       } else {
-        await navigator.clipboard.writeText(shareData.url);
+        // Fallback for desktop browsers without Share API
+        await navigator.clipboard.writeText(shareUrl);
         toast.success("Link copied", {
           description: "Sharing link copied to clipboard.",
         });
       }
     } catch (err) {
       console.error("Share Error:", err);
-      toast.error("Could not share order");
+      toast.error("Could not generate share link");
     } finally {
       setIsSharing(false);
     }
   };
 
+
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-4">
       <HeaderActions>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleShare}
-            disabled={isSharing}
-            className="size-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-            title="Share Document"
-          >
-            {isSharing ? <Loader2 size={16} className="animate-spin" /> : <Share size={18} />}
-          </button>
+          {isInspected && (
+            <button
+              onClick={handleShare}
+              disabled={isSharing}
+              className="size-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+              title="Share Document"
+            >
+              {isSharing ? <Loader2 size={16} className="animate-spin" /> : <Share size={18} />}
+            </button>
+          )}
           
           <FeatureGate feature="pdf_invoice">
             <button
@@ -804,21 +858,11 @@ export default function OrderDetail() {
                 const isPOItem = isPurchaseOrder;
                 const phone = phones.find((p) => p.id === item.phoneId);
                 const itemData = {
-                  brand: isPOItem
-                    ? phone?.brand || (item as any).brandSnapshot || "Unknown"
-                    : (item as any).brandSnapshot || "Unknown",
-                  model: isPOItem
-                    ? phone?.model || (item as any).modelSnapshot || "Item"
-                    : (item as any).modelSnapshot || "Unknown",
-                  storage: isPOItem
-                    ? phone?.storage || (item as any).storageSnapshot || "N/A"
-                    : (item as any).storageSnapshot || "N/A",
-                  ram: isPOItem
-                    ? phone?.ram || (item as any).ramSnapshot || "N/A"
-                    : (item as any).ramSnapshot || "N/A",
-                  color: isPOItem
-                    ? phone?.color || (item as any).colorSnapshot || "N/A"
-                    : (item as any).colorSnapshot || "N/A",
+                  brand: phone?.brand || (item as any).brand || "Unknown",
+                  model: phone?.model || (item as any).model || "Item",
+                  storage: phone?.storage || (item as any).storage || "N/A",
+                  ram: phone?.ram || (item as any).ram || "N/A",
+                  color: phone?.color || (item as any).color || "N/A",
                   price: isPOItem
                     ? (item as any).purchasePrice || 0
                     : (item as any).salePrice || 0,
@@ -831,8 +875,8 @@ export default function OrderDetail() {
                     ? 0
                     : (item as any).discountAmount || 0,
                   imeis: isPOItem
-                    ? phone?.imeis || []
-                    : (item as any).imeiSnapshot || [],
+                    ? (phone?.imeis && phone.imeis.length > 0) ? phone.imeis : (item as any).imei ? [(item as any).imei] : []
+                    : (item as any).imei ? [(item as any).imei] : [],
                   status: (item as any).status,
                 };
 
@@ -880,6 +924,7 @@ export default function OrderDetail() {
                       price={itemData.effectivePrice}
                       isPurchaseOrder={isPurchaseOrder}
                       unitProfit={unitProfit}
+                      rejectionReason={(item as any).rejectionReason}
                       config={config}
                     />
                   </Link>

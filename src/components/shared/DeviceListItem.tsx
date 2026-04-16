@@ -54,6 +54,7 @@ export interface DeviceListItemProps {
   price: number;
   isPurchaseOrder?: boolean;
   unitProfit?: number;
+  rejectionReason?: string;
   config: {
     container: string;
     icon: string;
@@ -71,6 +72,7 @@ export function DeviceListItem({
   price,
   isPurchaseOrder = false,
   unitProfit = 0,
+  rejectionReason,
   config,
 }: DeviceListItemProps) {
   return (
@@ -121,6 +123,11 @@ export function DeviceListItem({
               >
                 {unitProfit > 0 ? "+" : ""}
                 {Math.abs(unitProfit).toLocaleString()}
+              </span>
+            )}
+            {rejectionReason && (
+              <span className="font-black px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 uppercase tracking-widest whitespace-nowrap text-[8px] leading-none shadow-sm">
+                Reason: {rejectionReason}
               </span>
             )}
             <span

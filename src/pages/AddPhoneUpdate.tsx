@@ -11,7 +11,12 @@ import {
   type ColorOption,
 } from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
-import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
+import { 
+  Plus, Trash2, Camera, Info, Wrench, X, MonitorSmartphone, 
+  Search, HardDrive, Palette, History, Fingerprint, 
+  ChevronDown, Check, Smartphone, ChevronLeft, ScanBarcode, DollarSign, Package, Building, ArrowRight
+} from "lucide-react";
+import IssueSelector from "../components/IssueSelector";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import { type ImeiEntry } from "../utils/validateImei";
 import CurrencyInput from "../components/ui/CurrencyInput";
@@ -19,19 +24,7 @@ import { CustomerPicker } from "../components/ui/CustomerPicker";
 import { Customer } from "../features/customers/types";
 import ImeiSection from "../components/ImeiSection";
 import clsx from "clsx";
-import {
-  Smartphone,
-  Plus,
-  Trash2,
-  ChevronLeft,
-  Check,
-  Wrench,
-  ScanBarcode,
-  DollarSign,
-  Package,
-  Building,
-  X,
-} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AcquisitionChannel,
   PurchaseOrder,
@@ -652,135 +645,16 @@ function DeviceCard({
           />
         </div>
 
-        {/* Condition / Issues */}
-        <div className="pt-3 border-t border-slate-50 dark:border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Wrench
-                size={14}
-                className="text-primary-500"
-                strokeWidth={2.5}
-              />
-              <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-                Condition / Issues
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {selectedTagCount > 0 && (
-                <span className="text-[10px] font-bold bg-primary-500/10 text-primary-500 px-2 py-0.5 rounded-md">
-                  {selectedTagCount} tagged
-                </span>
-              )}
-              <button
-                onClick={() => setShowIssues(!showIssues)}
-                className="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 uppercase tracking-wide"
-              >
-                {showIssues ? "Collapse" : "Expand"}
-              </button>
-            </div>
-          </div>
-
-          {/* Selected tags summary (always visible) */}
-          {selectedTagCount > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {row.selectedTags.slice(0, 2).map((tag) => {
-                const item = issuesFlatList.find(
-                  (i) => i.label === tag || i.aliases?.includes(tag),
-                );
-                const colors = severityColorMap[item?.severity || 1];
-                return (
-                  <span
-                    key={tag}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border"
-                    style={{
-                      backgroundColor: colors.bg,
-                      color: colors.text,
-                      borderColor: colors.text + "30",
-                    }}
-                  >
-                    {tag}
-                    <button
-                      onClick={() => toggleTag(tag)}
-                      className="opacity-60 hover:opacity-100"
-                    >
-                      <X size={11} />
-                    </button>
-                  </span>
-                );
-              })}
-              {overflowCount > 0 && (
-                <button
-                  onClick={() => setShowIssues(true)}
-                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
-                >
-                  +{overflowCount} more
-                </button>
-              )}
-            </div>
-          )}
-
-          {showIssues && (
-            <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
-              {/* Quick-tap popular issues */}
-              <div className="flex flex-wrap gap-1.5">
-                {topIssues.map((tag) => {
-                  const isSelected = row.selectedTags.includes(tag);
-                  const item = issuesFlatList.find(
-                    (i) => i.label === tag || i.aliases?.includes(tag),
-                  );
-                  const colors = severityColorMap[item?.severity || 1];
-                  return (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTag(tag)}
-                      style={
-                        isSelected
-                          ? {
-                              backgroundColor: colors.bg,
-                              color: colors.text,
-                              borderColor: colors.text + "40",
-                            }
-                          : {}
-                      }
-                      className={clsx(
-                        "flex items-center gap-1 px-3 py-1.5 border rounded-xl text-xs font-semibold transition-all active:scale-95",
-                        isSelected
-                          ? "font-bold"
-                          : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400",
-                      )}
-                    >
-                      {tag}
-                      {isSelected ? (
-                        <Check size={12} strokeWidth={3} />
-                      ) : (
-                        <Plus size={12} className="opacity-40" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Search from full catalog */}
-              <ReusableAutocomplete
-                data={issuesFlatList}
-                value={row.tagQuery}
-                onChange={(q) => onUpdate({ tagQuery: q })}
-                onSelect={(val) => {
-                  const t = val.trim();
-                  if (t && !row.selectedTags.includes(t)) {
-                    onUpdate({
-                      selectedTags: [...row.selectedTags, t],
-                      tagQuery: "",
-                    });
-                  } else {
-                    onUpdate({ tagQuery: "" });
-                  }
-                }}
-                placeholder="Search condition catalog…"
-              />
-            </div>
-          )}
-        </div>
+        <IssueSelector
+          selectedTags={row.selectedTags}
+          onToggleTag={toggleTag}
+          topIssues={topIssues}
+          tagQuery={row.tagQuery || ""}
+          setTagQuery={(q) => onUpdate({ tagQuery: q })}
+          showIssues={showIssues}
+          setShowIssues={setShowIssues}
+          className="pt-3 border-t border-slate-50 dark:border-slate-800"
+        />
       </div>
     </div>
   );

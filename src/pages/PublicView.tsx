@@ -20,6 +20,8 @@ export default function PublicView() {
       if (!token) return;
       try {
         const result = await fetchPublicOrder(token);
+        console.log('Public fetch result:', result ? 'Success' : 'Not Found/Error');
+        
         if (!result) {
           setError('Document not found or link has expired.');
         } else {
@@ -31,11 +33,13 @@ export default function PublicView() {
           }
         }
       } catch (err) {
-        setError('Failed to load document.');
+        console.error('CRITICAL: Failed to load public document:', err);
+        setError('Failed to load document due to a connection or server error.');
       } finally {
         setLoading(false);
       }
     }
+
     load();
   }, [token]);
 
