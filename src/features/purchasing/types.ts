@@ -20,6 +20,7 @@ export interface PurchaseOrderItem {
   storageSnapshot?: string;
   colorSnapshot?: string;
   ramSnapshot?: string;
+  imeiSnapshot?: string;
 }
 
 export interface PurchaseOrder {

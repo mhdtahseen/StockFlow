@@ -137,10 +137,10 @@ export default function OrderDetail() {
             addPurchaseOrder({
               id: poData.id,
               counterpartyId: poData.counterparty_id,
-              acquisitionChannel: "DIRECT", // Fallback or map if exists
-              platformFee: 0,
-              phonesOrdered: (poData.purchase_order_items || []).length,
-              phonesReceived: (poData.purchase_order_items || []).length,
+              acquisitionChannel: poData.acquisition_channel || "DIRECT",
+              platformFee: poData.platform_fee || 0,
+              phonesOrdered: poData.phones_ordered || (poData.purchase_order_items || []).length,
+              phonesReceived: poData.phones_received || (poData.purchase_order_items || []).length,
               status: poData.status,
               totalAmount: poData.total_amount,
               amountPaid: poData.amount_paid,
@@ -158,9 +158,34 @@ export default function OrderDetail() {
                 storageSnapshot: i.storage_snapshot,
                 colorSnapshot: i.color_snapshot,
                 ramSnapshot: i.ram_snapshot,
+                imeiSnapshot: i.imei_snapshot,
               })),
             }),
           );
+          // Fetch ledger entries for this order
+          const { data: ledgerData } = await supabase
+            .from("ledger")
+            .select("*")
+            .or(`purchase_order_id.eq.${id},sale_order_id.eq.${id},reference_id.eq.${id}`);
+
+          if (ledgerData) {
+            ledgerData.forEach((entry: any) => {
+              dispatch(addEntry({
+                id: entry.id,
+                tenantId: entry.tenant_id,
+                userId: entry.user_id,
+                type: entry.type,
+                amount: entry.amount,
+                paymentMode: entry.payment_mode,
+                saleOrderId: entry.sale_order_id,
+                purchaseOrderId: entry.purchase_order_id,
+                referenceId: entry.reference_id,
+                note: entry.note,
+                createdAt: entry.created_at,
+              } as any));
+            });
+          }
+
           return;
         }
 
@@ -193,6 +218,30 @@ export default function OrderDetail() {
             })),
           }),
         );
+
+          // Fetch ledger entries for this order
+          const { data: ledgerData } = await supabase
+            .from("ledger")
+            .select("*")
+            .or(`purchase_order_id.eq.${id},sale_order_id.eq.${id},reference_id.eq.${id}`);
+
+          if (ledgerData) {
+            ledgerData.forEach((entry: any) => {
+              dispatch(addEntry({
+                id: entry.id,
+                tenantId: entry.tenant_id,
+                userId: entry.user_id,
+                type: entry.type,
+                amount: entry.amount,
+                paymentMode: entry.payment_mode,
+                saleOrderId: entry.sale_order_id,
+                purchaseOrderId: entry.purchase_order_id,
+                referenceId: entry.reference_id,
+                note: entry.note,
+                createdAt: entry.created_at,
+              } as any));
+            });
+          }
       } catch (e) {
         if (mounted) setFetchFailed(true);
       } finally {
@@ -254,9 +303,7 @@ export default function OrderDetail() {
     ? order.items.filter((i: any) => i.status === "PENDING_INSPECTION").length
     : 0;
 
-  const outstanding = isPurchaseOrder
-    ? poAcceptedTotal - (order.amountPaid || 0)
-    : (order.totalAmount || 0) - (order.amountPaid || 0);
+  const outstanding = (order.totalAmount || 0) - (order.amountPaid || 0);
 
   const totalSaleProfit = !isPurchaseOrder
     ? order.items.reduce((sum, item) => {
@@ -345,8 +392,11 @@ export default function OrderDetail() {
         }));
 
   const unifiedPayments = [...advancePayments, ...orderAllocations].sort(
-    (a, b) =>
-      new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+    (a, b) => {
+      const timeDiff = new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return (b.id || "").localeCompare(a.id || "");
+    }
   );
 
   // --- REVERSE CHRONOLOGICAL TIMELINE ---
@@ -395,9 +445,50 @@ export default function OrderDetail() {
     });
   }
 
-  const sortedTimeline = [...timelineEvents].sort((a, b) => 
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  const eventPriority: Record<string, number> = {
+    'VOID': 4,
+    'SETTLEMENT': 3,
+    'PAYMENT': 2,
+    'CREATION': 1
+  };
+
+  const sortedTimeline = [...timelineEvents].sort((a, b) => {
+    const timeA = new Date(a.timestamp).getTime();
+    const timeB = new Date(b.timestamp).getTime();
+    if (Math.abs(timeA - timeB) > 1000) return timeB - timeA;
+    
+    // Tie-breaker: Priority then ID
+    const prioA = eventPriority[a.type] || 0;
+    const prioB = eventPriority[b.type] || 0;
+    if (prioB !== prioA) return prioB - prioA;
+    return (b.id || "").localeCompare(a.id || "");
+  });
+
+  const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
+  const toggleNote = (id: string) => {
+    setExpandedNotes(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const CollapsibleNote = ({ id, text, className }: { id: string, text: string, className?: string }) => {
+    const isExpanded = expandedNotes[id];
+    const isLong = text.length > 80;
+    
+    if (!isLong) return <p className={className}>{text}</p>;
+    
+    return (
+      <div className={className}>
+        <p className={clsx("transition-all", !isExpanded && "line-clamp-2")}>
+          {text}
+        </p>
+        <button 
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleNote(id); }}
+          className="text-primary-500 font-bold text-[10px] uppercase mt-1 hover:underline"
+        >
+          {isExpanded ? "Read Less" : "Read More"}
+        </button>
+      </div>
+    );
+  };
 
   const handleReturn = () => {
     if (
@@ -468,30 +559,27 @@ export default function OrderDetail() {
         url: shareUrl,
       };
 
-      if (navigator.share && navigator.canShare(shareData)) {
-        try {
-          await navigator.share(shareData);
-        } catch (err) {
-          if ((err as Error).name !== "AbortError") {
-            toast.error("Sharing failed");
-          }
-        }
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await Promise.race([
+          navigator.share(shareData),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
+        ]).catch(err => {
+           if (err.message !== "Timeout" && (err as Error).name !== "AbortError") {
+             throw err;
+           }
+           return navigator.clipboard.writeText(shareData.url).then(() => {
+             toast.success("Link copied", { description: "Share sheet unavailable, link copied to clipboard." });
+           });
+        });
       } else {
-        // Fallback: Copy to clipboard
-        try {
-          await navigator.clipboard.writeText(shareData.url);
-          toast.success("Link copied", {
-            description: "Sharing link copied to clipboard.",
-          });
-        } catch (err) {
-          toast.error("Could not copy link");
-        }
+        await navigator.clipboard.writeText(shareData.url);
+        toast.success("Link copied", {
+          description: "Sharing link copied to clipboard.",
+        });
       }
     } catch (err) {
-      console.error("Share Link Gen Error:", err);
-      toast.error("Generation Failed", {
-        description: "Could not create sharing link.",
-      });
+      console.error("Share Error:", err);
+      toast.error("Could not share order");
     } finally {
       setIsSharing(false);
     }
@@ -689,17 +777,17 @@ export default function OrderDetail() {
         {/* --- ITEMS TAB --- */}
         {activeTab === "items" && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {isPurchaseOrder && order.status === "AWAITING_RECEIPT" && (
+            {isAwaitingReceipt && (
               <div className="bg-amber-50 dark:bg-amber-950 rounded-2xl p-4 border border-amber-100 dark:border-amber-800 flex items-center gap-4 shadow-sm">
                 <div className="size-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shrink-0">
                   <Package size={20} />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-black text-amber-900 dark:text-amber-100 uppercase tracking-tight">
-                    Inspection Pending
+                    Inspection Required
                   </p>
                   <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                    Verify {order.items.length} units to update inventory.
+                    Verify {poPendingCount} remaining units to update inventory.
                   </p>
                 </div>
                 <button
@@ -851,9 +939,11 @@ export default function OrderDetail() {
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">
                             {p.type === "ADVANCE" ? "Advance" : "Follow-up"}
                           </p>
-                          <p className="font-black text-sm text-slate-800 dark:text-slate-100 leading-tight truncate">
-                            {p.note}
-                          </p>
+                          <CollapsibleNote 
+                            id={`fin-${p.id}`} 
+                            text={p.note || (p.type === "ADVANCE" ? "Initial Payment" : "Balance Clearing")} 
+                            className="font-black text-sm text-slate-800 dark:text-slate-100 leading-tight" 
+                          />
                           <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
                             {p.mode} •{" "}
                             {format(parseISO(p.receivedAt), "MMM d, yyyy")}
@@ -911,9 +1001,11 @@ export default function OrderDetail() {
                         {ev.description}
                       </p>
                       {ev.note && (
-                        <p className="text-xs font-semibold text-slate-500 mt-1">
-                          {ev.note}
-                        </p>
+                        <CollapsibleNote 
+                          id={`tm-${ev.id}`} 
+                          text={ev.note} 
+                          className="text-xs font-semibold text-slate-500 mt-1" 
+                        />
                       )}
                       <p className="text-[10px] font-semibold text-slate-400 mt-0.5 italic">
                         {format(parseISO(ev.timestamp), "MMM d, h:mm a")}

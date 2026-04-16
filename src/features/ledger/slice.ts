@@ -18,19 +18,31 @@ const ledgerSlice = createSlice({
       state.entries = action.payload || [];
       // Remove pending entries whose order has now been confirmed in the official list.
       const officialPOIds = new Set(
-        state.entries.filter((e) => e.purchaseOrderId).map((e) => e.purchaseOrderId)
+        state.entries
+          .filter((e) => e.purchaseOrderId || (e as any).purchase_order_id)
+          .map((e) => e.purchaseOrderId || (e as any).purchase_order_id)
       );
       const officialSOIds = new Set(
-        state.entries.filter((e) => e.saleOrderId).map((e) => e.saleOrderId)
+        state.entries
+          .filter((e) => e.saleOrderId || (e as any).sale_order_id)
+          .map((e) => e.saleOrderId || (e as any).sale_order_id)
       );
       state.pendingEntries = (state.pendingEntries || []).filter((e) => {
-        if (e.purchaseOrderId && officialPOIds.has(e.purchaseOrderId)) return false;
-        if (e.saleOrderId && officialSOIds.has(e.saleOrderId)) return false;
+        const poId = e.purchaseOrderId || (e as any).purchase_order_id;
+        const soId = e.saleOrderId || (e as any).sale_order_id;
+        if (poId && officialPOIds.has(poId)) return false;
+        if (soId && officialSOIds.has(soId)) return false;
         return true;
       });
     },
     addEntry: (state, action: PayloadAction<LedgerEntry>) => {
-      state.entries.push(action.payload);
+      const exists = state.entries.some((e) => e.id === action.payload.id);
+      if (!exists) {
+        state.entries.push(action.payload);
+      } else {
+        const idx = state.entries.findIndex((e) => e.id === action.payload.id);
+        if (idx !== -1) state.entries[idx] = action.payload;
+      }
     },
     removeEntry: (state, action: PayloadAction<string>) => {
       state.entries = state.entries.filter(

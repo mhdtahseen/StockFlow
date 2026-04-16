@@ -296,7 +296,9 @@ export function useOfflineSyncManager() {
                 dueDate: o.due_date, notes: o.notes, createdAt: o.created_at,
                 items: o.purchase_order_items.map((i: any) => ({
                   id: i.id, purchaseOrderId: i.purchase_order_id, phoneId: i.phone_id,
-                  purchasePrice: i.purchase_price, status: i.status, rejectionReason: i.rejection_reason
+                  purchasePrice: i.purchase_price, status: i.status, rejectionReason: i.rejection_reason,
+                  brandSnapshot: i.brand_snapshot, modelSnapshot: i.model_snapshot,
+                  storageSnapshot: i.storage_snapshot, ramSnapshot: i.ram_snapshot, colorSnapshot: i.color_snapshot
                 }))
               })),
             });

@@ -124,7 +124,10 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
   const resetForm = (idx: number) => {
     if (idx < pendingItems.length) {
       const item = pendingItems[idx];
-      setImeis([{ value: "", status: "UNVERIFIED" }]);
+      setImeis(item.imeiSnapshot 
+        ? [{ value: item.imeiSnapshot, status: "UNVERIFIED" }]
+        : [{ value: "", status: "UNVERIFIED" }]
+      );
       setBrand(item.brandSnapshot || "Apple");
       setModel(item.modelSnapshot || "");
       setRam(item.ramSnapshot || "");

@@ -259,6 +259,7 @@ export const syncActionToSupabase = async (
             storage_snapshot: i.storageSnapshot,
             color_snapshot: i.colorSnapshot,
             ram_snapshot: i.ramSnapshot,
+            imei_snapshot: i.imei, // BatchAddSheet uses 'imei' property
           })),
         });
         if (error) throw error;

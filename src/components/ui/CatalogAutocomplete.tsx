@@ -220,7 +220,7 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
       {showDropdown && (
         <ul
           ref={listRef}
-          className="absolute z-[100] mt-2 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden max-h-64 py-2"
+          className="absolute z-[100] mt-2 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-y-auto max-h-[40vh] sm:max-h-64 py-2 custom-scrollbar overscroll-contain touch-pan-y"
         >
           {filtered.map((item, idx) => {
             const labelStr = getLabel(item);

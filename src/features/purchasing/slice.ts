@@ -16,7 +16,14 @@ const purchasingSlice = createSlice({
       s.orders = a.payload;
     },
     addPurchaseOrder: (s, a: PayloadAction<PurchaseOrder>) => {
-      s.orders.unshift(a.payload);
+      const exists = s.orders.some((o) => o.id === a.payload.id);
+      if (!exists) {
+        s.orders.unshift(a.payload);
+      } else {
+        // Update existing record with fresh data if possible
+        const idx = s.orders.findIndex((o) => o.id === a.payload.id);
+        if (idx !== -1) s.orders[idx] = a.payload;
+      }
     },
     setPayments: (s, a: PayloadAction<SupplierPayment[]>) => {
       s.payments = a.payload;

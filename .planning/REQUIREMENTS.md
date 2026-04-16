@@ -1,29 +1,44 @@
-# Milestone 3: Android TWA & Production Prep (v2.3)
+# Milestone 4: PO Stability & Lifecycle Management (v2.4)
 
 ## Goal
-Optimize StockFlow for the Google Play Store via Trusted Web Activity (TWA) and integrate modern biometric security for high-speed merchant operations.
+Resolve critical data persistence issues, stabilize inspection/timeline logic, and implement full CRUD for Purchase Orders.
 
 ## Functional Requirements
 
-### 📱 Android Native Experience
-- **FR-08**: Optimize the web application for TWA wrapping using PWABuilder specifications.
-- **FR-09**: Implement a custom Android splash screen and app icon configuration in `manifest.json`.
-- **FR-10**: Adaptive HUD pattern: Ensure scanner and manifest UI adapt perfectly to various Android aspect ratios and keyboard behaviors.
+### 📱 PO Data Integrity
+- **FR-PO-01**: Persistence: PO item snapshots (Brand, Model, Storage, RAM, Color) must survive page refreshes and detail fetches.
+- **FR-PO-02**: Ledger Sync: Frontend "pending" ledger entries must be correctly cleared when official records arrive from the database.
+- **FR-PO-03**: Idempotency: Redux state must check for existing records before adding new POs or Ledger entries to prevent UI duplication.
 
-### 🔐 Biometric Authentication
-- **FR-11**: Integrate WebAuthn (Passkey) support for biometric login (Fingerprint/FaceID) to eliminate password friction.
-- **FR-12**: "Quick Checkout" security: Allow biometric re-authentication for sensitive financial operations (e.g., settling large POs).
+### 🔍 Inspection & IMEI Tracking
+- **FR-PO-04**: Inspection Stability: Item status must accurately reflect "PENDING_INSPECTION" vs "ACCEPTED" and remain interactive post-refresh.
+- **FR-PO-05**: IMEI Propagation: IMEI records scanned during inspection must correctly link to inventory records.
 
-## Technical Requirements
+### 📈 Financial & Timeline
+- **FR-PO-06**: Timeline Order: Events must be sorted by Time, Type Priority, and ID tie-breaker for deterministic historical logging.
+- **FR-PO-07**: Collapsible Notes: Long ledger notes (initially breaking the UI) must be truncated or collapsible for readability.
 
-### 🛠 Mobile Optimization
-- Harden `service-worker.js` for aggressive offline asset caching in TWA mode.
-- Audit all `fixed` positioning elements for compatibility with Android's "Display Cutout" (notch) and navigation bars.
+### 🛠 PO Management
+- **FR-PO-08**: PO Edit: Implement full editing of PO details with support for cascaded inventory updates.
+- **FR-PO-09**: PO Delete: Implement safe deletion of POs with required cleanup of associated items and ledger entries.
 
-### 🛡 Security & Compliance
-- **Multi-Tenant Audit**: Verify that all `shared_links` and `orders` queries strictly enforce the `tenant_id` constraint at the database layer.
-- **Production Readiness**: Finalize Supabase Auth email templates and domain white-listing.
+### 🎨 UI/UX Refinement
+- **FR-PO-10**: Mobile Autocomplete: The catalog search results must be scrollable on mobile even with the virtual keyboard active.
+- **FR-PO-11**: Resilient Share: The share button must be timeout-aware and fallback to clipboard if the native share sheet fails.
 
-## Constraints
-- TWA must maintain a perfect 100/100 Lighthouse score for "Installable" and "PWA" categories.
-- Biometric fallback must gracefully revert to standard login if hardware is unavailable.
+## Traceability Matrix
+
+| ID | Requirement | Phase | Status |
+| :--- | :--- | :--- | :--- |
+| FR-PO-01 | PO Persistence | 7 | ✓ |
+| FR-PO-02 | Ledger Sync | 7 | ✓ |
+| FR-PO-03 | Idempotency | 7 | ✓ |
+| FR-PO-04 | Inspection Logic | 7 | ✓ |
+| FR-PO-05 | IMEI Propagation | 7 | — |
+| FR-PO-06 | Timeline Sorting | 7 | ✓ |
+| FR-PO-07 | Collapsible Notes | 7 | ✓ |
+| FR-PO-08 | PO Edit | 8 | [ ] |
+| FR-PO-09 | PO Delete | 8 | [ ] |
+| FR-PO-10 | Mobile Autocomplete | 7 | ✓ |
+| FR-PO-11 | Resilient Share | 7 | ✓ |
+
