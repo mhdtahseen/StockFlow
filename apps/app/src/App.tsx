@@ -32,14 +32,6 @@ import Settings from "@/pages/Settings";
 import AboutApp from "@/pages/AboutApp";
 import PublicView from "@/pages/PublicView";
 
-// Admin pages
-import AdminLayout from "@/pages/AdminLayout";
-import AdminApprovals from "@/pages/AdminApprovals";
-import AdminSupervision from "@/pages/AdminSupervision";
-import AdminCatalog from "@/pages/AdminCatalog";
-import AdminPricing from "@/pages/AdminPricing";
-import AdminNotifications from "@/pages/AdminNotifications";
-
 import "./index.css";
 import { useAuth } from "./context/AuthContext";
 
@@ -57,37 +49,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!session && !hasLocalFlag) {
     return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, isSuperAdmin, isLoading } = useAuth();
-  const hasLocalFlag = localStorage.getItem("stockflow_auth") === "true";
-
-  if (isLoading && !hasLocalFlag) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-500 dark:text-blue-500" />
-      </div>
-    );
-  }
-
-  if (!session && !hasLocalFlag) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-500 dark:text-blue-500" />
-      </div>
-    );
-  }
-
-  if (!isSuperAdmin) {
-    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -113,22 +74,6 @@ function App() {
           <Route path="/join" element={<InviteSignup />} />
           <Route path="/verified" element={<Verified />} />
           <Route path="/public/view/:token" element={<PublicView />} />
-
-          <Route
-            path="/admin"
-            element={
-              <AdminProtectedRoute>
-                <AdminLayout />
-              </AdminProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="approvals" replace />} />
-            <Route path="approvals" element={<AdminApprovals />} />
-            <Route path="supervision" element={<AdminSupervision />} />
-            <Route path="catalog" element={<AdminCatalog />} />
-            <Route path="pricing" element={<AdminPricing />} />
-            <Route path="notifications" element={<AdminNotifications />} />
-          </Route>
 
           <Route
             path="/"
