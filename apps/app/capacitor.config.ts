@@ -16,9 +16,11 @@ const config: CapacitorConfig = {
       splashImmersive: true,
     },
     StatusBar: {
-      style: 'light',
-      backgroundColor: '#064a98',
-      overlaysWebView: false,
+      // overlaysWebView: true → WebView extends edge-to-edge behind the status bar.
+      // The header uses env(safe-area-inset-top) to push content below the bar.
+      // Style is dynamically updated by ThemeContext to match the active theme.
+      style: 'dark', // dark icons — visible on white (light mode) header by default
+      overlaysWebView: true,
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],

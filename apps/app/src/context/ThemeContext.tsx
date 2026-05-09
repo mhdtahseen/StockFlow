@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { StatusBar, Style } from "@capacitor/status-bar";
 
 type ThemeMode = "system" | "light" | "dark";
 
@@ -51,13 +53,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Apply the .dark class to <html>
+  // Apply the .dark class to <html> and sync native StatusBar icon style
   useEffect(() => {
     const root = document.documentElement;
     if (resolved === "dark") {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");
+    }
+    // Keep status bar icons visible against the header background
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setStyle({
+        style: resolved === "dark" ? Style.Light : Style.Dark,
+      }).catch(() => {/* ignore if plugin unavailable */});
     }
   }, [resolved]);
 

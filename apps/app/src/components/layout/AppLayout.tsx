@@ -36,7 +36,7 @@ export default function AppLayout() {
       <AppDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <AnnouncementBanner />
       <AppHeader onMenuOpen={() => setDrawerOpen(true)} />
-      <main className="flex-1 overflow-y-auto pb-16">
+      <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom,0px))]">
         <Outlet />
       </main>
       <Toaster />
