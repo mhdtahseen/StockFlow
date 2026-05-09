@@ -45,6 +45,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  verification: {
+    google: "43bcf5d5dce1af1a",
+  },
   icons: {
     icon: "/logo.svg",
     shortcut: "/logo.svg",
@@ -85,10 +88,6 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     images: ["/og-image.png"],
-  },
-  verification: {
-    // Add your Google Search Console verification token here
-    // google: "YOUR_GOOGLE_VERIFICATION_TOKEN",
   },
 };
 

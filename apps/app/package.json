@@ -14,7 +14,9 @@
     "cap:open:android": "npx cap open android",
     "cap:open:ios": "npx cap open ios",
     "cap:add:android": "npx cap add android",
-    "cap:add:ios": "npx cap add ios"
+    "cap:add:ios": "npx cap add ios",
+    "cap:run:android": "pnpm build:capacitor && npx cap sync && npx cap run android",
+    "cap:run:ios": "pnpm build:capacitor && npx cap sync && npx cap run ios"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.3.3",
