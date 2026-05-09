@@ -37,7 +37,7 @@ export default function CTA() {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </a>
               <a
-                href="mailto:sales@finventree.in"
+                href="mailto:sales@finventree.com"
                 className="btn-secondary text-base px-8 py-3.5 rounded-2xl"
               >
                 Talk to Sales

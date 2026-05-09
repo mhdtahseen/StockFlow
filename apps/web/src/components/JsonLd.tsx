@@ -2,7 +2,7 @@
 // Renders SoftwareApplication + Organization + FAQPage schemas
 // These enable rich results in Google Search (ratings, FAQ dropdowns, etc.)
 
-const BASE_URL = "https://finventree.in";
+const BASE_URL = "https://finventree.com";
 
 const softwareApplicationSchema = {
   "@type": "SoftwareApplication",
@@ -83,7 +83,7 @@ const organizationSchema = {
   },
   contactPoint: {
     "@type": "ContactPoint",
-    email: "hello@finventree.in",
+    email: "hello@finventree.com",
     contactType: "customer support",
     availableLanguage: ["English", "Hindi"],
   },

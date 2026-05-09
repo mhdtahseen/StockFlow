@@ -11,7 +11,7 @@ const footerLinks = {
     { label: "About", href: "#" },
     { label: "Blog", href: "#" },
     { label: "Careers", href: "#" },
-    { label: "Contact", href: "mailto:hello@finventree.in" },
+    { label: "Contact", href: "mailto:hello@finventree.com" },
   ],
   Legal: [
     { label: "Privacy Policy", href: "#" },

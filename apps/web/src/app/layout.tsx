@@ -9,7 +9,7 @@ const inter = Inter({
   display: "swap",
 });
 
-const BASE_URL = "https://finventree.in";
+const BASE_URL = "https://finventree.com";
 const TITLE = "Finventree — Paperless Inventory & Billing for Smartphone Dealers in India";
 const DESCRIPTION =
   "Finventree is India's paperless platform for the smartphone trade. Manage inventory, GST billing, IMEI tracking, and business intelligence — 100% digital for smartphone resellers, retailers, wholesalers, and dealers.";
