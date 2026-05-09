@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Share as ShareIcon } from "@capacitor/share";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppSelector } from "@/app/hooks";
 import {
@@ -454,7 +456,9 @@ export default function CustomerDetail() {
                               url: shareUrl,
                             };
   
-                            if (navigator.share && navigator.canShare(shareData)) {
+                            if (Capacitor.isNativePlatform()) {
+                              await ShareIcon.share(shareData);
+                            } else if (navigator.share && navigator.canShare(shareData)) {
                               await navigator.share(shareData);
                             } else {
                               await navigator.clipboard.writeText(shareData.url);

@@ -9,50 +9,41 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { registerSW } from "virtual:pwa-register";
 import { AuthProvider } from "./context/AuthContext";
+import { Capacitor } from "@capacitor/core";
 import App from "./App";
 import "./index.css";
 
-// Register the PWA service worker with aggressive update checks
-registerSW({
-  immediate: true,
-  onRegistered(r) {
-    if (r) {
-      // Check for updates every time the app comes back to the foreground (highly effective for iOS home screen PWAs)
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") {
-          r.update();
-        }
-      });
-      // Also poll for updates periodically (e.g., every 1 hour) over long sessions
-      setInterval(
-        () => {
-          r.update();
-        },
-        60 * 60 * 1000,
-      );
-    }
-  },
-});
-
-// Listen for the service worker taking control. The 'autoUpdate' strategy
-// will automatically install and claim clients, but we need to reload the
-// page so the browser fetches the new HTML/JS instead of running old cached code.
-if ("serviceWorker" in navigator) {
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!refreshing) {
-      // CRITICAL: DONT RELOAD IF SYNC IS PENDING
-      // If we reload during a sync, we might lose local state if persistence hasn't finished.
-      const outboxCount = store.getState().sync.outbox.length;
-      if (outboxCount > 0) {
-        console.warn(`[PWA] Update available, but delaying reload for ${outboxCount} pending sync items.`);
-        return;
+// On native (Android/iOS via Capacitor), push notifications and updates are handled
+// by native plugins. Only activate the PWA service worker on the web platform.
+if (!Capacitor.isNativePlatform()) {
+  registerSW({
+    immediate: true,
+    onRegistered(r) {
+      if (r) {
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            r.update();
+          }
+        });
+        setInterval(() => { r.update(); }, 60 * 60 * 1000);
       }
-
-      refreshing = true;
-      window.location.reload();
-    }
+    },
   });
+
+  if ("serviceWorker" in navigator) {
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!refreshing) {
+        const outboxCount = store.getState().sync.outbox.length;
+        if (outboxCount > 0) {
+          console.warn(`[PWA] Update available, but delaying reload for ${outboxCount} pending sync items.`);
+          return;
+        }
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+  }
 }
 
 // Setup React Query Client with Offline Persistence

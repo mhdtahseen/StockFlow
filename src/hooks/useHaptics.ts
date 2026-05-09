@@ -1,31 +1,28 @@
 import { useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 
-/**
- * useHaptics
- * 
- * A simple hook to trigger low-level hardware vibration (Haptics)
- * on supported devices (Android TWA, iOS PWA).
- * 
- * Patterns:
- * - Success: Single short pulse
- * - Error: Short repetitive pulses
- * - Warning: Medium pulse
- */
 export function useHaptics() {
-  const triggerSuccess = useCallback(() => {
-    if ("vibrate" in navigator) {
-      navigator.vibrate(10); // 10ms light tap
+  const triggerSuccess = useCallback(async () => {
+    if (Capacitor.isNativePlatform()) {
+      await Haptics.notification({ type: NotificationType.Success });
+    } else if ("vibrate" in navigator) {
+      navigator.vibrate(10);
     }
   }, []);
 
-  const triggerError = useCallback(() => {
-    if ("vibrate" in navigator) {
-      navigator.vibrate([10, 50, 10]); // Short-long-short pattern
+  const triggerError = useCallback(async () => {
+    if (Capacitor.isNativePlatform()) {
+      await Haptics.notification({ type: NotificationType.Error });
+    } else if ("vibrate" in navigator) {
+      navigator.vibrate([10, 50, 10]);
     }
   }, []);
 
-  const triggerWarning = useCallback(() => {
-    if ("vibrate" in navigator) {
+  const triggerWarning = useCallback(async () => {
+    if (Capacitor.isNativePlatform()) {
+      await Haptics.impact({ style: ImpactStyle.Medium });
+    } else if ("vibrate" in navigator) {
       navigator.vibrate(50);
     }
   }, []);

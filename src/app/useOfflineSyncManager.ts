@@ -12,6 +12,8 @@ import {
 } from "@/features/sync/slice";
 import { syncActionToSupabase } from "./supabaseApi";
 import { toast } from "sonner";
+import { Capacitor } from "@capacitor/core";
+import { Network } from "@capacitor/network";
 
 export function useOfflineSyncManager() {
   const { session, isLoading: isAuthLoading } = useAuth();
@@ -43,16 +45,34 @@ export function useOfflineSyncManager() {
       });
     };
 
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    if (Capacitor.isNativePlatform()) {
+      // Use @capacitor/network for reliable connectivity detection on native
+      Network.getStatus().then((status) => {
+        dispatch(setOnlineStatus(status.connected));
+      });
 
-    // Initial check
-    dispatch(setOnlineStatus(navigator.onLine));
+      const listenerPromise = Network.addListener('networkStatusChange', (status) => {
+        if (status.connected) {
+          handleOnline();
+        } else {
+          handleOffline();
+        }
+      });
 
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
+      return () => {
+        listenerPromise.then((handle) => handle.remove());
+      };
+    } else {
+      // Web fallback
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+      dispatch(setOnlineStatus(navigator.onLine));
+
+      return () => {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      };
+    }
   }, [dispatch]);
 
   // 2. PROCESS OUTBOX WHEN ONLINE

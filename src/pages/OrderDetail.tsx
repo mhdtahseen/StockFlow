@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Share as ShareIcon } from "@capacitor/share";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   CheckCircle2,
@@ -462,7 +464,7 @@ export default function OrderDetail() {
           {
             id: p.id,
             amount: alloc.amountAllocated,
-            createdAt: p.paidAt || p.createdAt, // fallback if paidAt is missing
+            createdAt: p.paidAt, // paidAt is the correct field on SupplierPayment
             paymentMode: p.mode || "UNKNOWN",
             note: alloc.note || p.note || "Settlement Allocation",
           },
@@ -475,7 +477,7 @@ export default function OrderDetail() {
           {
             id: p.id,
             amount: alloc.amountAllocated,
-            createdAt: p.receivedAt || p.createdAt, // fallback if receivedAt is missing
+            createdAt: p.receivedAt, // receivedAt is the correct field on CustomerPayment
             paymentMode: p.mode || "UNKNOWN",
             note: alloc.note || p.note || "Settlement Allocation",
           },
@@ -534,7 +536,7 @@ export default function OrderDetail() {
       id: p.id,
       type: "PAYMENT",
       title: isPurchaseOrder ? "Payment Sent" : "Payment Received",
-      description: `₹${p.amount.toLocaleString()} via ${p.mode}`,
+      description: `₹${p.amount.toLocaleString()} via ${p.paymentMode}`,
       note: p.note,
       timestamp: p.receivedAt,
       color: "bg-emerald-500",
@@ -698,28 +700,21 @@ export default function OrderDetail() {
         url: shareUrl,
       };
 
-      // 2. Attempt Native Share with aggressive fallback
-      // Note: Awaiting createShareLink might invalidate user activation on some browsers.
-      // We handle this by falling back to clipboard if navigator.share fails or is blocked.
-      if (navigator.share) {
+      // 2. Share via Capacitor (native) or Web Share API / clipboard fallback
+      if (Capacitor.isNativePlatform()) {
+        await ShareIcon.share(shareData);
+        toast.success("Shared successfully");
+      } else if (navigator.share) {
         try {
-          // Some browsers throw if share is called after an await (lost activation)
           await navigator.share(shareData);
           toast.success("Shared successfully");
-        } catch (shareErr) {
-          // If native share fails (e.g. cancelled or activation lost), copy to clipboard
+        } catch {
           await navigator.clipboard.writeText(shareUrl);
-          toast.success("Link copied", {
-            description:
-              "Native share unavailable or cancelled. Link copied to clipboard.",
-          });
+          toast.success("Link copied", { description: "Link copied to clipboard." });
         }
       } else {
-        // Fallback for desktop browsers without Share API
         await navigator.clipboard.writeText(shareUrl);
-        toast.success("Link copied", {
-          description: "Sharing link copied to clipboard.",
-        });
+        toast.success("Link copied", { description: "Sharing link copied to clipboard." });
       }
     } catch (err) {
       console.error("Share Error:", err);
@@ -1125,7 +1120,7 @@ export default function OrderDetail() {
                               className="font-black text-sm text-slate-800 dark:text-slate-100 leading-tight"
                             />
                             <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
-                              {p.mode} •{" "}
+                              {p.paymentMode} •{" "}
                               {format(parseISO(p.receivedAt), "MMM d, yyyy")}
                             </p>
                           </div>

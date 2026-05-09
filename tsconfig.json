@@ -21,6 +21,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": false,
+    "ignoreDeprecations": "6.0",
 
     "baseUrl": ".",
     "paths": {

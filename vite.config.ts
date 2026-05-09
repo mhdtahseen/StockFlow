@@ -4,12 +4,15 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const isCapacitor = mode === "capacitor";
+
+  return {
   base: "/",
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA({
+    ...(!isCapacitor ? [VitePWA({
       registerType: "autoUpdate",
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB
@@ -45,7 +48,7 @@ export default defineConfig({
           },
         ],
       },
-    }),
+    })] : []),
   ],
   build: {
     rollupOptions: {
@@ -56,6 +59,9 @@ export default defineConfig({
           "vendor-xlsx": ["xlsx"],
         },
       },
+      // In capacitor builds the PWA plugin is disabled, so virtual:pwa-register
+      // doesn't exist. Mark it as external so the build doesn't fail.
+      external: isCapacitor ? ["virtual:pwa-register"] : [],
     },
   },
   resolve: {
@@ -71,4 +77,5 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
   },
+  };
 });

@@ -13,6 +13,7 @@ import { sanitizeImei, isValidImeiLuhn } from "../utils/validateImei";
 import { applyAdaptiveThreshold, applySharpen } from "../utils/scannerUtils";
 import { ocrService } from "../utils/ocrService";
 import { useHaptics } from "@/hooks/useHaptics";
+import { useNativeScanner } from "@/hooks/useNativeScanner";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,11 +50,15 @@ export default function ImeiScannerModal({
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const nativeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nativeOcrCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastOcrTime = useRef<number>(0);
   const isMounted = useRef(false);
   const ocrBadgeRef = useRef<HTMLDivElement>(null);
   const isScanningInternal = useRef(false);
   const { triggerSuccess } = useHaptics();
+  const nativeScanner = useNativeScanner();
+  const { isNative } = nativeScanner;
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,7 +71,8 @@ export default function ImeiScannerModal({
 
   // ─── Cleanup ───────────────────────────────────────────────────────────────
 
-  const stopEverything = useCallback(() => {
+  const stopEverything = useCallback(async () => {
+    // Web cleanup
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
@@ -78,16 +84,23 @@ export default function ImeiScannerModal({
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
+    // Native cleanup
+    if (nativeIntervalRef.current) {
+      clearInterval(nativeIntervalRef.current);
+      nativeIntervalRef.current = null;
+    }
+    if (isNative) {
+      await nativeScanner.stopNativeCamera();
+    }
     // We NO LONGER terminate the global OCR worker here to prevent the library crash
     // and provide "Instant-On" performance for the next scan.
     setFlashOn(false);
     setFlashSupported(false);
     setHasHardwareZoom(false);
-    // setIsLoading(true) removed; prevents the "Flash-to-Black" flicker when closing or resets occur
     setError(null);
     if (ocrBadgeRef.current) ocrBadgeRef.current.style.opacity = "0";
     isScanningInternal.current = false;
-  }, []);
+  }, [isNative, nativeScanner]);
 
   // ─── Constraints management ──────────────────────────────────────────────
 
@@ -239,55 +252,148 @@ export default function ImeiScannerModal({
       return; 
     }
     const cancelled = { v: false };
-    (async () => {
-      try {
-        // Just trigger the singleton initialization lazily
-        await ocrService.getWorker();
+
+    if (isNative) {
+      // ── NATIVE PATH: CameraPreview + ML Kit Barcode + Tesseract OCR ──────
+      (async () => {
+        try {
+          await ocrService.getWorker();
+          if (cancelled.v || !isMounted.current) return;
+        } catch (e) { console.error("OCR Service Init Failed", e); }
+
+        const container = document.getElementById("camera-preview-container");
+        await nativeScanner.startNativeCamera(container);
         if (cancelled.v || !isMounted.current) return;
-      } catch (e) { console.error("OCR Service Init Failed", e); }
 
-      const stream = await startStream();
-      if (!stream || cancelled.v) return;
+        setFlashSupported(true); // Torch is supported on most native cameras
+        setHasHardwareZoom(true);
+        setIsLoading(false);
 
-      const reader = new BrowserMultiFormatReader();
-      const hints = new Map();
-      hints.set(2, [3, 1]); 
-      (reader as any).hints = hints;
-      readerRef.current = reader;
+        nativeIntervalRef.current = setInterval(async () => {
+          if (!isMounted.current) return;
 
-      setIsLoading(false);
-      animationFrameRef.current = requestAnimationFrame(processingLoop);
-    })();
+          const frame = await nativeScanner.captureFrame();
+          if (!frame) return;
+
+          // 1. ML Kit Barcode (runs every frame ~150ms)
+          const barcodes = await nativeScanner.detectBarcodes(frame.base64);
+          for (const barcode of barcodes) {
+            const cleaned = sanitizeImei(barcode.rawValue ?? "");
+            if (isValidImeiLuhn(cleaned)) {
+              triggerSuccess();
+              onScan(cleaned);
+              stopEverything();
+              onClose();
+              return;
+            }
+          }
+
+          // 2. Tesseract OCR (throttled to every 800ms)
+          const now = Date.now();
+          if (now - lastOcrTime.current > 800 && !isScanningInternal.current && isMounted.current) {
+            lastOcrTime.current = now;
+            isScanningInternal.current = true;
+            if (ocrBadgeRef.current) ocrBadgeRef.current.style.opacity = "1";
+
+            try {
+              // Draw base64 frame to a hidden canvas for Tesseract preprocessing
+              if (!nativeOcrCanvasRef.current) {
+                nativeOcrCanvasRef.current = document.createElement("canvas");
+              }
+              const canvas = nativeOcrCanvasRef.current;
+              const img = new Image();
+              img.src = `data:image/jpeg;base64,${frame.base64}`;
+              await new Promise<void>((res) => { img.onload = () => res(); });
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext("2d", { willReadFrequently: true });
+              if (ctx && isMounted.current) {
+                ctx.drawImage(img, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                applySharpen(imageData);
+                applyAdaptiveThreshold(imageData);
+                ctx.putImageData(imageData, 0, 0);
+
+                const rawText = await ocrService.recognize(canvas);
+                if (rawText && isMounted.current) {
+                  const found = extractImeiFromText(rawText);
+                  if (found) {
+                    triggerSuccess();
+                    onScan(found);
+                    stopEverything();
+                    onClose();
+                    return;
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn("Native OCR failed:", e);
+            } finally {
+              if (isMounted.current) {
+                if (ocrBadgeRef.current) ocrBadgeRef.current.style.opacity = "0";
+                isScanningInternal.current = false;
+              }
+            }
+          }
+        }, 150); // ~6fps — fast enough for barcode, not CPU-intensive
+      })();
+    } else {
+      // ── WEB PATH: getUserMedia + ZXing + Tesseract OCR (unchanged) ────────
+      (async () => {
+        try {
+          await ocrService.getWorker();
+          if (cancelled.v || !isMounted.current) return;
+        } catch (e) { console.error("OCR Service Init Failed", e); }
+
+        const stream = await startStream();
+        if (!stream || cancelled.v) return;
+
+        const reader = new BrowserMultiFormatReader();
+        const hints = new Map();
+        hints.set(2, [3, 1]); 
+        (reader as any).hints = hints;
+        readerRef.current = reader;
+
+        setIsLoading(false);
+        animationFrameRef.current = requestAnimationFrame(processingLoop);
+      })();
+    }
+
     return () => { 
       cancelled.v = true; 
       isMounted.current = false;
       stopEverything(); 
     };
-  }, [isOpen, startStream, processingLoop, stopEverything]);
+  }, [isOpen, isNative, startStream, processingLoop, stopEverything, nativeScanner, triggerSuccess, onScan, onClose]);
 
   // ─── Controls ────────────────────────────────────────────────────────────
 
   const handleZoomChange = useCallback(async (val: number) => {
     setZoomLevel(val);
-    if (hasHardwareZoom) {
+    if (isNative) {
+      await nativeScanner.setZoom(val);
+    } else if (hasHardwareZoom) {
       await applyHardwareConstraints({ zoom: val });
     } else if (videoRef.current) {
-      // Digital Zoom Fallback: CSS Scale
       videoRef.current.style.transform = `scale(${val})`;
       videoRef.current.style.transformOrigin = "center center";
     }
-  }, [hasHardwareZoom, applyHardwareConstraints]);
+  }, [isNative, nativeScanner, hasHardwareZoom, applyHardwareConstraints]);
 
   const handleExposureToggle = () => {
     const nextExc = exposureLevel === 0 ? -1.5 : 0;
     setExposureLevel(nextExc);
-    applyHardwareConstraints({ exposureCompensation: nextExc });
+    if (!isNative) applyHardwareConstraints({ exposureCompensation: nextExc });
   };
 
-  const toggleFlash = () => {
+  const toggleFlash = async () => {
     const nextFlash = !flashOn;
     setFlashOn(nextFlash);
-    applyHardwareConstraints({ torch: nextFlash });
+    if (isNative) {
+      await nativeScanner.toggleTorch(nextFlash);
+    } else {
+      applyHardwareConstraints({ torch: nextFlash });
+    }
   };
 
   const handleClose = () => {
@@ -337,8 +443,19 @@ export default function ImeiScannerModal({
           </div>
         </div>
 
-        <div className="relative aspect-[4/3] bg-black mx-4 my-3 rounded-2xl overflow-hidden shadow-inner">
-          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+        <div
+          className="relative aspect-[4/3] mx-4 my-3 rounded-2xl overflow-hidden shadow-inner"
+          style={{ backgroundColor: isNative ? "transparent" : "black" }}
+        >
+          {/* Native camera preview renders behind the WebView into this transparent container */}
+          {isNative && (
+            <div
+              id="camera-preview-container"
+              className="absolute inset-0 rounded-2xl"
+              style={{ backgroundColor: "transparent" }}
+            />
+          )}
+          <video ref={videoRef} autoPlay playsInline muted className={`absolute inset-0 w-full h-full object-cover ${isNative ? "hidden" : ""}`} />
           <canvas ref={canvasRef} className="hidden" />
 
           {!isLoading && !error && (

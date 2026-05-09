@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 
 interface SplashScreenProps {
   onFinished: () => void;
@@ -9,10 +10,20 @@ export default function SplashScreen({
   onFinished,
   minDuration = 1800,
 }: SplashScreenProps) {
+  // On native, the OS splash screen handles startup display.
+  // This component is web-only; dismiss immediately on native.
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      onFinished();
+      return;
+    }
+  }, [onFinished]);
+
   const [phase, setPhase] = useState<"enter" | "visible" | "exit">("enter");
 
   useEffect(() => {
-    // Phase 1: Enter animation (logo scales in)
+    // Skip web animation timers on native — already dismissed above
+    if (Capacitor.isNativePlatform()) return;
     const enterTimer = setTimeout(() => setPhase("visible"), 100);
 
     // Phase 2: Start exit after min duration

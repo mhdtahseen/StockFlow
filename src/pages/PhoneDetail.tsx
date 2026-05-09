@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Share } from "@capacitor/share";
 import { useParams, useNavigate } from "react-router-dom";
 import CurrencyInput from "../components/ui/CurrencyInput";
 import { useAppSelector, useAppDispatch } from "../app/hooks";
@@ -321,7 +323,9 @@ export default function PhoneDetail() {
           <button
             onClick={() => {
               const text = `${phone.brand} ${phone.model} - ${phone.storage}\nStatus: ${phone.status}\nIMEI: ${phone.imeis?.[0] || 'N/A'}`;
-              if (navigator.share) {
+              if (Capacitor.isNativePlatform()) {
+                Share.share({ title: "Phone Details", text }).catch(() => {});
+              } else if (navigator.share) {
                 navigator.share({ title: "Phone Details", text }).catch(() => {
                   navigator.clipboard.writeText(text);
                   toast.success("Details copied to clipboard");
