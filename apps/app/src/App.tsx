@@ -1,5 +1,11 @@
 import React, { useState, useCallback } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
+
+// Capacitor serves files via capacitor:// — BrowserRouter needs a server to
+// resolve paths, so we use HashRouter in native builds (/#/route style URLs)
+const Router = (import.meta.env.VITE_CAPACITOR === "true" || typeof (window as any).Capacitor !== "undefined")
+  ? HashRouter
+  : BrowserRouter;
 import { Loader2 } from "lucide-react";
 import SplashScreen from "@/components/SplashScreen";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -65,7 +71,7 @@ function App() {
 
   return (
     <TooltipProvider>
-      <BrowserRouter>
+      <Router>
         {/* <AppGate> */}
         {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
         <Routes>
@@ -112,7 +118,7 @@ function App() {
           </Route>
         </Routes>
         {/* </AppGate> */}
-      </BrowserRouter>
+      </Router>
     </TooltipProvider>
   );
 }
