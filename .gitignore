@@ -27,6 +27,14 @@ dist-ssr
 # Google Play / TWA signing — contains keystore & credentials, never commit
 StockFlow Beta - Google Play package/
 
+# Monorepo tooling
+.turbo/
+.pnpm-store/
+
+# Capacitor native projects (generated, not committed)
+apps/app/android/
+apps/app/ios/
+
 # Antigravity Agent Caches & Metadata
 .agent/**/__pycache__/
 .agent/**/*.pyc
