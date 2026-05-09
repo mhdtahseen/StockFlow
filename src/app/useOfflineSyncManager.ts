@@ -67,48 +67,51 @@ export function useOfflineSyncManager() {
       if (isProcessingOutboxRef.current) return;
       isProcessingOutboxRef.current = true;
 
-      // We make a stable copy of the outbox array to process
-      const currentOutbox = [...outbox];
-      const now = Date.now();
-      let earliestNextAttemptAt: number | null = null;
-
-      for (const item of currentOutbox) {
-        if (!mounted || !isOnline) break;
-
-        if (item.nextAttemptAt && item.nextAttemptAt > now) {
-          if (
-            earliestNextAttemptAt === null ||
-            item.nextAttemptAt < earliestNextAttemptAt
-          ) {
-            earliestNextAttemptAt = item.nextAttemptAt;
+      try {
+        let hasMore = true;
+        while (hasMore && mounted && isOnline) {
+          // Refresh outbox snapshot from store each iteration to catch new items
+          const state = store.getState() as RootState;
+          const currentOutbox = state.sync.outbox;
+          
+          if (currentOutbox.length === 0) {
+            hasMore = false;
+            break;
           }
-          continue;
-        }
 
-        // Hard cap: permanently discard after 5 retries to prevent infinite loops
-        if (item.retryCount >= 5) {
-          console.error(`[Outbox] Permanently dropping action after 5 retries:`, item.action.type);
-          dispatch(removeAction(item.id));
-          continue;
-        }
+          const now = Date.now();
+          const item = currentOutbox[0]; // Always process the first available item
 
-        const success = await syncActionToSupabase(item.action);
+          if (item.nextAttemptAt && item.nextAttemptAt > now) {
+            hasMore = false; // Wait for scheduled retry
+            break;
+          }
 
-        if (success) {
-          // Task succeeded
-          dispatch(removeAction(item.id));
-        } else {
-          // Task failed
-          dispatch(incrementRetry(item.id));
-          // If a task fails (likely connection hit a blip), we break and wait for next tick
-          break;
+          if (item.retryCount >= 5) {
+            console.error(`[Outbox] Permanently dropping action after 5 retries:`, item.action.type);
+            dispatch(removeAction(item.id));
+            continue;
+          }
+
+          const success = await syncActionToSupabase(item.action);
+
+          if (success) {
+            dispatch(removeAction(item.id));
+          } else {
+            dispatch(incrementRetry(item.id));
+            hasMore = false; // Stop on failure to avoid hammering
+          }
         }
+      } finally {
+        isProcessingOutboxRef.current = false;
       }
 
-      isProcessingOutboxRef.current = false;
-
-      if (mounted && isOnline && earliestNextAttemptAt !== null) {
-        const delayMs = Math.max(0, earliestNextAttemptAt - Date.now());
+      // Re-check for early retries
+      const state = store.getState() as RootState;
+      const nextRetries = state.sync.outbox.filter(i => i.nextAttemptAt);
+      if (mounted && isOnline && nextRetries.length > 0) {
+        const earliest = Math.min(...nextRetries.map(i => i.nextAttemptAt!));
+        const delayMs = Math.max(0, earliest - Date.now());
         retryTimer = window.setTimeout(() => {
           processOutbox();
         }, delayMs);

@@ -156,6 +156,9 @@ export const IssueSelector: React.FC<IssueSelectorProps> = ({
                         onToggleTag(t);
                       }
                       setTagQuery("");
+                    } else {
+                      // Enter on empty input -> Close
+                      setShowIssues(false);
                     }
                   }}
                   placeholder="Search 1,000+ conditions..."

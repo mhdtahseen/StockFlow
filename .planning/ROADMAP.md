@@ -1,25 +1,36 @@
-## Milestone Archive
-- [v2.3: Android TWA & Production Prep](file:///Users/taaha/Desktop/Projects/Products/StockFlow/.planning/milestones/v2.3) (Shipped 2026-04-15)
-- [v2.2: Document Automation & Sharing](file:///Users/taaha/Desktop/Projects/Products/StockFlow/.planning/milestones/v2.2-ROADMAP.md) (Shipped 2026-04-14)
-- [v2.1: Performance & Financial Stabilization](file:///Users/taaha/Desktop/Projects/Products/StockFlow/.planning/milestones/archive/v2.1/) (Shipped 2026-04-14)
+# Roadmap: StockFlow Evolution
 
----
+## Milestone 1: Core HUD & Scanner (v2.1) - [DONE]
+- ✓ **Phase 1**: Passive HUD & Scanner Persistence
+- ✓ **Phase 2**: Financial Watchtower (Automated Audit)
 
-## Active Milestone: Milestone 4 — PO Stability & Lifecycle (v2.4)
-*Goal: Native-feel PO management and rock-solid ledger integrity.*
+## Milestone 2: Ledger & Payments (v2.2) - [DONE]
+- ✓ **Phase 3**: Cash-Basis Ledger & PO UI
+- ✓ **Phase 4**: Invoicing & Secure Sharing
 
-### Phase 7: PO Stability & Core Refinement [COMPLETED]
-- [x] **M4.7.1**: Persistence: Multi-field item snapshots survive refresh.
-- [x] **M4.7.2**: Deduplication: Idempotent Redux state and buffer mapping.
-- [x] **M4.7.3**: UI Polish: Mobile scrollable catalog and resilient sharing.
-- [x] **M4.7.4**: Timeline Integrity: Robust multi-tier event sorting.
+## Milestone 3: TWA & Mobile Polish (v2.3) - [DONE]
+- ✓ **Phase 5**: Multi-Tenant Hardening & TWA Packaging
 
-### Phase 8: PO Lifecycle Expansion
-- [ ] **M4.8.1**: PO Edit: Cascading inventory and cost adjustments.
-- [ ] **M4.8.2**: PO Delete: Safe voiding and ledger cleanup.
-- [ ] **M4.8.3**: IMEI Audit: Deep verification of cross-table IMEI propagation.
+## Milestone 4: Inspection & Defects (v2.4) - [DONE]
+- ✓ **Phase 6**: Defect Cataloging & Inspection HUD
+- ✓ **Phase 7**: Quality Tiers & Functional Status (v2.4.1)
 
-### Phase 9: Expansion & Scaling (v2.5)
-- [ ] **Tenant-to-Tenant Inventory Transfers**: Multi-party asset visibility.
-- [ ] **Subscription Gatekeeping**: Usage-based billing integration.
+## Milestone 5: Phone Lifecycle & History (v2.5) - [DONE]
+- ✓ **Phase 10**: vertical History Timeline & Unit Registry
 
+## Next Steps
+- [ ] **Phase 13**: Multi-Tenant Security Audit (Final RLS)
+- [ ] **Phase 14**: Performance & PWA Hardening
+
+## Backlog
+
+### Phase 999.1: Inter-Tenant Business Network (BACKLOG)
+
+**Goal:** Transform StockFlow into a B2B network where silos can securely trade, discover partners, and transfer stock with zero friction.
+**Requirements:** See `.planning/phases/999.1-inter-tenant-network/REQUIREMENTS.md`
+**Plans:** 0 plans
+
+Plans:
+- [ ] Smart Match Discovery
+- [ ] QR Partner Scanner
+- [ ] SO-to-PO Transfer Bridge

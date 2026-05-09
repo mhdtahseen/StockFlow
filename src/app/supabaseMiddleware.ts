@@ -49,13 +49,15 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
           type.startsWith(prefix),
         );
 
-        // BETTER SOLUTION: Prevent double-sync for ledger entries included in RPC transactions
-        // If it's a ledger entry with a referenceId, it's part of an order/payment RPC.
-        // We let it update Redux locally (optimistic) but skip the cloud sync to avoid duplicates.
+        // 2a. Prevent double-sync for ledger entries included in RPC transactions
         const isTransactionSegment = 
           type === "ledger/addEntry" && action.payload?.referenceId;
 
-        if (!isTrackable || ignoredHydrationTypes.includes(type) || isTransactionSegment) return;
+        // 2b. Prevent double-sync for phones linked to a PO
+        const isPOLinkedPhone = 
+          type === "inventory/addPhone" && action.payload?.purchaseOrderId;
+
+        if (!isTrackable || ignoredHydrationTypes.includes(type) || isTransactionSegment || isPOLinkedPhone) return;
 
         const state = store.getState();
 

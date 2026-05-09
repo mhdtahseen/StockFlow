@@ -81,7 +81,8 @@ export const PurchaseOrderPrintable: React.FC<PurchaseOrderPrintableProps> = ({
     .reduce((sum, item) => sum + item.purchasePrice, 0);
     
   const rejectedTotal = rejectedItems.reduce((sum, item) => sum + item.purchasePrice, 0);
-  const netPayable = initialTotal - rejectedTotal;
+  const platformFee = order.platformFee || 0;
+  const netPayable = initialTotal - rejectedTotal + platformFee;
   const pendingAmount = netPayable - (order.amountPaid || 0);
   const isPaid = order.status === "SETTLED";
 
@@ -279,6 +280,12 @@ export const PurchaseOrderPrintable: React.FC<PurchaseOrderPrintableProps> = ({
             <div style={{ display: "flex", justifyContent: "space-between", width: "260px", fontSize: "13px", color: HEX.rose500 }}>
               <span>Deductions (Rejected)</span>
               <span>- {formatCurrency(rejectedTotal)}</span>
+            </div>
+          )}
+          {platformFee > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", width: "260px", fontSize: "13px", color: HEX.slate500 }}>
+              <span>Platform / Logistics Fee</span>
+              <span>+ {formatCurrency(platformFee)}</span>
             </div>
           )}
           

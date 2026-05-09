@@ -43,7 +43,6 @@ import AdminNotifications from "@/pages/AdminNotifications";
 import "./index.css";
 import { useAuth } from "./context/AuthContext";
 
-
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
   const hasLocalFlag = localStorage.getItem("stockflow_auth") === "true";
@@ -106,69 +105,68 @@ function App() {
   return (
     <TooltipProvider>
       <BrowserRouter>
-        <AppGate>
-          {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/join" element={<InviteSignup />} />
-            <Route path="/verified" element={<Verified />} />
-            <Route path="/public/view/:token" element={<PublicView />} />
+        {/* <AppGate> */}
+        {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/join" element={<InviteSignup />} />
+          <Route path="/verified" element={<Verified />} />
+          <Route path="/public/view/:token" element={<PublicView />} />
 
+          <Route
+            path="/admin"
+            element={
+              <AdminProtectedRoute>
+                <AdminLayout />
+              </AdminProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="approvals" replace />} />
+            <Route path="approvals" element={<AdminApprovals />} />
+            <Route path="supervision" element={<AdminSupervision />} />
+            <Route path="catalog" element={<AdminCatalog />} />
+            <Route path="pricing" element={<AdminPricing />} />
+            <Route path="notifications" element={<AdminNotifications />} />
+          </Route>
+
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="add" element={<AddPhoneUpdate />} />
+            <Route path="inventory/:id" element={<PhoneDetail />} />
+            <Route path="edit/:id" element={<EditPhone />} />
+            <Route path="ledger" element={<LedgerPage />} />
             <Route
-              path="/admin"
-              element={
-                <AdminProtectedRoute>
-                  <AdminLayout />
-                </AdminProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="approvals" replace />} />
-              <Route path="approvals" element={<AdminApprovals />} />
-              <Route path="supervision" element={<AdminSupervision />} />
-              <Route path="catalog" element={<AdminCatalog />} />
-              <Route path="pricing" element={<AdminPricing />} />
-              <Route path="notifications" element={<AdminNotifications />} />
-            </Route>
-
+              path="financials"
+              element={<Navigate to="/ledger" replace />}
+            />
+            <Route path="customers" element={<Customers />} />
+            <Route path="customers/:id" element={<CustomerDetail />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="orders/:id" element={<OrderDetail />} />
+            <Route path="purchase-orders" element={<PurchaseOrders />} />
             <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Dashboard />} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="add" element={<AddPhoneUpdate />} />
-              <Route path="inventory/:id" element={<PhoneDetail />} />
-              <Route path="edit/:id" element={<EditPhone />} />
-              <Route path="ledger" element={<LedgerPage />} />
-              <Route path="financials" element={<Navigate to="/ledger" replace />} />
-              <Route path="customers" element={<Customers />} />
-              <Route path="customers/:id" element={<CustomerDetail />} />
-              <Route path="orders" element={<Orders />} />
-              <Route path="orders/:id" element={<OrderDetail />} />
-              <Route path="purchase-orders" element={<PurchaseOrders />} />
-              <Route
-                path="purchase-orders/:id"
-                element={<PurchaseOrderDetail />}
-              />
-              <Route path="pricing" element={<Pricing />} />
-              <Route
-                path="wallet"
-                element={<Navigate to="/ledger" replace />}
-              />
-              <Route path="analytics" element={<Analytics />} />
-              <Route path="team" element={<ManageTeam />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="about" element={<AboutApp />} />
-            </Route>
-          </Routes>
-        </AppGate>
-
+              path="purchase-orders/:id"
+              element={<PurchaseOrderDetail />}
+            />
+            <Route path="pricing" element={<Pricing />} />
+            <Route path="wallet" element={<Navigate to="/ledger" replace />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="team" element={<ManageTeam />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="about" element={<AboutApp />} />
+          </Route>
+        </Routes>
+        {/* </AppGate> */}
       </BrowserRouter>
     </TooltipProvider>
   );

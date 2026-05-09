@@ -11,6 +11,7 @@ interface CurrencyInputProps {
   autoFocus?: boolean;
   className?: string;
   size?: "sm" | "md" | "lg";
+  symbol?: string;
 }
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
@@ -85,6 +86,7 @@ export default function CurrencyInput({
   autoFocus = false,
   className,
   size = "md",
+  symbol = "₹",
 }: CurrencyInputProps) {
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,7 +107,7 @@ export default function CurrencyInput({
           styles.icon,
         )}
       >
-        ₹
+        {symbol}
       </span>
       <input
         type="text"

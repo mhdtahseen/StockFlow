@@ -22,6 +22,7 @@ import { addPendingEntry } from "@/features/ledger/slice";
 import type { PayMode } from "@/features/billing/types";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthContext";
+import { format } from "date-fns";
 import { toast } from "sonner";
 
 interface Props {
@@ -63,7 +64,26 @@ export function RecordPaymentSheet({
     const totalNow = currentAmountPaid + amount;
     const status = totalNow >= totalAmount ? "SETTLED" : "PARTIAL";
 
+    const timestamp = format(new Date(), "h:mm a");
+    const ref = orderId ? `#${orderId.slice(0, 8).toUpperCase()}` : "BULK";
+    
+    // Determine Type (Simplified for UI/UX)
+    let displayType = "SETTLEMENT";
+    if (orderId) {
+      if (currentAmountPaid === 0) displayType = "ADVANCE";
+      else if (totalNow < totalAmount) displayType = "MID PAYMENT";
+      else displayType = "SETTLEMENT";
+    } else {
+      displayType = type === "AR" ? "SETTLEMENT" : "SUPPLIER PAYMENT";
+    }
+
+    // Simplified Structured Note as requested by user
+    const structuredNote = `[${displayType}] [${ref}] [${mode}][${timestamp}] [₹${amount.toLocaleString()}]`;
+
     if (type === "AR") {
+      // Map to DB-compatible types
+      const dbType = displayType === "SETTLEMENT" ? "DEBT_SETTLEMENT" : "CUSTOMER_PAYMENT";
+
       if (orderId) {
         dispatch(
           updateOrderPayment({ id: orderId, amountPaid: totalNow, status }),
@@ -76,7 +96,8 @@ export function RecordPaymentSheet({
             mode,
             receivedAt: new Date().toISOString(),
             recordedBy: user?.id || "system",
-            note: "Direct Receipt", // Explicit for OrderDetail UI
+            note: structuredNote,
+            type: dbType, // Pass the specific type
             allocations: [{ saleOrderId: orderId, amountAllocated: amount }],
           }),
         );
@@ -90,12 +111,15 @@ export function RecordPaymentSheet({
             mode,
             allocations: [], // Bulk/Unallocated initially
             recordedBy: user?.id || "system",
-            note: `Lump-sum settlement allocation (FIFO)`,
+            note: structuredNote,
           }),
         );
         toast.success("Collection Dispatched (AR)");
       }
     } else {
+      // Map to DB-compatible types for AP
+      const dbType = displayType === "SETTLEMENT" ? "SUPPLIER_SETTLEMENT" : "SUPPLIER_PAYMENT";
+
       if (orderId) {
         dispatch(
           updatePOPayment({ id: orderId, amountPaid: totalNow, status }),
@@ -108,7 +132,8 @@ export function RecordPaymentSheet({
             mode,
             paidAt: new Date().toISOString(),
             recordedBy: user?.id || "system",
-            note: "Direct Payout",
+            note: structuredNote,
+            type: dbType, // Pass the specific type
             allocations: [
               { purchaseOrderId: orderId, amountAllocated: amount },
             ],
@@ -121,11 +146,10 @@ export function RecordPaymentSheet({
             counterpartyId,
             amount,
             mode,
-            note: `Lump-sum supplier settlement (FIFO)`,
+            note: structuredNote,
           }),
         );
         toast.success("Supplier Bulk Settlement Dispatched");
-        toast.success("FIFO Settlement Dispatched (AP)");
       }
     }
     onOpenChange(false);

@@ -125,6 +125,7 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
         color?: string;
         ram?: string;
         issueTags?: string[];
+        imeis?: string[];
       }
     >
   >({});
@@ -162,22 +163,39 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
   const resetForm = (idx: number) => {
     if (idx < pendingItems.length) {
       const item = pendingItems[idx];
+      const proc = processed[item.id];
+
+      if (proc) {
+        // Hydrate from already processed state
+        setBrand(proc.brand || item.brand || "Apple");
+        setModel(proc.model || item.model || "");
+        setRam(proc.ram || item.ram || "");
+        setStorage(proc.storage || item.storage || "");
+        setColor(proc.color || item.color || "");
+        setPurchasePriceStr(proc.price?.toString() || item.purchasePrice.toString());
+        setSelectedTags(proc.issueTags || []);
+        setRejectionReason(proc.reason || "OTHER");
+        setShowRejectionForm(proc.status === "REJECTED");
+      } else {
+        // Default from manifest
+        setBrand(item.brand || "Apple");
+        setModel(item.model || "");
+        setRam(item.ram || "");
+        setStorage(item.storage || "");
+        setColor(item.color || "");
+        setPurchasePriceStr(item.purchasePrice.toString());
+        setSelectedTags([]);
+        setShowRejectionForm(false);
+        setRejectionReason("OTHER");
+      }
+
       setImeis(
         item.imei
           ? [{ value: item.imei, status: "UNVERIFIED" }]
           : [{ value: "", status: "UNVERIFIED" }],
       );
-      setBrand(item.brand || "Apple");
-      setModel(item.model || "");
-      setRam(item.ram || "");
-      setStorage(item.storage || "");
-      setColor(item.color || "");
-      setPurchasePriceStr(item.purchasePrice.toString());
-      setSelectedTags([]);
       setTagQuery("");
       setShowIssues(false);
-      setShowRejectionForm(false);
-      setRejectionReason("OTHER");
     }
   };
 
@@ -210,6 +228,22 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
             color: proc.color || it.color,
             ram: proc.ram || it.ram,
             issueTags: proc.issueTags || [],
+            imei: proc.imeis?.[0] || it.imei,
+            phone: proc.status === "ACCEPTED" ? {
+              id: proc.phoneId,
+              brand: proc.brand || it.brand,
+              model: proc.model || it.model,
+              storage: proc.storage || it.storage,
+              color: proc.color || it.color,
+              ram: proc.ram || it.ram,
+              purchasePrice: proc.price || it.purchasePrice,
+              salePrice: Math.round((proc.price || it.purchasePrice) * 1.15),
+              status: "IN_STOCK",
+              issueTags: proc.issueTags || [],
+              imeis: proc.imeis || [],
+              createdAt: new Date().toISOString(),
+              purchaseOrderId: order.id,
+            } : null,
           };
         }
         return it;
@@ -384,6 +418,7 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
         color,
         ram,
         issueTags: selectedTags,
+        imeis: filledImeis.map((i) => i.value),
       },
     }));
     advance();

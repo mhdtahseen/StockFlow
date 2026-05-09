@@ -33,7 +33,14 @@ import {
   Pencil,
   X,
   TrendingDown,
+  History,
+  ShieldCheck,
+  Clock,
+  Calendar,
+  Share2,
 } from "lucide-react";
+import { getUnitHistory } from "@/app/supabaseApi";
+import { Badge } from "@/components/ui/badge";
 import clsx from "clsx";
 import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
 import { repairsFlatList } from "../data/repairCatalog";
@@ -49,6 +56,7 @@ export default function PhoneDetail() {
   const phone = useAppSelector((state) =>
     state.inventory.phones.find((p) => p.id === id),
   );
+  const customers = useAppSelector((state) => state.customers.customers);
   const saleEntry = useAppSelector((state) =>
     state.ledger.entries.find(
       (e) => e.type === "PHONE_SALE" && e.referenceId === id,
@@ -61,11 +69,16 @@ export default function PhoneDetail() {
   const [showRepairModal, setShowRepairModal] = useState(false);
   const [repairAmount, setRepairAmount] = useState("");
   const [repairNote, setRepairNote] = useState("");
+
+  const [history, setHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [repairAccordionOpen, setRepairAccordionOpen] = useState(false);
   // Inline editing state: repairId → { note, amount }
   const [editingRepairId, setEditingRepairId] = useState<string | null>(null);
   const [editNote, setEditNote] = useState("");
   const [editAmount, setEditAmount] = useState("");
+
+  const [activeTab, setActiveTab] = useState<"finance" | "history">("finance");
 
   const ledgerEntries = useAppSelector((state) => state.ledger.entries);
   // All repair costs tied to this phone (sorted oldest first)
@@ -81,6 +94,20 @@ export default function PhoneDetail() {
     () => repairEntries.reduce((sum, e) => sum + Math.abs(e.amount), 0),
     [repairEntries],
   );
+
+  // Fetch history when history tab is selected
+  React.useEffect(() => {
+    if (activeTab === "history" && phone?.imeis && phone.imeis.length > 0) {
+      setLoadingHistory(true);
+      getUnitHistory(phone.imeis)
+        .then((data) => setHistory(data))
+        .catch((err) => {
+           console.error("History error:", err);
+           toast.error("Failed to fetch device history");
+        })
+        .finally(() => setLoadingHistory(false));
+    }
+  }, [activeTab, phone?.imeis]);
 
   if (!phone) {
     return (
@@ -108,10 +135,10 @@ export default function PhoneDetail() {
   };
 
   const effectiveCostBasis = phone.purchasePrice + totalRepairCost;
-  const expectedSalePrice = effectiveCostBasis * 1.25;
+  const expectedSalePrice = effectiveCostBasis * 1.15; // 15% margin over total cost basis
   const marginPercentage = phone.salePrice
     ? ((phone.salePrice - effectiveCostBasis) / effectiveCostBasis) * 100
-    : 25.0;
+    : 15.0;
 
   const handleConfirmPurchase = (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,16 +213,28 @@ export default function PhoneDetail() {
     e.preventDefault();
     if (!repairAmount || Number(repairAmount) <= 0) return;
     const amount = Number(repairAmount);
-    
-    // WATCHTOWER AUTO-LOGS: addRepairLog triggers the ledger entry
-    dispatch(
-      addRepairLog({
-        phoneId: phone.id,
-        amount,
-        note: repairNote.trim() || 'General Maintenance',
-        recordedBy: user?.id || 'system',
-      })
-    );
+    const entryId = `repair-${phone.id}-${Date.now()}`;
+
+    // Write directly to ledger.entries so Finance tab shows it immediately.
+    // addRepairLog only goes to pendingEntries (Watchtower), which is NOT
+    // what the repairEntries selector reads from.
+    dispatch(addEntry({
+      id: entryId,
+      type: "REPAIR_COST",
+      referenceId: phone.id,
+      amount: -amount,
+      note: `REPAIR - #${phone.id.slice(0, 8).toUpperCase()} : ${repairNote.trim() || 'General Maintenance'}`,
+      createdAt: new Date().toISOString(),
+      recordedBy: user?.id || 'system',
+    }));
+
+    // Also fire addRepairLog so the sync middleware queues this to the backend
+    dispatch(addRepairLog({
+      phoneId: phone.id,
+      amount,
+      note: repairNote.trim() || 'General Maintenance',
+      recordedBy: user?.id || 'system',
+    }));
 
     toast.success("Repair Cost Logged", {
       description: `₹${amount} repair expense recorded for ${phone.brand} ${phone.model}.`,
@@ -214,17 +253,32 @@ export default function PhoneDetail() {
 
   const handleSaveRepairEdit = (entry: { id: string; createdAt: string }) => {
     if (!editAmount || Number(editAmount) <= 0) return;
-    
-    // Logic: Remove old, add new -> Watchtower creates the audit trail
+    const amount = Number(editAmount);
+    const entryId = `repair-${phone.id}-${Date.now()}`;
+    const noteText = `${editNote.trim() || 'General Maintenance'} (Updated)`;
+
+    // Remove old entry from ledger.entries and pending
+    dispatch(removeEntry(entry.id));
     dispatch(removeRepairLog({ phoneId: phone.id, entryId: entry.id }));
-    dispatch(
-      addRepairLog({
-        phoneId: phone.id,
-        amount: Number(editAmount),
-        note: `${editNote.trim() || 'General Maintenance'} (Updated)`,
-        recordedBy: user?.id || 'system',
-      })
-    );
+
+    // Write new entry directly to ledger.entries so Finance tab updates immediately
+    dispatch(addEntry({
+      id: entryId,
+      type: "REPAIR_COST",
+      referenceId: phone.id,
+      amount: -amount,
+      note: `REPAIR - #${phone.id.slice(0, 8).toUpperCase()} : ${noteText}`,
+      createdAt: new Date().toISOString(),
+      recordedBy: user?.id || 'system',
+    }));
+
+    // Also queue to backend via addRepairLog Watchtower
+    dispatch(addRepairLog({
+      phoneId: phone.id,
+      amount,
+      note: noteText,
+      recordedBy: user?.id || 'system',
+    }));
     
     setEditingRepairId(null);
     setEditNote("");
@@ -253,17 +307,37 @@ export default function PhoneDetail() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 pb-6 transition-colors duration-300">
-      {phone.status !== "SOLD" && (
-        <HeaderActions>
+      <HeaderActions>
+        <div className="flex gap-2">
+          {phone.status !== "SOLD" && (
+            <button
+              onClick={() => navigate(`/edit/${phone.id}`)}
+              className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 shadow-sm"
+              title="Edit Phone"
+            >
+              <PenSquare size={18} />
+            </button>
+          )}
           <button
-            onClick={() => navigate(`/edit/${phone.id}`)}
+            onClick={() => {
+              const text = `${phone.brand} ${phone.model} - ${phone.storage}\nStatus: ${phone.status}\nIMEI: ${phone.imeis?.[0] || 'N/A'}`;
+              if (navigator.share) {
+                navigator.share({ title: "Phone Details", text }).catch(() => {
+                  navigator.clipboard.writeText(text);
+                  toast.success("Details copied to clipboard");
+                });
+              } else {
+                navigator.clipboard.writeText(text);
+                toast.success("Details copied to clipboard");
+              }
+            }}
             className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 shadow-sm"
-            title="Edit Phone"
+            title="Share Details"
           >
-            <PenSquare size={18} />
+            <Share2 size={18} /> 
           </button>
-        </HeaderActions>
-      )}
+        </div>
+      </HeaderActions>
 
       <div className="flex-1 overflow-y-auto">
         <main className="px-4 pt-4 pb-12 max-w-lg mx-auto w-full space-y-5">
@@ -302,7 +376,7 @@ export default function PhoneDetail() {
                   <span className="text-slate-700 dark:text-slate-300 tracking-widest">
                     {phone.imeis
                       .filter((i) => i.length >= 4)
-                      .map((i) => `*** • ${i.slice(-4)}`)
+                      .map((i) => `**** ${i.slice(-4)}`)
                       .join(" / ")}
                   </span>
                 ) : (
@@ -358,366 +432,369 @@ export default function PhoneDetail() {
           )}
         </section>
 
-        {/* Financial Breakdown */}
-        <section className="bg-white dark:bg-slate-900 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden">
-          <div className="p-5 border-b border-slate-50 dark:border-slate-800">
-            <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
-              <DollarSign size={16} className="text-primary-500" />
-              Financial Breakdown
-            </h3>
-          </div>
-
-          <div className="divide-y divide-slate-50 dark:divide-slate-800">
-            <div className="p-4 flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
-                Purchase Cost
-              </span>
-              <span className="font-bold text-slate-900 dark:text-slate-100">
-                {formatCurrency(phone.purchasePrice)}
-              </span>
-            </div>
-
-            {/* Additional Expenses Accordion — only if repairs logged */}
-            {repairEntries.length > 0 && (
-              <div>
-                {/* Accordion header */}
-                <button
-                  type="button"
-                  onClick={() => setRepairAccordionOpen((o) => !o)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                      Additional Expenses
-                    </span>
-                    <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full">
-                      {repairEntries.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                      {formatCurrency(totalRepairCost)}
-                    </span>
-                    <ChevronDown
-                      size={15}
-                      className={clsx(
-                        "text-slate-400 transition-transform duration-200",
-                        repairAccordionOpen ? "rotate-180" : "",
-                      )}
-                    />
-                  </div>
-                </button>
-
-                {/* Accordion body */}
-                {repairAccordionOpen && (
-                  <div className="divide-y divide-slate-50 dark:divide-slate-800/50 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-50 dark:border-slate-800/50">
-                    {repairEntries.map((r) => (
-                      <div key={r.id}>
-                        {editingRepairId === r.id ? (
-                          // ── Inline edit form ────────────────────────────
-                          <div className="px-4 py-3 space-y-2">
-                            <input
-                              type="text"
-                              value={editNote}
-                              onChange={(e) => setEditNote(e.target.value)}
-                              placeholder="Description"
-                              className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
-                            />
-                            <div className="flex gap-2 items-center">
-                              <input
-                                type="number"
-                                value={editAmount}
-                                onChange={(e) => setEditAmount(e.target.value)}
-                                placeholder="Amount"
-                                className="flex-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
-                              />
-                              <button
-                                onClick={() => handleSaveRepairEdit(r)}
-                                className="px-3 py-2 bg-primary-500 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => setEditingRepairId(null)}
-                                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          // ── Read row ──────────────────────────────────────
-                          <div className="px-4 py-2.5 flex items-center gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">
-                                {r.note || "Expense"}
-                              </p>
-                              <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                                {format(parseISO(r.createdAt), "MMM d, yyyy")}
-                              </p>
-                            </div>
-                            <span className="font-bold text-slate-700 dark:text-slate-300 text-sm mr-2">
-                              {formatCurrency(r.amount)}
-                            </span>
-                            <button
-                              onClick={() => {
-                                setEditingRepairId(r.id);
-                                setEditNote(r.note || "");
-                                setEditAmount(String(r.amount));
-                              }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-primary-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteRepair(r.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Effective cost basis if any repairs */}
-            {totalRepairCost > 0 && (
-              <div className="px-4 py-3 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-slate-600 dark:text-slate-300 font-bold text-sm">
-                  Total Cost Basis
-                </span>
-                <span className="font-black text-slate-900 dark:text-slate-100">
-                  {formatCurrency(phone.purchasePrice + totalRepairCost)}
-                </span>
-              </div>
-            )}
-
-            {phone.status === "SOLD" ? (
-              <div className="p-4 flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
-                  Sale Price
-                </span>
-                <span className="font-black text-xl text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(phone.salePrice!)}
-                </span>
-              </div>
-            ) : (
-              <div className="p-4 flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
-                  Projected Sale
-                </span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">
-                  {formatCurrency(expectedSalePrice)}
-                </span>
-              </div>
-            )}
-
-            <div className="p-4 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div
-                  className={clsx(
-                    "size-8 rounded-full flex items-center justify-center",
-                    phone.status === "SOLD" && marginPercentage < 0
-                      ? "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400"
-                      : "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
-                  )}
-                >
-                  {marginPercentage < 0 ? (
-                    <TrendingDown size={16} />
-                  ) : (
-                    <TrendingUp size={16} />
-                  )}
-                </div>
-                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
-                  {phone.status === "SOLD"
-                    ? marginPercentage < 0
-                      ? "Actual Loss Margin"
-                      : "Actual Profit Margin"
-                    : "Est. Profit Margin"}
-                </span>
-              </div>
-              <span
-                className={clsx(
-                  "font-black text-lg",
-                  phone.status === "SOLD"
-                    ? marginPercentage < 0
-                      ? "text-rose-600 dark:text-rose-400"
-                      : "text-emerald-600 dark:text-emerald-400"
-                    : "text-primary-500 dark:text-blue-400",
-                )}
-              >
-                {Math.abs(marginPercentage).toFixed(1)}%
-              </span>
-            </div>
-
-            {phone.status === "SOLD" &&
-              phone.salePrice &&
-              (() => {
-                const effectiveCost = phone.purchasePrice + totalRepairCost;
-                const net = phone.salePrice - effectiveCost;
-                const isLoss = net < 0;
-                return (
-                  <div
-                    className={clsx(
-                      "p-4 flex justify-between items-center",
-                      isLoss
-                        ? "bg-rose-50/60 dark:bg-rose-950/50"
-                        : "bg-emerald-50/50 dark:bg-emerald-950/50",
-                    )}
-                  >
-                    <span
-                      className={clsx(
-                        "font-bold text-sm",
-                        isLoss
-                          ? "text-rose-700 dark:text-rose-400"
-                          : "text-emerald-700 dark:text-emerald-400",
-                      )}
-                    >
-                      {isLoss ? "Loss" : "Profit"}
-                    </span>
-                    <div className="flex flex-col items-end">
-                      <span
-                        className={clsx(
-                          "font-black text-lg leading-tight",
-                          isLoss
-                            ? "text-rose-600 dark:text-rose-400"
-                            : "text-emerald-600 dark:text-emerald-400",
-                        )}
-                      >
-                        {isLoss ? "-" : "+"}
-                        {formatCurrency(Math.abs(net))}
-                      </span>
-                      {totalRepairCost > 0 && (
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                          incl. ₹{totalRepairCost.toLocaleString("en-IN")}{" "}
-                          repairs
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-          </div>
-        </section>
-
-        {/* Status & Actions */}
-        <section className="flex flex-col gap-3">
+        {/* Unified Action Toolbar */}
+        <section className="bg-white dark:bg-slate-900 rounded-xl p-2 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-2">
           {phone.status === "PENDING" && (
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col gap-4">
-              <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-xl border border-amber-100 dark:border-amber-800">
-                <p className="text-amber-800 dark:text-amber-300 text-sm font-semibold">
-                  Verify device condition before finalizing purchase.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    dispatch(removePhone(phone.id));
+            <div className="flex-1 flex gap-2">
+              <button
+                onClick={() => {
+                  dispatch(removePhone(phone.id));
+                  dispatch(
+                    addEntry({
+                      id: crypto.randomUUID(),
+                      type: "FUNDS_RELEASED",
+                      referenceId: phone.id,
+                      amount: Math.abs(phone.purchasePrice),
+                      note: `REJECTION - ${phone.brand} ${phone.model} : Inspection failed, funds released`,
+                      recordedBy: user?.id || 'system',
+                      createdAt: new Date().toISOString(),
+                    }),
+                  );
+
+                  if ((phone as any).purchaseOrderId) {
                     dispatch(
-                      addEntry({
-                        id: crypto.randomUUID(),
-                        type: "FUNDS_RELEASED",
-                        referenceId: phone.id,
-                        amount: Math.abs(phone.purchasePrice),
-                        note: `REJECTION - ${phone.brand} ${phone.model} : Inspection failed, funds released`,
-                        recordedBy: user?.id || 'system',
-                        createdAt: new Date().toISOString(),
+                      markPOItemRejected({
+                        purchaseOrderId: (phone as any).purchaseOrderId,
+                        phoneId: phone.id,
+                        reason: "Unit rejected during inspection",
                       }),
                     );
+                  }
 
-                    // PO-aware logic: if phone has a purchaseOrderId, mark PO item as rejected
-                    if ((phone as any).purchaseOrderId) {
-                      dispatch(
-                        markPOItemRejected({
-                          purchaseOrderId: (phone as any).purchaseOrderId,
-                          phoneId: phone.id,
-                          reason: "Unit rejected during inspection",
-                        }),
-                      );
-                    }
-
-                    navigate("/inventory");
-                    toast.error("Unit Rejected", {
-                      description: `${phone.brand} ${phone.model} removed from inventory. Escrowed funds released.${(phone as any).purchaseOrderId ? " Purchase order updated." : ""}`,
-                    });
-                  }}
-                  className="flex-[0.4] bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 font-bold py-3.5 rounded-xl border border-rose-200 dark:border-rose-800 active:bg-rose-50 transition-colors text-sm"
-                >
-                  Reject Unit
-                </button>
-                <button
-                  onClick={() => {
-                    setPurchasePriceInput(String(phone.purchasePrice));
-                    setShowPurchaseModal(true);
-                  }}
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl shadow-sm active:scale-[0.98] transition-all text-sm"
-                >
-                  Confirm Purchase
-                </button>
-              </div>
+                  navigate("/inventory");
+                }}
+                className="flex-1 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 rounded-lg border border-rose-100 dark:border-rose-900 active:scale-95 transition-all text-center"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => {
+                  setPurchasePriceInput(String(phone.purchasePrice));
+                  setShowPurchaseModal(true);
+                }}
+                className="flex-[2] py-2.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg shadow-sm active:scale-95 transition-all"
+              >
+                Confirm Purchase
+              </button>
             </div>
           )}
 
           {phone.status === "IN_STOCK" && (
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex flex-col gap-4">
-              <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
-                <p className="text-primary-500 dark:text-blue-400 text-sm font-semibold">
-                  Device is currently in your active inventory.
-                </p>
-              </div>
-
-              {/* Repair history moved to accordion in Financial Breakdown */}
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowRepairModal(true)}
-                  className="flex-[0.45] flex items-center justify-center gap-1.5 bg-amber-50 dark:bg-amber-950 hover:bg-amber-100 dark:hover:bg-amber-900 text-amber-700 dark:text-amber-400 font-bold py-3.5 rounded-xl border border-amber-200 dark:border-amber-800 active:scale-[0.98] transition-all text-sm"
-                >
-                  <Wrench size={16} /> Repair
-                </button>
-                <button
-                  onClick={() => setShowSaleModal(true)}
-                  className="flex-1 bg-primary-500 hover:bg-blue-800 dark:hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all text-sm"
-                >
-                  Create Sales Order
-                </button>
-              </div>
-            </div>
+            <>
+              <button
+                onClick={() => setShowRepairModal(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800 active:scale-95 transition-all"
+              >
+                <Wrench size={16} /> Repair
+              </button>
+              <button
+                onClick={() => setShowSaleModal(true)}
+                className="flex-[2] py-3 text-xs font-bold text-white bg-primary-500 hover:bg-blue-800 rounded-lg shadow-sm active:scale-95 transition-all"
+              >
+                Create Sales Order
+              </button>
+            </>
           )}
 
-          {phone.status === "SOLD" &&
-            (() => {
-              const isLoss =
-                phone.salePrice != null &&
-                phone.salePrice < phone.purchasePrice;
-              return (
-                <div
-                  className={clsx(
-                    "p-4 rounded-xl border flex items-center justify-center",
-                    isLoss
-                      ? "bg-rose-50 dark:bg-rose-950 border-rose-100 dark:border-rose-800"
-                      : "bg-emerald-50 dark:bg-emerald-950 border-emerald-100 dark:border-emerald-800",
-                  )}
-                >
-                  <p
-                    className={clsx(
-                      "font-bold uppercase tracking-wider text-sm flex items-center gap-2",
-                      isLoss
-                        ? "text-rose-700 dark:text-rose-400"
-                        : "text-emerald-700 dark:text-emerald-400",
+          {phone.status === "SOLD" && (
+            <div className="flex-1 py-3 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 rounded-lg flex items-center justify-center gap-2 border border-emerald-100 dark:border-emerald-900">
+              <CheckCircle2 size={16} /> Transaction Complete
+            </div>
+          )}
+        </section>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b border-slate-200 dark:border-slate-800 mt-2">
+          <button
+            onClick={() => setActiveTab("finance")}
+            className={clsx(
+              "flex-1 py-3 text-sm font-bold transition-all relative",
+              activeTab === "finance" 
+                ? "text-primary-500 dark:text-blue-400" 
+                : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-400"
+            )}
+          >
+            Finance Breakdown
+            {activeTab === "finance" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 dark:bg-blue-400 rounded-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={clsx(
+              "flex-1 py-3 text-sm font-bold transition-all relative",
+              activeTab === "history" 
+                ? "text-primary-500 dark:text-blue-400" 
+                : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-400"
+            )}
+          >
+            Unit History
+            {activeTab === "history" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 dark:bg-blue-400 rounded-full" />
+            )}
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="pt-2">
+          {activeTab === "finance" ? (
+            <section className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+              <div className="divide-y divide-slate-50 dark:divide-slate-800">
+                <div className="p-4 flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                    Purchase Cost
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-slate-100">
+                    {formatCurrency(phone.purchasePrice)}
+                  </span>
+                </div>
+
+                {repairEntries.length > 0 && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setRepairAccordionOpen((o) => !o)}
+                      className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                          Additional Expenses
+                        </span>
+                        <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full">
+                          {repairEntries.length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                          {formatCurrency(totalRepairCost)}
+                        </span>
+                        <ChevronDown
+                          size={15}
+                          className={clsx(
+                            "text-slate-400 transition-transform duration-200",
+                            repairAccordionOpen ? "rotate-180" : "",
+                          )}
+                        />
+                      </div>
+                    </button>
+
+                    {repairAccordionOpen && (
+                      <div className="divide-y divide-slate-50 dark:divide-slate-800/50 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-50 dark:border-slate-800/50">
+                        {repairEntries.map((r) => (
+                          <div key={r.id}>
+                            {editingRepairId === r.id ? (
+                              <div className="px-4 py-3 space-y-2">
+                                <input
+                                  type="text"
+                                  value={editNote}
+                                  onChange={(e) => setEditNote(e.target.value)}
+                                  placeholder="Description"
+                                  className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
+                                />
+                                <div className="flex gap-2 items-center">
+                                  <input
+                                    type="number"
+                                    value={editAmount}
+                                    onChange={(e) => setEditAmount(e.target.value)}
+                                    placeholder="Amount"
+                                    className="flex-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:border-primary-500 dark:focus:border-blue-500"
+                                  />
+                                  <button
+                                    onClick={() => handleSaveRepairEdit(r)}
+                                    className="px-3 py-2 bg-primary-500 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingRepairId(null)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="px-4 py-2.5 flex items-center gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">
+                                    {r.note || "Expense"}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                                    {format(parseISO(r.createdAt), "MMM d, yyyy")}
+                                  </p>
+                                </div>
+                                <span className="font-bold text-slate-700 dark:text-slate-300 text-sm mr-2">
+                                  {formatCurrency(r.amount)}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    setEditingRepairId(r.id);
+                                    setEditNote(r.note || "");
+                                    setEditAmount(String(r.amount));
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-primary-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRepair(r.id)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
-                  >
-                    <CheckCircle2 size={18} />
-                    {isLoss ? "Sold at a Loss" : "Transaction Complete"}
+                  </div>
+                )}
+
+                {totalRepairCost > 0 && (
+                  <div className="px-4 py-3 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                    <span className="text-slate-600 dark:text-slate-300 font-bold text-sm">
+                      Total Cost Basis
+                    </span>
+                    <span className="font-black text-slate-900 dark:text-slate-100">
+                      {formatCurrency(phone.purchasePrice + totalRepairCost)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="p-4 flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                    {phone.status === "SOLD" ? "Sale Price" : "Projected Sale"}
+                  </span>
+                  <span className={clsx("font-black", phone.status === "SOLD" ? "text-xl text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-slate-100")}>
+                    {formatCurrency(phone.status === "SOLD" ? phone.salePrice! : expectedSalePrice)}
+                  </span>
+                </div>
+
+                <div className="p-4 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className={clsx("size-8 rounded-full flex items-center justify-center", marginPercentage < 0 ? "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400" : "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400")}>
+                      {marginPercentage < 0 ? <TrendingDown size={16} /> : <TrendingUp size={16} />}
+                    </div>
+                    <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                      {phone.status === "SOLD" ? "Actual Profit" : "Est. Profit Margin"}
+                    </span>
+                  </div>
+                  <span className={clsx("font-black text-lg", marginPercentage < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400")}>
+                    {Math.abs(marginPercentage).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="space-y-4">
+              {loadingHistory ? (
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 flex flex-col items-center justify-center border border-slate-100 dark:border-slate-800 shadow-sm">
+                  <div className="size-12 border-4 border-primary-500/20 border-t-primary-500 rounded-full animate-spin mb-4" />
+                  <p className="text-sm font-black text-slate-400 uppercase tracking-widest">
+                    Consulting Unit Registry...
                   </p>
                 </div>
-              );
-            })()}
-        </section>
+              ) : history.length > 0 ? (
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm">
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="size-10 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-2xl flex items-center justify-center">
+                      <History size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-black text-slate-900 dark:text-slate-100">
+                        Device Lifecycle
+                      </h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Global Tracking Enabled
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative pl-8 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
+                    {history.map((event, idx) => {
+                      // Determine if it's our own tenant
+                      const isOwn = event.tenant_id === (phone.tenantId || (phone as any).tenant_id);
+
+                      return (
+                        <div
+                          key={event.id}
+                          className="relative animate-in fade-in slide-in-from-left-4 duration-500"
+                          style={{ animationDelay: `${idx * 100}ms` }}
+                        >
+                          {/* Dot */}
+                          <div
+                            className={clsx(
+                              "absolute -left-8 top-1.5 size-6 rounded-full border-[3px] border-white dark:border-slate-900 flex items-center justify-center z-10 shadow-sm",
+                              event.event_type === "PURCHASED"
+                                ? "bg-emerald-500"
+                                : event.event_type === "SOLD"
+                                  ? "bg-primary-500"
+                                  : "bg-amber-500",
+                            )}
+                          >
+                            {event.event_type === "PURCHASED" ? (
+                              <Package size={10} className="text-white" />
+                            ) : (
+                              <Smartphone size={10} className="text-white" />
+                            )}
+                          </div>
+
+                          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 transition-all hover:scale-[1.01] hover:shadow-md cursor-default group">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <h5 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                                  {event.event_type}
+                                  {isOwn && (
+                                    <Badge className="bg-primary-500/10 text-primary-500 border-primary-500/20 text-[8px] font-black tracking-widest px-1.5 py-0 h-4 rounded-full">
+                                      CURRENT STORE
+                                    </Badge>
+                                  )}
+                                </h5>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <Clock size={12} className="text-slate-400" />
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                                    {format(
+                                      new Date(event.event_date),
+                                      "PPP",
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">
+                                  ENTITY
+                                </span>
+                                <span className={clsx("text-xs font-black italic", isOwn ? "text-primary-500" : "text-slate-600 dark:text-slate-300")}>
+                                  {isOwn 
+                                    ? "Your Inventory" 
+                                    : (customers.find(c => c.linkedTenantId === event.tenant_id)?.name || event.label || "Authorized Partner")
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 flex flex-col items-center justify-center border border-slate-100 dark:border-slate-800 shadow-sm text-center">
+                  <div className="size-16 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-600 mb-4">
+                    <ShieldCheck size={32} />
+                  </div>
+                  <h4 className="text-slate-900 dark:text-slate-100 font-bold mb-1">
+                    Authenticity Clear
+                  </h4>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs max-w-[200px]">
+                    This device has no prior history in our authorized network.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
       </main>
     </div>
       {/* Sale Modal via CreateOrderSheet */}

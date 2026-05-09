@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppSelector, useAppDispatch } from '@/app/hooks';
-import { addSupplierSettlement } from '@/features/purchasing/slice';
+import { addSupplierSettlement, addSupplierPayment } from '@/features/purchasing/slice';
 import { addEntry } from '@/features/ledger/slice';
 import { useAuth } from '@/context/AuthContext';
 import { updatePOPayment } from '@/features/purchasing/slice';
@@ -46,18 +46,53 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (totalPaid <= 0 || totalPaid > maxOwed) return toast.error(`Invalid amount max is ${maxOwed}`);
-    
-    // Using the optimized FIFO Settlement RPC flow for AP
+
+    const paymentId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const activeAllocations = allocations.filter(a => a.allocated > 0);
+    const settlementNote = orders.length === 1 
+      ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()}`
+      : orders.length === 2
+        ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()} & #${orders[1].id.slice(0, 4).toUpperCase()}`
+        : `Settled ${orders.length} Bills`;
+
+    // 1. Dispatch FIFO settlement RPC (syncs to backend)
     dispatch(addSupplierSettlement({
-       counterpartyId: supplierId,
-       amount: totalPaid,
-       mode,
-       note: orders.length === 1 
-         ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()}`
-         : orders.length === 2
-           ? `Settled #${orders[0].id.slice(0, 4).toUpperCase()} & #${orders[1].id.slice(0, 4).toUpperCase()}`
-           : `Settled ${orders.length} Bills`
+      id: paymentId,
+      counterpartyId: supplierId,
+      amount: totalPaid,
+      mode,
+      note: settlementNote,
     }));
+
+    // 2. Add payment to local state immediately so CustomerDetail payments tab shows it
+    dispatch(addSupplierPayment({
+      id: paymentId,
+      counterpartyId: supplierId,
+      totalPaid,
+      mode: mode as any,
+      paidAt: now,
+      note: settlementNote,
+      recordedBy: user?.id || 'system',
+      allocations: activeAllocations.map(a => ({
+        purchaseOrderId: a.orderId,
+        amountAllocated: a.allocated,
+      })),
+    }));
+
+    // 3. Update each PO's local balance immediately (mirrors server-side FIFO)
+    activeAllocations.forEach(a => {
+      const order = orders.find(o => o.id === a.orderId);
+      if (order) {
+        const newPaid = order.amountPaid + a.allocated;
+        const isSettled = newPaid >= order.totalAmount;
+        dispatch(updatePOPayment({
+          id: a.orderId,
+          amountPaid: newPaid,
+          status: isSettled ? 'SETTLED' : 'PARTIAL',
+        }));
+      }
+    });
 
     toast.success("Accounts Payable Settlement Dispatched");
     onOpenChange(false);

@@ -129,33 +129,44 @@ export function CustomerPicker({
     setIsCreating(false);
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) return;
+    if (!newName.trim() || isSaving) return;
 
-    // Security: encrypt full number, display last 4
-    const aadhaarLast4 =
-      newAadhaar.length === 12 ? newAadhaar.slice(-4) : undefined;
-    const aadhaarEncrypted =
-      newAadhaar.length === 12
-        ? btoa(newAadhaar).split("").reverse().join("")
-        : undefined;
+    setIsSaving(true);
+    try {
+      // Security: encrypt full number, display last 4
+      const aadhaarLast4 =
+        newAadhaar.length === 12 ? newAadhaar.slice(-4) : undefined;
+      const aadhaarEncrypted =
+        newAadhaar.length === 12
+          ? btoa(newAadhaar).split("").reverse().join("")
+          : undefined;
 
-    const newCustomer: Customer = {
-      id: crypto.randomUUID(),
-      name: newName.trim(),
-      phone: newPhone.length > 2 ? `+${newPhone}` : undefined,
-      type: newType,
-      aadhaarLast4,
-      aadhaarEncrypted,
-      address: newAddress.trim() || undefined,
-      createdAt: new Date().toISOString(),
-    };
-    dispatch(addCustomer(newCustomer));
-    onSelect(newCustomer);
-    setOpen(false);
-    setQuery("");
-    resetCreateForm();
+      const newCustomer: Customer = {
+        id: crypto.randomUUID(),
+        name: newName.trim(),
+        phone: newPhone.length > 2 ? `+${newPhone}` : undefined,
+        type: newType,
+        aadhaarLast4,
+        aadhaarEncrypted,
+        address: newAddress.trim() || undefined,
+        createdAt: new Date().toISOString(),
+      };
+
+      // 1. Close first to restore focus gracefully (Fixes ARIA hidden error)
+      setOpen(false);
+      setQuery("");
+      resetCreateForm();
+
+      // 2. Update state
+      dispatch(addCustomer(newCustomer));
+      onSelect(newCustomer);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const canSubmit =
@@ -462,10 +473,17 @@ export function CustomerPicker({
               </Button>
               <Button
                 type="submit"
-                disabled={!canSubmit}
+                disabled={!canSubmit || isSaving}
                 className="h-12 bg-primary-500 hover:bg-blue-800 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save &amp; Select
+                {isSaving ? (
+                  <div className="flex items-center gap-2">
+                    <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </div>
+                ) : (
+                  "Save & Select"
+                )}
               </Button>
             </div>
           </form>

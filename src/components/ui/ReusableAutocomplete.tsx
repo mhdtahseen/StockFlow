@@ -58,15 +58,19 @@ export default function ReusableAutocomplete({
   );
 
   const filteredItems = useMemo(() => {
-    if (!value.trim()) return [];
+    if (!value.trim()) {
+      return data.slice(0, 15);
+    }
     const results = fuse.search(value.trim());
     return results.map((r) => r.item).slice(0, 15);
-  }, [value, fuse]);
+  }, [value, fuse, data]);
 
-  // Open dropdown when typing
+  // Open dropdown when typing or when value is cleared while focused
   useEffect(() => {
-    if (value.trim() && filteredItems.length > 0) {
-      setIsOpen(true);
+    if (filteredItems.length > 0) {
+      if (value.trim()) {
+        setIsOpen(true);
+      }
     } else {
       setIsOpen(false);
     }
@@ -101,11 +105,15 @@ export default function ReusableAutocomplete({
         setIsOpen(false);
         setHighlightedIndex(-1);
       } else if (value.trim()) {
-        // Fallback for custom entries if Enter is pressed and none selected
-        onChange(value.trim()); // keeps the input but invokes select for array builds
+        // Add custom entry
+        onChange(value.trim());
         if (onSelect) onSelect(value.trim());
         setIsOpen(false);
         setHighlightedIndex(-1);
+      } else {
+        // Enter on empty input -> Close dropdown/selector
+        setIsOpen(false);
+        if (onSelect) onSelect(""); // Signal empty submit
       }
     } else if (e.key === "Escape") {
       setIsOpen(false);
@@ -131,7 +139,7 @@ export default function ReusableAutocomplete({
           }}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            if (value.trim() && filteredItems.length > 0) setIsOpen(true);
+            setIsOpen(true); // Open on focus even if empty
             setTimeout(() => {
               containerRef.current?.scrollIntoView({
                 behavior: "smooth",

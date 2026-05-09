@@ -47,6 +47,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import CurrencyInput from "../components/ui/CurrencyInput";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { supabase } from "../lib/supabase";
+import { parseStructuredNote } from "@/utils/financeUtils";
 
 export default function LedgerPage() {
   const dispatch = useAppDispatch();
@@ -221,135 +222,59 @@ export default function LedgerPage() {
   };
 
   const getTransactionDetails = (entry: (typeof ledgerEntries)[0]) => {
-    const cleanNote = (n?: string) => {
-      if (!n) return "";
-      const ln = n.toLowerCase();
-      if (ln.includes("lump-sum") || ln.includes("bulk allocation") || ln.includes("bulk receipt") || ln.includes("fifo")) {
-        const match = n.match(/\d+/);
-        const count = match ? match[0] : "";
-        return count ? `Settled ${count} Bills` : "Bulk Allocation";
+    const isCustomer = !!entry.customerPaymentId;
+    const isSupplier = !!entry.supplierPaymentId;
+    const orderId = entry.saleOrderId || entry.purchaseOrderId || entry.referenceId;
+    const paymentId = entry.customerPaymentId || entry.supplierPaymentId;
+    
+    // Type Mapping (Generalised)
+    const getType = () => {
+      switch (entry.type) {
+        case "CAPITAL_INJECTION": return "CAPITAL_TOPUP";
+        case "CUSTOMER_PAYMENT": return "SETTLEMENT";
+        case "SUPPLIER_PAYMENT": return "PAYOUT";
+        case "WITHDRAWAL": return "WITHDRAWAL";
+        case "PROFIT_WITHDRAWAL": return "PROFIT_TAKE";
+        case "FUNDS_PLEDGED": return "PLEDGE";
+        case "FUNDS_RELEASED": return "REFUND";
+        case "FUNDS_CONSUMED": return "PURCHASE";
+        case "REPAIR_COST": return "REPAIR";
+        case "PHONE_SALE": return "SALE";
+        default: return entry.type;
       }
-      return n.replace("Order", "Bill").replace("order", "bill");
     };
 
-    switch (entry.type) {
-      case "CAPITAL_INJECTION":
-        return {
-          label: "Capital Top Up",
-          icon: <Landmark size={20} />,
-          color: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400",
-          note: "Owner Investment",
-        };
-      case "MONEY_ADDED": // Support legacy/RPC-generated entries
-      case "CUSTOMER_PAYMENT": {
-        const count = entry.settlementCount || 0;
-        const note = entry.note ? cleanNote(entry.note) : "Collection";
-        return {
-          icon: <User size={20} />,
-          color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
-          label: count > 2
-            ? `Settled ${count} Bills` 
-            : count === 2 && note.includes(" & ") 
-              ? note.split(" · ")[0] 
-              : count === 2 && note.startsWith("Settled #")
-                ? note
-                : "Bill Payment Received",
-          note,
-          isSettlement: !!(count > 2),
-        };
-      }
-      case "SUPPLIER_PAYMENT": {
-        const count = entry.settlementCount || 0;
-        const note = entry.note ? cleanNote(entry.note) : "Payout";
-        return {
-          icon: <Building2 size={20} />,
-          color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400",
-          label: count > 2
-            ? `Settled ${count} Bills`
-            : count === 2 && note.includes(" & ")
-              ? note.split(" · ")[0]
-              : count === 2 && note.startsWith("Settled #")
-                ? note
-                : "Bill Payment Given",
-          note,
-          isSettlement: !!(count > 2),
-        };
-      }
-      case "WITHDRAWAL":
-        return {
-          label: "Owner Withdrawal",
-          icon: <Banknote size={20} />,
-          color:
-            "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
-          note: "Personal Takeout",
-        };
-      case "PROFIT_WITHDRAWAL":
-        return {
-          label: "Profit Withdrawal",
-          icon: <Banknote size={20} />,
-          color:
-            "bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400",
-          note: "Taking Profits",
-        };
-      case "FUNDS_PLEDGED": {
-        const p = phones.find((ph) => ph.id === entry.referenceId);
-        return {
-          label: p ? `Hold: ${p.brand} ${p.model}` : "Capital Pledged",
-          icon: <ArrowRightLeft size={20} />,
-          color:
-            "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400",
-          note: "Moving to Escrow",
-        };
-      }
-      case "FUNDS_RELEASED": {
-        const r = phones.find((ph) => ph.id === entry.referenceId);
-        return {
-          label: r ? `Refund: ${r.brand} ${r.model}` : "Pledge Released",
-          icon: <ArrowRightLeft size={20} />,
-          color: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400",
-          note: "Escrow Refunded",
-        };
-      }
-      case "FUNDS_CONSUMED": {
-        const c = phones.find((ph) => ph.id === entry.referenceId);
-        const poId = entry.purchaseOrderId || entry.referenceId;
-        return {
-          label: c
-            ? `Buy: ${c.brand} ${c.model}`
-            : "Inventory Purchase",
-          icon: <Package size={20} />,
-          color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400",
-          note: poId ? `PO: #${poId.slice(0, 8).toUpperCase()}` : "Acquisition",
-        };
-      }
-      case "REPAIR_COST": {
-        const rp = phones.find((ph) => ph.id === entry.referenceId);
-        return {
-          label: rp ? `Repair: ${rp.brand} ${rp.model}` : "Repair Expense",
-          icon: <Wrench size={20} />,
-          color:
-            "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400",
-          note: (entry as any).note || "Repair Cost",
-        };
-      }
-      case "PHONE_SALE": {
-        const orderId = entry.saleOrderId || entry.referenceId;
-        return {
-          label: "Sale Order Income",
-          icon: <ShoppingBag size={20} />,
-          color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400",
-          note: orderId ? `Bill #${orderId.slice(0, 8).toUpperCase()}` : "Bill Payment",
-        };
-      }
-      default:
-        return {
-          label: "Unknown",
-          icon: <ArrowRightLeft size={20} />,
-          color:
-            "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
-          note: "",
-        };
-    }
+    const type = getType();
+    const ref = orderId ? `#${orderId.slice(0, 8).toUpperCase()}` : paymentId ? `PAY#${paymentId.slice(0, 6).toUpperCase()}` : "GENERAL";
+    const mode = entry.paymentMode || "CASH";
+    const timestamp = format(parseISO(entry.createdAt), "h:mm a");
+
+    // UI Configuration
+    const config = {
+      CAPITAL_TOPUP: { label: "Owner Injection", icon: <Landmark size={20} />, color: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" },
+      SETTLEMENT: { label: "Bill Receipt", icon: <User size={20} />, color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400" },
+      PAYOUT: { label: "Bill Payout", icon: <Building2 size={20} />, color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400" },
+      WITHDRAWAL: { label: "Owner Takeout", icon: <Banknote size={20} />, color: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400" },
+      PROFIT_TAKE: { label: "Profit Takeout", icon: <Banknote size={20} />, color: "bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400" },
+      PLEDGE: { label: "Funds Pledged", icon: <ArrowRightLeft size={20} />, color: "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400" },
+      REFUND: { label: "Funds Refunded", icon: <ArrowRightLeft size={20} />, color: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" },
+      PURCHASE: { label: "Stock Buy", icon: <Package size={20} />, color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400" },
+      REPAIR: { label: "Repair Payout", icon: <Wrench size={20} />, color: "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400" },
+      SALE: { label: "Stock Sale", icon: <ShoppingBag size={20} />, color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400" },
+    }[type] || { label: type, icon: <ArrowRightLeft size={20} />, color: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400" };
+
+    const parsedNote = parseStructuredNote(entry.note);
+
+    return {
+      ...config,
+      type,
+      ref,
+      mode,
+      timestamp,
+      note: parsedNote ? `${parsedNote.type} • ${parsedNote.ref} • ${parsedNote.mode}` : (entry.note || `${ref} • ${mode} • ${timestamp}`),
+      parsedNote,
+      isSettlement: !!paymentId,
+    };
   };
 
   return (
@@ -944,13 +869,19 @@ export default function LedgerPage() {
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center text-[10px]">
-                                  <span className="text-slate-500 dark:text-slate-400 truncate font-medium">
-                                    {details.note} •{" "}
-                                    {format(
-                                      parseISO(entry.createdAt),
-                                      "h:mm a",
-                                    )}
-                                  </span>
+                                  {(details as any).parsedNote ? (
+                                    <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
+                                      <span className="text-slate-900 dark:text-slate-200 font-bold">{(details as any).parsedNote.type}</span>
+                                      <span>•</span>
+                                      <span>{(details as any).parsedNote.ref}</span>
+                                      <span>•</span>
+                                      <span className="flex items-center gap-1"><Clock size={10} /> {(details as any).parsedNote.time}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-500 dark:text-slate-400 truncate font-medium">
+                                      {details.note}
+                                    </span>
+                                  )}
                                   {[
                                     "CAPITAL_INJECTION",
                                     "CUSTOMER_PAYMENT",

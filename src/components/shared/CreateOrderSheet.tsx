@@ -34,6 +34,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { toast } from "sonner";
+import ComingSoonModal from "./ComingSoonModal";
+import { useAppSelector } from "@/app/hooks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +49,7 @@ interface OrderItemDraft {
   phone: Phone;
   salePrice: string;
   discountAmount: string;
+  discountType: "FIXED" | "PERCENT";
 }
 
 // Hybrid payment channels (mirrors AddPhoneUpdate pattern)
@@ -64,6 +67,7 @@ export function CreateOrderSheet({
   const [items, setItems] = useState<OrderItemDraft[]>([]);
   const [showDiscounts, setShowDiscounts] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
 
   // ── Hybrid payment state (same pattern as AddPhoneUpdate) ─────────────────
   const [activePayTab, setActivePayTab] = useState<PayChannel>("CASH");
@@ -77,15 +81,20 @@ export function CreateOrderSheet({
   const { user } = useAuth();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const ledgerEntries = useAppSelector((state) => state.ledger.entries);
 
   // ── Reset when sheet opens ─────────────────────────────────────────────────
+  const prevOpen = React.useRef(open);
+
   React.useEffect(() => {
-    if (open) {
+    // Only reset if transitioning from closed to open
+    if (open && !prevOpen.current) {
       setItems(
         initialPhones.map((p) => ({
           phone: p,
           salePrice: p.salePrice ? String(p.salePrice) : "",
           discountAmount: "",
+          discountType: "FIXED",
         })),
       );
       setCustomer(null);
@@ -98,13 +107,18 @@ export function CreateOrderSheet({
       setNotes("");
       setShowDiscounts(false);
     }
-  }, [open, initialPhones]);
+    prevOpen.current = open;
+  }, [open]);
 
   // ── Derived amounts ────────────────────────────────────────────────────────
   const totalAmount = useMemo(() => {
     return items.reduce((sum, item) => {
       const price = parseFloat(item.salePrice) || 0;
-      const discount = parseFloat(item.discountAmount) || 0;
+      const discountVal = parseFloat(item.discountAmount) || 0;
+      const discount =
+        item.discountType === "PERCENT"
+          ? price * (discountVal / 100)
+          : discountVal;
       return sum + Math.max(0, price - discount);
     }, 0);
   }, [items]);
@@ -137,6 +151,10 @@ export function CreateOrderSheet({
     const orderId = crypto.randomUUID();
     const ts = new Date().toISOString();
 
+    const paymentNote = totalPaid > 0 
+      ? `[ADVANCE] [#${orderId.slice(0, 8).toUpperCase()}] [${dominantPayMode}][${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] [₹${totalPaid.toLocaleString()}]`
+      : undefined;
+
     const order: SaleOrder = {
       id: orderId,
       counterpartyId: customer.id,
@@ -153,24 +171,31 @@ export function CreateOrderSheet({
       paymentMode: dominantPayMode,
       dueDate: requiresDueDate ? dueDateStr : undefined,
       notes: notes || undefined,
+      paymentNote, // Pass the generated note
       createdAt: ts,
-      items: items.map((draft) => ({
-        id: crypto.randomUUID(),
-        saleOrderId: orderId,
-        phoneId: draft.phone.id,
-        salePrice: parseFloat(draft.salePrice) || 0,
-        discountAmount: parseFloat(draft.discountAmount) || 0,
-        effectivePrice: Math.max(
-          0,
-          (parseFloat(draft.salePrice) || 0) -
-            (parseFloat(draft.discountAmount) || 0),
-        ),
-        imeiSnapshot: draft.phone.imeis || [],
-        brandSnapshot: draft.phone.brand,
-        modelSnapshot: draft.phone.model,
-        storageSnapshot: draft.phone.storage,
-        colorSnapshot: draft.phone.color,
-      })),
+      items: items.map((draft) => {
+        const price = parseFloat(draft.salePrice) || 0;
+        const discountVal = parseFloat(draft.discountAmount) || 0;
+        const discountAmt =
+          draft.discountType === "PERCENT"
+            ? price * (discountVal / 100)
+            : discountVal;
+        const effectivePrice = Math.max(0, price - discountAmt);
+
+        return {
+          id: crypto.randomUUID(),
+          saleOrderId: orderId,
+          phoneId: draft.phone.id,
+          salePrice: price,
+          discountAmount: discountAmt,
+          effectivePrice,
+          imeiSnapshot: draft.phone.imeis || [],
+          brandSnapshot: draft.phone.brand,
+          modelSnapshot: draft.phone.model,
+          storageSnapshot: draft.phone.storage,
+          colorSnapshot: draft.phone.color,
+        };
+      }),
     };
 
     // ── FK-safe dispatch order (mirrors AddPhoneUpdate) ────────────────────
@@ -206,8 +231,8 @@ export function CreateOrderSheet({
           saleOrderId: orderId,
           customerPaymentId: crypto.randomUUID(), // Temp ID for audit trail
           amount: totalPaid,
-          note: `Initial Bill Receipt · #${orderId.slice(0, 8).toUpperCase()}`,
-          recordedBy: user?.id || 'system',
+          note: paymentNote || `Initial Bill Receipt · #${orderId.slice(0, 8).toUpperCase()}`,
+          recordedBy: user?.id || "system",
           createdAt: ts,
         }),
       );
@@ -221,11 +246,36 @@ export function CreateOrderSheet({
 
   const updateItem = (
     id: string,
-    field: "salePrice" | "discountAmount",
-    val: string,
+    field: keyof Omit<OrderItemDraft, "phone">,
+    val: any,
   ) => {
-    setItems(
-      items.map((it) => (it.phone.id === id ? { ...it, [field]: val } : it)),
+    setItems((currentItems) =>
+      currentItems.map((it) => {
+        if (it.phone.id !== id) return it;
+
+        let finalVal = val;
+        let finalItem = { ...it, [field]: finalVal };
+
+        // Validation: Clamp percentage discounts between 0-100
+        // Case A: Regular amount update in percent mode
+        if (
+          field === "discountAmount" &&
+          it.discountType === "PERCENT" &&
+          val !== ""
+        ) {
+          const numeric = parseFloat(val) || 0;
+          if (numeric > 100) finalItem.discountAmount = "100";
+          if (numeric < 0) finalItem.discountAmount = "0";
+        }
+
+        // Case B: Switching mode to PERCENT with a high existing amount
+        if (field === "discountType" && val === "PERCENT") {
+          const numeric = parseFloat(it.discountAmount) || 0;
+          if (numeric > 100) finalItem.discountAmount = "100";
+        }
+
+        return finalItem;
+      }),
     );
   };
 
@@ -264,10 +314,10 @@ export function CreateOrderSheet({
               </div>
               <div>
                 <SheetTitle className="text-base font-black text-slate-900 dark:text-slate-100 leading-tight">
-                  Create Sales Order
+                  Sales Order
                 </SheetTitle>
                 <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                  Sell devices · multi-channel payment
+                  Sell devices
                 </p>
               </div>
             </div>
@@ -300,6 +350,10 @@ export function CreateOrderSheet({
                             return toast.error(
                               `Upgrade to ${type === "BULK" ? "Pro" : "Enterprise"} to unlock.`,
                             );
+                          if (type === "TRANSFER") {
+                            setComingSoonOpen(true);
+                            return;
+                          }
                           setOrderType(type);
                         }}
                         className={clsx(
@@ -386,8 +440,23 @@ export function CreateOrderSheet({
                   <div className="space-y-3">
                     {items.map((item, index) => {
                       const price = parseFloat(item.salePrice) || 0;
-                      const discount = parseFloat(item.discountAmount) || 0;
-                      const effective = Math.max(0, price - discount);
+                      const discountVal = parseFloat(item.discountAmount) || 0;
+                      const discountAmt =
+                        item.discountType === "PERCENT"
+                          ? price * (discountVal / 100)
+                          : discountVal;
+                      const effective = Math.max(0, price - discountAmt);
+
+                      const repairs = ledgerEntries
+                        .filter(
+                          (e) =>
+                            e.type === "REPAIR_COST" &&
+                            e.referenceId === item.phone.id,
+                        )
+                        .reduce((s, e) => s + Math.abs(e.amount), 0);
+                      const totalCost = item.phone.purchasePrice + repairs;
+                      const projectedPrice = Math.round(totalCost * 1.25);
+
                       return (
                         <div
                           key={item.phone.id}
@@ -404,15 +473,16 @@ export function CreateOrderSheet({
                                 </p>
                                 <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
                                   {item.phone.storage} · {item.phone.color} ·{" "}
-                                  {item.phone.imeis?.[0]?.slice(-6) ||
-                                    "No IMEI"}
+                                  {item.phone.imeis?.[0]
+                                    ? `**** ${item.phone.imeis[0].slice(-4)}`
+                                    : "No IMEI"}
                                 </p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              {discount > 0 && (
+                              {discountAmt > 0 && (
                                 <span className="text-[10px] font-bold bg-rose-50 dark:bg-rose-900/30 text-rose-500 px-1.5 py-0.5 rounded">
-                                  -₹{discount.toLocaleString("en-IN")}
+                                  -₹{discountAmt.toLocaleString("en-IN")}
                                 </span>
                               )}
                               <span className="text-sm font-black text-primary-500">
@@ -427,43 +497,91 @@ export function CreateOrderSheet({
                               </button>
                             </div>
                           </div>
+
                           <div
                             className={clsx(
-                              "p-3 grid gap-3",
-                              showDiscounts ? "grid-cols-2" : "grid-cols-1",
+                              "p-3 grid gap-x-3 gap-y-1.5",
+                              showDiscounts
+                                ? "grid-cols-[2fr_1fr]"
+                                : "grid-cols-1",
                             )}
                           >
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                            {/* Headers Section */}
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                                 Sale Price
                               </label>
+                              <span className="text-[9px] font-black text-rose-500/70 dark:text-rose-400/50 uppercase tracking-tight">
+                                Cost: ₹{totalCost.toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                            {showDiscounts && (
+                              <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">
+                                  Discount
+                                </label>
+                                <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateItem(
+                                        item.phone.id,
+                                        "discountType",
+                                        "FIXED",
+                                      )
+                                    }
+                                    className={clsx(
+                                      "px-2 py-0.5 rounded-md text-[10px] font-black transition-all",
+                                      item.discountType === "FIXED"
+                                        ? "bg-white dark:bg-slate-700 text-primary-600 shadow-sm"
+                                        : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
+                                    )}
+                                  >
+                                    ₹
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateItem(
+                                        item.phone.id,
+                                        "discountType",
+                                        "PERCENT",
+                                      )
+                                    }
+                                    className={clsx(
+                                      "px-2 py-0.5 rounded-md text-[10px] font-black transition-all",
+                                      item.discountType === "PERCENT"
+                                        ? "bg-white dark:bg-slate-700 text-primary-600 shadow-sm"
+                                        : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
+                                    )}
+                                  >
+                                    %
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Inputs Section */}
+                            <CurrencyInput
+                              size="sm"
+                              value={item.salePrice}
+                              onChange={(v) =>
+                                updateItem(item.phone.id, "salePrice", v)
+                              }
+                              placeholder={String(projectedPrice)}
+                            />
+                            {showDiscounts && (
                               <CurrencyInput
                                 size="sm"
-                                value={item.salePrice}
+                                value={item.discountAmount}
+                                symbol={
+                                  item.discountType === "PERCENT" ? "%" : "₹"
+                                }
                                 onChange={(v) =>
-                                  updateItem(item.phone.id, "salePrice", v)
+                                  updateItem(item.phone.id, "discountAmount", v)
                                 }
                                 placeholder="0"
                               />
-                            </div>
-                            {showDiscounts && (
-                              <div>
-                                <label className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1.5 block">
-                                  Discount (₹)
-                                </label>
-                                <CurrencyInput
-                                  size="sm"
-                                  value={item.discountAmount}
-                                  onChange={(v) =>
-                                    updateItem(
-                                      item.phone.id,
-                                      "discountAmount",
-                                      v,
-                                    )
-                                  }
-                                  placeholder="0"
-                                />
-                              </div>
                             )}
                           </div>
                         </div>
@@ -636,6 +754,7 @@ export function CreateOrderSheet({
                         type="date"
                         value={dueDateStr}
                         onChange={(e) => setDueDateStr(e.target.value)}
+                        min={new Date().toISOString().split("T")[0]}
                         className="w-full h-11 px-3 rounded-xl border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:border-amber-500 outline-none transition-colors"
                       />
                     </div>
@@ -653,9 +772,9 @@ export function CreateOrderSheet({
               disabled={isExpired}
               className={clsx(
                 "w-full py-4 rounded-2xl font-black text-base shadow-lg flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]",
-                isExpired 
-                  ? "bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none" 
-                  : "bg-primary-500 hover:bg-blue-800 text-white shadow-blue-900/20"
+                isExpired
+                  ? "bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none"
+                  : "bg-primary-500 hover:bg-blue-800 text-white shadow-blue-900/20",
               )}
             >
               <ShoppingCart size={20} strokeWidth={2.5} />
@@ -677,11 +796,18 @@ export function CreateOrderSheet({
               phone: p,
               salePrice: p.salePrice ? String(p.salePrice) : "",
               discountAmount: "",
+              discountType: "FIXED" as const,
             }));
           const confirmIds = new Set(phones.map((p) => p.id));
           const retained = items.filter((it) => confirmIds.has(it.phone.id));
           setItems([...retained, ...newItems]);
         }}
+      />
+      <ComingSoonModal
+        isOpen={comingSoonOpen}
+        onClose={() => setComingSoonOpen(false)}
+        title="Inter-Tenant Transfer"
+        description="We are building a seamless way to transfer stock between business locations. Keep an eye out for Milestone 3.0!"
       />
     </>
   );

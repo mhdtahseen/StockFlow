@@ -20,10 +20,13 @@ import {
   SlidersHorizontal,
   Share,
   Loader2,
+  Clock,
+  ExternalLink,
 } from "lucide-react";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { format, parseISO, compareDesc } from "date-fns";
 import clsx from "clsx";
+import { parseStructuredNote } from "@/utils/financeUtils";
 import { SaleOrder } from "@/features/billing/types";
 import { CustomerPayment } from "@/features/customers/types";
 import { AllocationSheet } from "@/components/shared/AllocationSheet";
@@ -101,7 +104,10 @@ export default function CustomerDetail() {
     const apPayments = allSupplierPayments
       .filter((p) => p.counterpartyId === id)
       .map((p) => ({ ...p, isAp: true }));
-    return [...arPayments, ...apPayments].sort((a, b) => {
+    return [...arPayments, ...apPayments].map(p => ({
+      ...p,
+      parsedNote: parseStructuredNote((p as any).note)
+    })).sort((a, b) => {
       const dateA = (a as any).receivedAt || (a as any).paidAt;
       const dateB = (b as any).receivedAt || (b as any).paidAt;
       return new Date(dateB).getTime() - new Date(dateA).getTime();
@@ -139,7 +145,12 @@ export default function CustomerDetail() {
         o.status !== "CANCELLED",
     )
     .reduce((s, o) => s + (o.totalAmount - o.amountPaid), 0);
-  const mergedTimeline = [...orders, ...payments].sort((a, b) => {
+  const mergedTimeline = [...orders, ...payments].map(item => {
+    if ("note" in item) {
+      return { ...item, parsedNote: parseStructuredNote((item as any).note) };
+    }
+    return item;
+  }).sort((a, b) => {
     const dateA =
       "createdAt" in a
         ? (a as SaleOrder).createdAt
@@ -544,7 +555,16 @@ export default function CustomerDetail() {
                         <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700">
                           {mode}
                         </span>
-                        {p.note && (
+                        {p.parsedNote ? (
+                           <div className="flex items-center gap-1.5 overflow-hidden">
+                             <span className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tighter shrink-0">
+                               {p.parsedNote.type}
+                             </span>
+                             <span className="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded shrink-0">
+                               {p.parsedNote.ref}
+                             </span>
+                           </div>
+                        ) : p.note && (
                           <span className="text-[10px] font-medium text-slate-400 truncate">
                             {p.note}
                           </span>
@@ -708,9 +728,21 @@ export default function CustomerDetail() {
                             )}
                           </span>
                         <div className="flex justify-between text-xs font-medium">
-                          <span className="text-slate-500 capitalize">
-                            Via {p.mode.toLowerCase()}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-slate-500 capitalize flex items-center gap-1">
+                              Via {p.mode.toLowerCase()}
+                            </span>
+                            {p.parsedNote && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tighter">
+                                  {p.parsedNote.type}
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1 rounded-sm">
+                                  {p.parsedNote.ref}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                           <span
                             className={clsx(
                               "font-black",

@@ -23,6 +23,7 @@ A mobile-first, offline-resilient PWA designed for high-frequency inventory mana
 - ✓ **v2.2 PO Invoicing**: Professional PDF generation with rejected items logic.
 - ✓ **v2.2 Secure Sharing**: Token-based document sharing with 30-day expiry.
 - ✓ **v2.3 TWA Hardening**: Notch/safe-area support and native-feel integration.
+- ✓ **v2.5 Phone Lifecycle**: Vertical history timeline and tabbed detail UI.
 
 - [ ] **Multi-Tenant Security Audit**: Final RLS/Isolation verification (Phase 5 Part 2).
 - [ ] **Alpha Deployment Readiness**: Final performance, SEO, and vulnerability check.
@@ -30,7 +31,7 @@ A mobile-first, offline-resilient PWA designed for high-frequency inventory mana
 ### Out of Scope (For Now)
 - **Overhead Accounting**: Rent, electricity, and salaries are deferred to post-MVP 2.
 - **Subscription Gatekeeping**: Moved to MVP 3.
-- **Tenant-to-Tenant Transfers**: Moved to MVP 3.
+- **Tenant-to-Tenant Transfers**: Moved to Backlog (v2.6).
 
 ## Key Decisions
 
@@ -41,16 +42,14 @@ A mobile-first, offline-resilient PWA designed for high-frequency inventory mana
 | **TWA vs PWA** | Native feel on Android via Play Store deployment while maintaining web codebase. | — Active |
 | **SAT OCR Logic** | Switched to Summed Area Tables (Integral Image) for O(N) thresholding to eliminate UI freezes. | — v2.1 |
 
-## Current Milestone: v2.4 PO Stability & Lifecycle Management
+## Current Milestone: v2.5 Phone Lifecycle & Enhanced UI (COMPLETED)
 
-**Goal**: Resolve critical data persistence issues, stabilize inspection/timeline logic, and implement full CRUD for Purchase Orders.
+**Goal**: Transform phone details into a comprehensive lifecycle hub with financial transparency and historical visibility.
 
-**Target features**:
-- **PO Data Integrity**: Fix data loss on refresh and PR download.
-- **Inspection Logic**: Stabilize inspection state and IMEI tracking.
-- **Financial & Timeline**: Breakdown Note tabs and fix timeline ordering/payments.
-- **PO Management**: Implement full Edit (with cascade) and Delete flows.
-- **UI/UX Refinement**: Fix mobile autocomplete and share button.
+**Validated features**:
+- **UI Tabbed Interface**: Details (Specs/Issues), Finance (Ledger context), and History (Lifecycle).
+- **Vibrant Timeline**: Unified history of purchase, repair, and sales events.
+- **Action UX**: Persistent action bar with Repair, SO, and Share actions.
 
 ## Evolution
 
@@ -69,8 +68,8 @@ This document evolves at phase transitions and milestone boundaries.
 3. Audit Out of Scope — reasons still valid?
 4. Update Context with current state
 
-Current Version: **v2.4** (PO Stability & CRUD)
-Next Version: **v2.5** (Expansion & Scaling)
+Current Version: **v2.5** (Phone Lifecycle & Enhanced UI)
+Next Version: **v2.7** (Alpha Deployment & Security Audit)
 
 ---
-*Last updated: 2026-04-14 after Milestone 2 Activation*
+*Last updated: 2026-04-18 after Phase 10 Completion*

@@ -210,7 +210,7 @@ export const syncActionToSupabase = async (
             storage: i.storageSnapshot,
             color: i.colorSnapshot,
           })),
-          p_payment_note: null,
+          p_payment_note: payload.paymentNote ?? null,
         });
         if (error) throw error;
         break;
@@ -262,6 +262,7 @@ export const syncActionToSupabase = async (
             imei: i.imei,
             issue_tags: i.issueTags || [],
           })),
+          p_payment_note: payload.paymentNote ?? null,
         });
         if (error) throw error;
         break;
@@ -288,6 +289,7 @@ export const syncActionToSupabase = async (
             note: a.note,
           })),
           p_note: payload.note ?? null,
+          p_type: payload.type ?? "CUSTOMER_PAYMENT",
         });
         if (error) throw error;
         break;
@@ -337,75 +339,21 @@ export const syncActionToSupabase = async (
         break;
       }
       case "purchasing/confirmReceipt": {
-        // 1. Update PO Status and Totals
-        const { error: poError } = await supabase
-          .from("purchase_orders")
-          .upsert({
-            id: payload.id,
-            status: payload.status,
-            phones_received: payload.phonesReceived,
-            total_amount: payload.totalAmount,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
-        
-        if (poError) throw poError;
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-        // 2. Update PO Items (Snapshots & Results)
-        if (payload.items && payload.items.length > 0) {
-          const itemUpdates = payload.items.map((it: any) => ({
-            id: it.id,
-            purchase_order_id: payload.id,
-            status: it.status,
-            phone_id: it.phoneId,
-            rejection_reason: it.rejectionReason,
-            purchase_price: it.purchasePrice,
-            brand: it.brand,
-            model: it.model,
-            storage: it.storage,
-            color: it.color,
-            ram: it.ram,
-            imei: it.imei,
-            issue_tags: it.issueTags || [],
-          }));
+        const { error } = await supabase.rpc("certify_po_receipt", {
+          p_order_id: payload.id,
+          p_items: payload.items,
+          p_status: payload.status,
+          p_phones_received: payload.phonesReceived,
+          p_total_amount: payload.totalAmount,
+          p_tenant_id: tenant_id,
+          p_user_id: user?.id,
+        });
 
-          const { error: itemsError } = await supabase
-            .from("purchase_order_items")
-            .upsert(itemUpdates);
-          
-          if (itemsError) throw itemsError;
-
-          // 3. Insert ACCEPTED phones into Inventory
-          const { data: { user } } = await supabase.auth.getUser();
-
-          const phonesToInsert = payload.items
-            .filter((it: any) => it.status === "ACCEPTED" && it.phone)
-            .map((it: any) => ({
-              id: it.phone.id,
-              tenant_id: tenant_id,
-              user_id: user?.id,
-              brand: it.phone.brand,
-              model: it.phone.model,
-              ram: it.phone.ram || "N/A",
-              storage: it.phone.storage,
-              color: it.phone.color,
-              imeis: it.phone.imeis || [],
-              purchase_price: it.phone.purchasePrice,
-              sale_price: it.phone.salePrice || null,
-              status: it.phone.status || "IN_STOCK",
-              issue_tags: it.phone.issueTags || [],
-              purchase_order_id: payload.id, 
-              created_at: it.phone.createdAt || new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }));
-
-          if (phonesToInsert.length > 0) {
-            const { error: phonesError } = await supabase
-              .from("phones")
-              .upsert(phonesToInsert); 
-            
-            if (phonesError) throw phonesError;
-          }
-        }
+        if (error) throw error;
         break;
       }
       case "customers/addCustomer": {
@@ -529,4 +477,51 @@ export const syncActionToSupabase = async (
     
     return false; // Sync failed
   }
+};
+
+// ─── UNIT REGISTRY & LIFECYCLE (PHASE 10) ──────────────────────────
+
+/** Look up device specs in the global registry by IMEI */
+export const lookupUnitByImei = async (imei: string) => {
+  if (!imei || imei.length < 15) return null;
+  
+  const { data, error } = await supabase
+    .from("unit_registry")
+    .select("*")
+    .or(`imei1.eq.${imei},imei2.eq.${imei}`)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Registry lookup failed:", error);
+    return null;
+  }
+  return data;
+};
+
+/** Get global lifecycle history for a unit by its IMEIs */
+export const getUnitHistory = async (imeis: string[]) => {
+  if (!imeis || imeis.length === 0) return [];
+
+  // 1. Find the unit ID from the registry
+  const { data: unit, error: unitError } = await supabase
+    .from("unit_registry")
+    .select("id")
+    .or(`imei1.in.(${imeis.join(",")}),imei2.in.(${imeis.join(",")})`)
+    .maybeSingle();
+
+  if (unitError || !unit) return [];
+
+  // 2. Fetch all lifecycle events for this unit
+  const { data, error } = await supabase
+    .from("unit_lifecycle")
+    .select("*")
+    .eq("unit_id", unit.id)
+    .order("event_date", { ascending: false });
+
+  if (error) {
+    console.error("Lifecycle fetch failed:", error);
+    return [];
+  }
+
+  return data;
 };

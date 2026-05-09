@@ -14,7 +14,8 @@ export type LedgerEntryType =
   | "DEBT_PLEDGED"
   | "DEBT_SETTLEMENT"
   | "ADVANCE_RECEIVED"
-  | "ADVANCE_SUPPLIER";
+  | "ADVANCE_SUPPLIER"
+  | "OPERATIONAL_EXPENSE";
 
 // Mirrors the DB CHECK constraint on ledger.payment_mode
 export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CREDIT";

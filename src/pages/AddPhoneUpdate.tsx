@@ -23,6 +23,8 @@ import CurrencyInput from "../components/ui/CurrencyInput";
 import { CustomerPicker } from "../components/ui/CustomerPicker";
 import { Customer } from "../features/customers/types";
 import ImeiSection from "../components/ImeiSection";
+import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
+import { PLATFORM_CATALOG } from "../data/platforms";
 import clsx from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -80,6 +82,7 @@ export default function AddPhoneUpdate() {
   const [channel, setChannel] = useState<AcquisitionChannel>("DIRECT");
   const [vendor, setVendor] = useState<Customer | null>(null);
   const [platformFeeStr, setPlatformFeeStr] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState("");
 
   // ── Device rows ───────────────────────────────────────────────────────────
   const [rows, setRows] = useState<DeviceRow[]>([makeRow()]);
@@ -137,8 +140,29 @@ export default function AddPhoneUpdate() {
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────────
+  const customers = useAppSelector((state) => state.customers.customers);
+
   const handleSubmit = () => {
-    if (!vendor) return toast.error("Please select a supplier");
+    // Determine effective counterparty
+    let effectiveVendor = vendor;
+    if (channel === "PLATFORM") {
+      // Find the 'Platforms' generic customer if exists
+      effectiveVendor = customers.find(c => 
+        c.name.toLowerCase().includes("platform") || 
+        c.businessName?.toLowerCase().includes("platform")
+      );
+      
+      if (!effectiveVendor && customers.length > 0) {
+        // Fallback to first vendor if no platform account found
+        effectiveVendor = customers[0];
+      }
+    }
+
+    if (!effectiveVendor) return toast.error(channel === "PLATFORM" ? "Please create a customer named 'Platforms' first" : "Please select a supplier");
+    
+    if (channel === "PLATFORM" && !selectedPlatform) {
+      return toast.error("Please select a platform (Cashify, OLX, etc.)");
+    }
     for (const r of rows) {
       if (!r.brand || !r.model || !r.purchasePrice) {
         return toast.error(
@@ -163,8 +187,9 @@ export default function AddPhoneUpdate() {
 
     const po: PurchaseOrder = {
       id: poId,
-      counterpartyId: vendor.id,
+      counterpartyId: effectiveVendor.id,
       acquisitionChannel: channel,
+      platformName: channel === "PLATFORM" ? selectedPlatform : undefined,
       platformFee,
       phonesOrdered: rows.length,
       phonesReceived: rows.length,
@@ -172,6 +197,7 @@ export default function AddPhoneUpdate() {
       amountPaid: totalPaid,
       status: outstanding <= 0 ? "SETTLED" : "PARTIAL",
       dueDate: dueDateStr || undefined,
+      notes: channel === "PLATFORM" ? `Source: ${selectedPlatform}${notes ? ` | ${notes}` : ""}` : notes,
       createdAt: ts,
       items: poItems,
     };
@@ -223,11 +249,11 @@ export default function AddPhoneUpdate() {
         addEntry({
           id: crypto.randomUUID(),
           createdAt: ts,
-          description: `Payment to ${vendor.name}`,
+          description: channel === "PLATFORM" ? `Payment for ${selectedPlatform} Order` : `Payment to ${effectiveVendor.name}`,
           type: "FUNDS_CONSUMED",
           amount: -totalPaid,
           balanceAfter: 0,
-          counterpartyId: vendor.id,
+          counterpartyId: effectiveVendor.id,
           purchaseOrderId: poId,
           paymentMode: "CASH",
           status: "PENDING", // PENDING so that ledger sync can replace it without duplicate
@@ -289,9 +315,19 @@ export default function AddPhoneUpdate() {
               <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
                 {channel === "DIRECT"
                   ? "Supplier / Vendor"
-                  : "Platform / Marketplace"}
+                  : "Platform Name"}
               </label>
-              <CustomerPicker selectedId={vendor?.id} onSelect={setVendor} />
+              {channel === "DIRECT" ? (
+                <CustomerPicker selectedId={vendor?.id} onSelect={setVendor} />
+              ) : (
+                <ReusableAutocomplete
+                  data={PLATFORM_CATALOG}
+                  value={selectedPlatform}
+                  onChange={setSelectedPlatform}
+                  placeholder="Select Platform (Cashify, OLX...)"
+                  icon={<Building size={16} />}
+                />
+              )}
             </div>
 
             {channel === "PLATFORM" && (

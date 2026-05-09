@@ -98,7 +98,7 @@ export function DeviceListItem({
           
           <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 leading-none">
             {imeis && imeis.length > 0 ? (
-              `IMEI: ${imeis.map(i => `•••• ${i.slice(-4)}`).join(" / ")}`
+              `IMEI: ${imeis.map(i => `**** ${i.slice(-4)}`).join(" / ")}`
             ) : (
               <span className="italic opacity-50">IMEI Not Assigned</span>
             )}

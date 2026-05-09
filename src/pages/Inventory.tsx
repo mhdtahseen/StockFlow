@@ -648,7 +648,7 @@ export default function Inventory() {
                                   .length > 0
                                   ? phone.imeis
                                       .filter((i) => i.length >= 4)
-                                      .map((i) => `•••• ${i.slice(-4)}`)
+                                      .map((i) => `**** ${i.slice(-4)}`)
                                       .join(" / ")
                                   : "—"}
                               </span>

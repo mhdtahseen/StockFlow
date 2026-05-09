@@ -6,10 +6,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
+import { CatalogAutocomplete } from "@/components/ui/CatalogAutocomplete";
+import { useDeviceCatalog, sortBySize } from "@/hooks/useDeviceCatalog";
+import { usePlan } from "@/hooks/usePlan";
 import { Button } from "@/components/ui/button";
-import { useAppDispatch } from "@/app/hooks";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { addPurchaseOrder } from "@/features/purchasing/slice";
-
 import { useAuth } from "@/context/AuthContext";
 import type {
   PurchaseOrder,
@@ -18,10 +20,8 @@ import type {
 } from "@/features/purchasing/types";
 import { Customer } from "@/features/customers/types";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
-import { CatalogAutocomplete } from "@/components/ui/CatalogAutocomplete";
-import { useDeviceCatalog, sortBySize } from "@/hooks/useDeviceCatalog";
-import { usePlan } from "@/hooks/usePlan";
-import ImeiScannerModal from "../ImeiScannerModal";
+import ImeiSection from "../ImeiSection";
+import type { ImeiEntry } from "@/utils/validateImei";
 import {
   Search,
   Plus,
@@ -31,11 +31,15 @@ import {
   Info,
   Calculator,
   LayoutGrid,
-  Camera,
 } from "lucide-react";
 import CurrencyInput from "@/components/ui/CurrencyInput";
 import clsx from "clsx";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, Building } from "lucide-react";
+import ReusableAutocomplete from "../ui/ReusableAutocomplete";
+import { PLATFORM_CATALOG } from "@/data/platforms";
+import { lookupUnitByImei } from "@/app/supabaseApi";
 
 interface Props {
   open: boolean;
@@ -50,7 +54,8 @@ interface DeviceRow {
   storage: string;
   color: string;
   purchasePrice: string;
-  imei: string;
+  imeis: ImeiEntry[];
+  isAutoPopulated?: boolean;
 }
 
 export function BatchAddSheet({ open, onOpenChange }: Props) {
@@ -67,6 +72,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
 
   const [supplier, setSupplier] = useState<Customer | null>(null);
   const [channel, setChannel] = useState<AcquisitionChannel>("DIRECT");
+  const [selectedPlatform, setSelectedPlatform] = useState("");
   const [platformFeeStr, setPlatformFeeStr] = useState<string>("0");
   const [cashAmountStr, setCashAmountStr] = useState<string>("0");
   const [upiAmountStr, setUpiAmountStr] = useState<string>("0");
@@ -86,14 +92,11 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       storage: "",
       color: "",
       purchasePrice: "",
-      imei: "",
+      imeis: [{ value: "", status: "UNVERIFIED" }],
     },
   ]);
   const [bulkPriceStr, setBulkPriceStr] = useState("");
 
-  // Scanner State
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanningRowId, setScanningRowId] = useState<string | null>(null);
 
   // Draft Persistence logic
   const DRAFT_KEY = `sf_draft_po_${user?.id}`;
@@ -105,7 +108,12 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       if (saved) {
         try {
           const { rows: savedRows, bulkPriceStr: savedBulk, supplier: savedSup, channel: savedChan } = JSON.parse(saved);
-          setRows(savedRows);
+          // Migrate old drafts that had 'imei' string instead of 'imeis' array
+          const migratedRows = savedRows.map((r: any) => ({
+            ...r,
+            imeis: r.imeis || (r.imei ? [{ value: r.imei, status: 'UNVERIFIED' }] : [{ value: '', status: 'UNVERIFIED' }])
+          }));
+          setRows(migratedRows);
           setBulkPriceStr(savedBulk);
           if (savedSup) setSupplier(savedSup);
           if (savedChan) setChannel(savedChan);
@@ -131,7 +139,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
             storage: "",
             color: "",
             purchasePrice: "",
-            imei: "",
+            imeis: [{ value: "", status: "UNVERIFIED" }],
           },
         ]);
         setBulkPriceStr("");
@@ -159,13 +167,48 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       const next = [...prev];
       next[rowIndex] = { ...next[rowIndex], ...updates };
 
-      // IMEI Duplicate Check
-      if (updates.imei !== undefined && updates.imei.length > 0) {
-        const isDuplicate = prev.some(r => r.id !== id && r.imei === updates.imei);
-        if (isDuplicate) {
-          toast.error(`Duplicate IMEI detected: ${updates.imei}`, {
-            id: `dup-imei-${id}`,
-            duration: 3000,
+      // IMEI Duplicate Check & Registry Lookup (Phase 10)
+      if (updates.imeis !== undefined) {
+        updates.imeis.forEach((imeiEntry) => {
+          if (imeiEntry.value.length > 0) {
+            const isDuplicate = prev.some(
+              (r) =>
+                r.id !== id && r.imeis.some((ei) => ei.value === imeiEntry.value),
+            );
+            if (isDuplicate) {
+              toast.error(`Duplicate IMEI detected: ${imeiEntry.value}`, {
+                id: `dup-imei-${id}-${imeiEntry.value}`,
+                duration: 3000,
+              });
+            }
+          }
+        });
+
+        // Registry Lookup (Phase 10) - Check any IMEI entry for 15-digit length
+        const anyValidImei = updates.imeis.find((i) => i.value.length === 15)?.value;
+        if (anyValidImei) {
+          lookupUnitByImei(anyValidImei).then((registryData) => {
+            if (registryData) {
+              setRows((current) =>
+                current.map((r) =>
+                  r.id === id
+                    ? {
+                        ...r,
+                        brand: registryData.brand || r.brand,
+                        model: registryData.model || r.model,
+                        ram: registryData.ram || r.ram,
+                        storage: registryData.storage || r.storage,
+                        color: registryData.color || r.color,
+                        isAutoPopulated: true,
+                      }
+                    : r,
+                ),
+              );
+              toast.success("Device specs auto-filled from registry", {
+                icon: <Sparkles className="size-4 text-amber-500" />,
+                id: `registry-hit-${id}`,
+              });
+            }
           });
         }
       }
@@ -243,7 +286,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
           storage: "",
           color: "",
           purchasePrice: "",
-          imei: "",
+          imeis: [{ value: "", status: "UNVERIFIED" }],
         },
       ];
       // When adding a row, we just update the total sum (the new row starts at 0)
@@ -270,18 +313,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
     }
   };
 
-  const startScanning = (id: string) => {
-    setScanningRowId(id);
-    setIsScanning(true);
-  };
-
-  const handleScanSuccess = (imei: string) => {
-    if (scanningRowId) {
-      updateRow(scanningRowId, { imei });
-      setIsScanning(false);
-      setScanningRowId(null);
-    }
-  };
+  // Legacy scan handlers removed - handled by ImeiSection
 
   const applyEqualDistribution = () => {
     const price = parseFloat(bulkPriceStr);
@@ -318,9 +350,30 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
             ? "BANK_TRANSFER"
             : "CREDIT";
 
+  const customers = useAppSelector((state) => state.customers.customers);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplier) return toast.error("Please select a supplier");
+
+    // Determine effective counterparty
+    let effectiveSupplier = supplier;
+    if (channel === "PLATFORM") {
+      // Find the 'Platforms' generic customer if exists
+      effectiveSupplier = customers.find(c => 
+        c.name.toLowerCase().includes("platform") || 
+        c.businessName?.toLowerCase().includes("platform")
+      ) || null;
+      
+      if (!effectiveSupplier && customers.length > 0) {
+        effectiveSupplier = customers[0];
+      }
+    }
+
+    if (!effectiveSupplier) return toast.error(channel === "PLATFORM" ? "Please create a customer named 'Platforms' first" : "Please select a supplier");
+    if (channel === "PLATFORM" && !selectedPlatform) {
+      return toast.error("Please select a platform (Cashify, OLX, etc.)");
+    }
+
     if (isCredit && !dueDateStr)
       return toast.error("Please provide a due date");
     if (!canUse("purchase_orders"))
@@ -338,13 +391,14 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       ram: r.ram,
       storage: r.storage,
       color: r.color,
-      imei: r.imei,
+      imei: r.imeis.filter(i => i.value.length > 0).map(i => i.value).join(" / "),
     }));
 
     const order: PurchaseOrder = {
       id: orderId,
-      counterpartyId: supplier.id,
+      counterpartyId: effectiveSupplier.id,
       acquisitionChannel: channel,
+      platformName: channel === "PLATFORM" ? selectedPlatform : undefined,
       totalAmount,
       platformFee,
       amountPaid,
@@ -354,6 +408,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       phonesReceived: 0,
       // P3-BUG-24: Store raw date string — avoid .toISOString() which shifts timezone in IST+5:30
       dueDate: isCredit ? dueDateStr : undefined,
+      notes: channel === "PLATFORM" ? `Source: ${selectedPlatform}` : undefined,
       createdAt: new Date().toISOString(),
       items: orderItems as any, // Extend if needed in types
     };
@@ -404,12 +459,22 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
             <section className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-6">
               <div className="flex-1">
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-3 block">
-                  1. Vendor Source
+                  1. {channel === "DIRECT" ? "Vendor Source" : "Platform Name"}
                 </label>
-                <CustomerPicker
-                  selectedId={supplier?.id}
-                  onSelect={setSupplier}
-                />
+                {channel === "DIRECT" ? (
+                  <CustomerPicker
+                    selectedId={supplier?.id}
+                    onSelect={setSupplier}
+                  />
+                ) : (
+                  <ReusableAutocomplete
+                    data={PLATFORM_CATALOG}
+                    value={selectedPlatform}
+                    onChange={setSelectedPlatform}
+                    placeholder="Select Platform (Cashify, OLX...)"
+                    icon={<Building size={16} />}
+                  />
+                )}
               </div>
               <div className="w-full sm:w-64">
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-3 block">
@@ -475,14 +540,6 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                 </div>
               </div>
 
-              <ImeiScannerModal
-                isOpen={isScanning}
-                onClose={() => {
-                  setIsScanning(false);
-                  setScanningRowId(null);
-                }}
-                onScan={handleScanSuccess}
-              />
 
               <div className="divide-y divide-slate-50 dark:divide-slate-800">
                 {rows.map((row, index) => (
@@ -498,6 +555,12 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                         <span className="text-xs font-black text-slate-500 uppercase tracking-tight">
                           Phone Spec
                         </span>
+                        {row.isAutoPopulated && (
+                          <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50 flex items-center gap-1 py-0.5 px-2 rounded-full text-[10px] font-black uppercase tracking-widest animate-in zoom-in-50 duration-500">
+                            <Sparkles size={10} />
+                            Registry Match
+                          </Badge>
+                        )}
                       </div>
                       {rows.length > 1 && (
                         <button
@@ -513,7 +576,14 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                       <div className="sm:col-span-3">
                         <CatalogAutocomplete
-                          label="Brand"
+                          label={
+                            <div className="flex items-center gap-1.5">
+                              Brand
+                              {row.isAutoPopulated && (
+                                <Sparkles size={10} className="text-amber-500 animate-pulse" />
+                              )}
+                            </div>
+                          }
                           value={row.brand}
                           onChange={(v) =>
                             updateRow(row.id, {
@@ -529,7 +599,14 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                       </div>
                       <div className="sm:col-span-3">
                         <CatalogAutocomplete
-                          label="Model"
+                          label={
+                            <div className="flex items-center gap-1.5">
+                              Model
+                              {row.isAutoPopulated && (
+                                <Sparkles size={10} className="text-amber-500 animate-pulse" />
+                              )}
+                            </div>
+                          }
                           value={row.model}
                           onChange={(v) =>
                             updateRow(row.id, {
@@ -590,31 +667,12 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                         />
                       </div>
                     </div>
-
                     {/* IMEI & SCANNER SECTION */}
-                    <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800/50">
-                      <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500 block mb-2">
-                        Serial / IMEI
-                      </label>
-                      <div className="flex gap-2">
-                        <div className="relative flex-1 group">
-                          <input
-                            type="text"
-                            value={row.imei}
-                            onChange={(e) => updateRow(row.id, { imei: e.target.value })}
-                            className="w-full h-11 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 text-sm font-bold focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
-                            placeholder="Enter 15-digit IMEI..."
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => startScanning(row.id)}
-                          className="h-11 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-primary-500 hover:text-white transition-all flex items-center gap-2 group"
-                        >
-                          <Camera size={16} className="group-hover:scale-110 transition-transform" />
-                          <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Scan</span>
-                        </button>
-                      </div>
+                    <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                      <ImeiSection
+                        imeis={row.imeis}
+                        onChange={(vals) => updateRow(row.id, { imeis: vals })}
+                      />
                     </div>
                   </div>
                 ))}
