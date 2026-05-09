@@ -90,15 +90,19 @@ export const selectInventoryMetrics = createSelector(
     selectInventoryPhones,
     selectLedgerEntries,
     (state: RootState) => state.billing?.orders ?? [],
+    (state: RootState) => state.ledger.pendingEntries ?? [],
   ],
-  (phones, entries, billingOrders) => {
+  (phones, entries, billingOrders, pendingEntries) => {
+    // Combine confirmed + pending entries for up-to-date metrics
+    const allEntries = [...entries, ...pendingEntries];
+
     const inStock = phones.filter((p) => p.status === "IN_STOCK");
     const pending = phones.filter((p) => p.status === "PENDING");
     const sold = phones.filter((p) => p.status === "SOLD");
 
     // Sum repair costs from ledger keyed by phone id
     const repairByPhone: Record<string, number> = {};
-    entries.forEach((e) => {
+    allEntries.forEach((e) => {
       if (e.type === "REPAIR_COST" && e.referenceId) {
         repairByPhone[e.referenceId] =
           (repairByPhone[e.referenceId] || 0) + Math.abs(e.amount);
@@ -114,11 +118,21 @@ export const selectInventoryMetrics = createSelector(
       (acc, p) => acc + p.purchasePrice + (repairByPhone[p.id] || 0),
       0,
     );
-    const netProfit = totalSales - costOfGoodsSold;
+    const grossProfit = totalSales - costOfGoodsSold;
+
+    // Subtract operational expenses (platform fees, overheads) from gross profit
+    const operationalExpenses = allEntries.reduce((acc, e) => {
+      if (e.type === "OPERATIONAL_EXPENSE" && !e.isVoided) {
+        return acc + Math.abs(e.amount);
+      }
+      return acc;
+    }, 0);
+
+    const netProfit = grossProfit - operationalExpenses;
 
     let avgMargin = 0;
     if (costOfGoodsSold > 0) {
-      avgMargin = (netProfit / costOfGoodsSold) * 100;
+      avgMargin = (grossProfit / costOfGoodsSold) * 100;
     }
 
     let avgTimeOnShelfDays = 0;
@@ -134,7 +148,7 @@ export const selectInventoryMetrics = createSelector(
           );
           if (order) soldAt = new Date(order.createdAt);
         } else {
-          const entry = entries.find(
+          const entry = allEntries.find(
             (e) => e.type === "PHONE_SALE" && e.referenceId === phone.id,
           );
           if (entry) soldAt = new Date(entry.createdAt);
@@ -158,7 +172,7 @@ export const selectInventoryMetrics = createSelector(
       const totalDays = settledOrders.reduce((acc, o) => {
         const orderDate = new Date(o.createdAt);
         // Find the LATEST payment recorded for this order
-        const lastPayment = entries.find(
+        const lastPayment = allEntries.find(
           (e) => e.type === "PHONE_SALE" && e.referenceId?.includes(o.id),
         ); // This is a heuristic, real app uses customer.payments
         const settleDate = lastPayment ? new Date(lastPayment.createdAt) : orderDate;
@@ -173,6 +187,8 @@ export const selectInventoryMetrics = createSelector(
       soldCount: sold.length,
       investment,
       totalSales,
+      grossProfit,
+      operationalExpenses,
       netProfit,
       avgMargin,
       avgTimeOnShelfDays,

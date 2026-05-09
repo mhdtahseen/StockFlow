@@ -125,6 +125,21 @@ const purchasingSlice = createSlice({
       );
       if (allResolved) po.status = "RECEIVED";
     },
+    updatePurchaseOrder: (
+      s,
+      a: PayloadAction<{
+        id: string;
+        counterpartyId?: string;
+        notes?: string;
+        dueDate?: string;
+      }>,
+    ) => {
+      const o = s.orders.find((o) => o.id === a.payload.id);
+      if (!o) return;
+      if (a.payload.counterpartyId !== undefined) o.counterpartyId = a.payload.counterpartyId;
+      if (a.payload.notes !== undefined) (o as any).notes = a.payload.notes;
+      if (a.payload.dueDate !== undefined) o.dueDate = a.payload.dueDate;
+    },
   },
 });
 export const {
@@ -137,5 +152,6 @@ export const {
   addSupplierSettlement,
   markPOItemAccepted,
   markPOItemRejected,
+  updatePurchaseOrder,
 } = purchasingSlice.actions;
 export default purchasingSlice.reducer;

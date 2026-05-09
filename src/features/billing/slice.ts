@@ -31,8 +31,25 @@ const billingSlice = createSlice({
       const o = s.orders.find((o) => o.id === a.payload);
       if (o) o.status = "RETURNED";
     },
+    updateOrder: (
+      s,
+      a: PayloadAction<{
+        id: string;
+        counterpartyId?: string;
+        notes?: string;
+        dueDate?: string;
+        paymentMode?: SaleOrder["paymentMode"];
+      }>,
+    ) => {
+      const o = s.orders.find((o) => o.id === a.payload.id);
+      if (!o) return;
+      if (a.payload.counterpartyId !== undefined) o.counterpartyId = a.payload.counterpartyId;
+      if (a.payload.notes !== undefined) o.notes = a.payload.notes;
+      if (a.payload.dueDate !== undefined) o.dueDate = a.payload.dueDate;
+      if (a.payload.paymentMode !== undefined) o.paymentMode = a.payload.paymentMode;
+    },
   },
 });
-export const { setOrders, addOrder, updateOrderPayment, returnOrder } =
+export const { setOrders, addOrder, updateOrderPayment, returnOrder, updateOrder } =
   billingSlice.actions;
 export default billingSlice.reducer;

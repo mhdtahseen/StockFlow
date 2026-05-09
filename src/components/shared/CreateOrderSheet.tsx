@@ -16,7 +16,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useAppDispatch } from "@/app/hooks";
-import { addOrder } from "@/features/billing/slice";
+import { addOrder, updateOrder } from "@/features/billing/slice";
 import {
   markAsSold,
   linkPhoneToSO,
@@ -26,6 +26,7 @@ import { addEntry } from "@/features/ledger/slice";
 import { SaleOrder, OrderType, PayMode } from "@/features/billing/types";
 import { Phone } from "@/features/inventory/types";
 import { Customer } from "@/features/customers/types";
+import { selectCustomers } from "@/features/customers/selectors";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import CurrencyInput from "@/components/ui/CurrencyInput";
 import { PhoneSelectorSheet } from "./PhoneSelectorSheet";
@@ -43,6 +44,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialPhones?: Phone[];
+  existingOrder?: SaleOrder;
 }
 
 interface OrderItemDraft {
@@ -61,7 +63,9 @@ export function CreateOrderSheet({
   open,
   onOpenChange,
   initialPhones = [],
+  existingOrder,
 }: Props) {
+  const isEditMode = !!existingOrder;
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("RETAIL");
   const [items, setItems] = useState<OrderItemDraft[]>([]);
@@ -82,6 +86,7 @@ export function CreateOrderSheet({
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const ledgerEntries = useAppSelector((state) => state.ledger.entries);
+  const allCustomers = useAppSelector(selectCustomers);
 
   // ── Reset when sheet opens ─────────────────────────────────────────────────
   const prevOpen = React.useRef(open);
@@ -89,26 +94,36 @@ export function CreateOrderSheet({
   React.useEffect(() => {
     // Only reset if transitioning from closed to open
     if (open && !prevOpen.current) {
-      setItems(
-        initialPhones.map((p) => ({
-          phone: p,
-          salePrice: p.salePrice ? String(p.salePrice) : "",
-          discountAmount: "",
-          discountType: "FIXED",
-        })),
-      );
-      setCustomer(null);
-      setOrderType("RETAIL");
-      setActivePayTab("CASH");
-      setCashStr("");
-      setUpiStr("");
-      setBankStr("");
-      setDueDateStr("");
-      setNotes("");
-      setShowDiscounts(false);
+      if (isEditMode && existingOrder) {
+        // Pre-fill from existing order
+        const existingCustomer = allCustomers.find((c) => c.id === existingOrder.counterpartyId) || null;
+        setCustomer(existingCustomer);
+        setOrderType((existingOrder as any).orderType || "RETAIL");
+        setNotes(existingOrder.notes || "");
+        setDueDateStr(existingOrder.dueDate || "");
+        setItems([]);
+      } else {
+        setItems(
+          initialPhones.map((p) => ({
+            phone: p,
+            salePrice: p.salePrice ? String(p.salePrice) : "",
+            discountAmount: "",
+            discountType: "FIXED",
+          })),
+        );
+        setCustomer(null);
+        setOrderType("RETAIL");
+        setActivePayTab("CASH");
+        setCashStr("");
+        setUpiStr("");
+        setBankStr("");
+        setDueDateStr("");
+        setNotes("");
+        setShowDiscounts(false);
+      }
     }
     prevOpen.current = open;
-  }, [open]);
+  }, [open, isEditMode, existingOrder, allCustomers, initialPhones]);
 
   // ── Derived amounts ────────────────────────────────────────────────────────
   const totalAmount = useMemo(() => {
@@ -143,10 +158,32 @@ export function CreateOrderSheet({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customer) return toast.error("Please select a customer");
+
+    // ── Edit mode — only update mutable fields, no new financial entries ──
+    if (isEditMode && existingOrder) {
+      dispatch(
+        updateOrder({
+          id: existingOrder.id,
+          counterpartyId: customer.id,
+          notes: notes || undefined,
+          dueDate: dueDateStr || undefined,
+        }),
+      );
+      toast.success("Order updated");
+      onOpenChange(false);
+      return;
+    }
+
     if (items.length === 0)
       return toast.error("Please add at least one device");
     if (requiresDueDate && !dueDateStr)
       return toast.error("A due date is required for the outstanding balance");
+    if (requiresDueDate && dueDateStr) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (new Date(dueDateStr) <= today)
+        return toast.error("Credit due date must be a future date (after today)");
+    }
 
     const orderId = crypto.randomUUID();
     const ts = new Date().toISOString();
@@ -229,7 +266,7 @@ export function CreateOrderSheet({
           type: "CUSTOMER_PAYMENT",
           referenceId: orderId,
           saleOrderId: orderId,
-          customerPaymentId: crypto.randomUUID(), // Temp ID for audit trail
+          paymentMode: dominantPayMode,
           amount: totalPaid,
           note: paymentNote || `Initial Bill Receipt · #${orderId.slice(0, 8).toUpperCase()}`,
           recordedBy: user?.id || "system",
@@ -314,10 +351,10 @@ export function CreateOrderSheet({
               </div>
               <div>
                 <SheetTitle className="text-base font-black text-slate-900 dark:text-slate-100 leading-tight">
-                  Sales Order
+                  {isEditMode ? "Edit Order" : "Sales Order"}
                 </SheetTitle>
                 <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                  Sell devices
+                  {isEditMode ? "Update order details" : "Sell devices"}
                 </p>
               </div>
             </div>
@@ -754,7 +791,7 @@ export function CreateOrderSheet({
                         type="date"
                         value={dueDateStr}
                         onChange={(e) => setDueDateStr(e.target.value)}
-                        min={new Date().toISOString().split("T")[0]}
+                        min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
                         className="w-full h-11 px-3 rounded-xl border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:border-amber-500 outline-none transition-colors"
                       />
                     </div>
@@ -778,7 +815,7 @@ export function CreateOrderSheet({
               )}
             >
               <ShoppingCart size={20} strokeWidth={2.5} />
-              {isExpired ? "Subscription Expired" : "Commit Sales Ledger"}
+              {isExpired ? "Subscription Expired" : isEditMode ? "Save Changes" : "Commit Sales Ledger"}
             </button>
           </div>
         </SheetContent>

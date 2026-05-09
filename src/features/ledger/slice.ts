@@ -284,14 +284,14 @@ const ledgerSlice = createSlice({
     // 5. PO REJECTION AUTOMATION (Refund Due)
     // When a unit is rejected during PO inspection, log a credit from the vendor
     builder.addCase(markPOItemRejected, (state, action) => {
-      const { purchaseOrderId, phoneId } = action.payload;
+      const { purchaseOrderId, itemId } = action.payload;
       state.pendingEntries.push({
-        id: `v-po-reject-${phoneId}`,
+        id: `v-po-reject-${itemId}`,
         type: "SUPPLIER_PAYMENT",
         purchaseOrderId,
         referenceId: purchaseOrderId,
         amount: 0, // Placeholder
-        note: `REFUND DUE - VENDOR (#${purchaseOrderId.slice(0, 8).toUpperCase()}) : Item Rejected (#${phoneId.slice(0, 8).toUpperCase()})`,
+        note: `REFUND DUE - VENDOR (#${purchaseOrderId.slice(0, 8).toUpperCase()}) : Item Rejected (#${itemId.slice(0, 8).toUpperCase()})`,
         createdAt: new Date().toISOString(),
         recordedBy: "system",
       });

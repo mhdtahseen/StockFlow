@@ -29,6 +29,7 @@ import {
   Smartphone,
   DollarSign,
   Plus,
+  Pencil,
 } from "lucide-react";
 import {
   SiApple,
@@ -52,7 +53,7 @@ import { supabase } from "@/lib/supabase";
 import { addOrder, returnOrder } from "@/features/billing/slice";
 import { markAsInStock } from "@/features/inventory/slice";
 import { addEntry } from "@/features/ledger/slice";
-import { addPurchaseOrder } from "@/features/purchasing/slice";
+import { addPurchaseOrder, updatePurchaseOrder } from "@/features/purchasing/slice";
 import { generateInvoicePDF } from "@/utils/generateInvoice";
 import { generatePurchaseOrderPDF } from "@/utils/generatePurchaseOrderPDF";
 import { createShareLink } from "@/services/shareService";
@@ -62,6 +63,13 @@ import clsx from "clsx";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 import { RecordPaymentSheet } from "@/components/shared/RecordPaymentSheet";
 import { POConfirmSheet } from "@/components/shared/POConfirmSheet";
+import { CreateOrderSheet } from "@/components/shared/CreateOrderSheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { DeviceListItem } from "@/components/shared/DeviceListItem";
 
@@ -144,6 +152,10 @@ export default function OrderDetail() {
 
   const [showPayment, setShowPayment] = useState(false);
   const [showConfirmSheet, setShowConfirmSheet] = useState(false);
+  const [showEditSheet, setShowEditSheet] = useState(false);
+  const [poEditNotes, setPoEditNotes] = useState("");
+  const [poEditDueDate, setPoEditDueDate] = useState("");
+  const [showPOEditSheet, setShowPOEditSheet] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [fetchFailed, setFetchFailed] = useState(false);
@@ -745,6 +757,32 @@ export default function OrderDetail() {
               <FileText size={20} />
             </button>
           </FeatureGate>
+
+          {!isPurchaseOrder &&
+            (order.status === "OPEN" || order.status === "PARTIAL") && (
+              <button
+                onClick={() => setShowEditSheet(true)}
+                className="size-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                title="Edit Order"
+              >
+                <Pencil size={16} />
+              </button>
+            )}
+
+          {isPurchaseOrder &&
+            (order.status === "OPEN" || order.status === "PARTIAL") && (
+              <button
+                onClick={() => {
+                  setPoEditNotes((order as any).notes || "");
+                  setPoEditDueDate((order as any).dueDate || "");
+                  setShowPOEditSheet(true);
+                }}
+                className="size-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                title="Edit Purchase Order"
+              >
+                <Pencil size={16} />
+              </button>
+            )}
         </div>
       </HeaderActions>
 
@@ -943,11 +981,11 @@ export default function OrderDetail() {
                   const isPOItem = isPurchaseOrder;
                   const phone = phones.find((p) => p.id === item.phoneId);
                   const itemData = {
-                    brand: phone?.brand || (item as any).brand || "Unknown",
-                    model: phone?.model || (item as any).model || "Item",
-                    storage: phone?.storage || (item as any).storage || "N/A",
+                    brand: phone?.brand || (item as any).brandSnapshot || (item as any).brand || "Unknown",
+                    model: phone?.model || (item as any).modelSnapshot || (item as any).model || "Item",
+                    storage: phone?.storage || (item as any).storageSnapshot || (item as any).storage || "N/A",
                     ram: phone?.ram || (item as any).ram || "N/A",
-                    color: phone?.color || (item as any).color || "N/A",
+                    color: phone?.color || (item as any).colorSnapshot || (item as any).color || "N/A",
                     price: isPOItem
                       ? (item as any).purchasePrice || 0
                       : (item as any).salePrice || 0,
@@ -1194,6 +1232,79 @@ export default function OrderDetail() {
           onOpenChange={setShowConfirmSheet}
           order={order as any}
         />
+      )}
+
+      {!isPurchaseOrder && (
+        <CreateOrderSheet
+          open={showEditSheet}
+          onOpenChange={setShowEditSheet}
+          existingOrder={order as any}
+        />
+      )}
+
+      {isPurchaseOrder && (
+        <Sheet open={showPOEditSheet} onOpenChange={setShowPOEditSheet}>
+          <SheetContent
+            side="bottom"
+            className="rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 h-auto"
+          >
+            <SheetHeader className="p-6 pb-4">
+              <SheetTitle className="font-black text-slate-900 dark:text-slate-100">
+                Edit Purchase Order
+              </SheetTitle>
+            </SheetHeader>
+            <div className="px-6 pb-8 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                  Notes
+                </label>
+                <textarea
+                  value={poEditNotes}
+                  onChange={(e) => setPoEditNotes(e.target.value)}
+                  placeholder="Add notes..."
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 resize-none outline-none focus:border-primary-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={poEditDueDate}
+                  onChange={(e) => setPoEditDueDate(e.target.value)}
+                  min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
+                  className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-primary-500 transition-colors"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  if (poEditDueDate) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (new Date(poEditDueDate) <= today) {
+                      toast.error("Due date must be a future date (after today)");
+                      return;
+                    }
+                  }
+                  dispatch(
+                    updatePurchaseOrder({
+                      id: order.id,
+                      notes: poEditNotes || undefined,
+                      dueDate: poEditDueDate || undefined,
+                    }),
+                  );
+                  toast.success("Purchase order updated");
+                  setShowPOEditSheet(false);
+                }}
+                className="w-full py-4 rounded-2xl bg-primary-500 text-white font-black text-sm shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all"
+              >
+                Save Changes
+              </button>
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );

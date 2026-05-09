@@ -231,6 +231,22 @@ export const syncActionToSupabase = async (
         if (error) throw error;
         break;
       }
+      case "billing/updateOrder": {
+        const updates: Record<string, any> = {};
+        if (payload.counterpartyId !== undefined) updates.counterparty_id = payload.counterpartyId;
+        if (payload.notes !== undefined) updates.notes = payload.notes;
+        if (payload.dueDate !== undefined) updates.due_date = payload.dueDate;
+        if (payload.paymentMode !== undefined) updates.payment_mode = payload.paymentMode;
+        if (Object.keys(updates).length > 0) {
+          const { error } = await supabase
+            .from("sale_orders")
+            .update(updates)
+            .eq("id", payload.id)
+            .eq("tenant_id", tenant_id);
+          if (error) throw error;
+        }
+        break;
+      }
       // ─── INVENTORY ────────────────────────────────────────────────────
       case "inventory/linkPhoneToPO": {
         const { error } = await supabase.rpc("link_phone_to_po", {
@@ -336,6 +352,21 @@ export const syncActionToSupabase = async (
           p_reason: payload.reason,
         });
         if (error) throw error;
+        break;
+      }
+      case "purchasing/updatePurchaseOrder": {
+        const updates: Record<string, any> = {};
+        if (payload.counterpartyId !== undefined) updates.counterparty_id = payload.counterpartyId;
+        if (payload.notes !== undefined) updates.notes = payload.notes;
+        if (payload.dueDate !== undefined) updates.due_date = payload.dueDate;
+        if (Object.keys(updates).length > 0) {
+          const { error } = await supabase
+            .from("purchase_orders")
+            .update(updates)
+            .eq("id", payload.id)
+            .eq("tenant_id", tenant_id);
+          if (error) throw error;
+        }
         break;
       }
       case "purchasing/confirmReceipt": {
