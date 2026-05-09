@@ -84,6 +84,9 @@ importers:
       '@capacitor-mlkit/barcode-scanning':
         specifier: ^8.1.0
         version: 8.1.0(@capacitor/core@8.3.3)
+      '@capacitor/android':
+        specifier: ^8.3.3
+        version: 8.3.3(@capacitor/core@8.3.3)
       '@capacitor/app':
         specifier: ^8.1.0
         version: 8.1.0(@capacitor/core@8.3.3)
@@ -96,6 +99,9 @@ importers:
       '@capacitor/haptics':
         specifier: ^8.0.2
         version: 8.0.2(@capacitor/core@8.3.3)
+      '@capacitor/ios':
+        specifier: ^8.3.3
+        version: 8.3.3(@capacitor/core@8.3.3)
       '@capacitor/network':
         specifier: ^8.0.1
         version: 8.0.1(@capacitor/core@8.3.3)
@@ -254,8 +260,8 @@ importers:
         version: 4.4.3
     devDependencies:
       '@capacitor/cli':
-        specifier: ^7.6.4
-        version: 7.6.4
+        specifier: ^8.3.3
+        version: 8.3.3
       '@tailwindcss/vite':
         specifier: ^4.2.1
         version: 4.3.0(vite@7.3.3(@types/node@25.6.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.47.1))
@@ -932,14 +938,19 @@ packages:
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
+  '@capacitor/android@8.3.3':
+    resolution: {integrity: sha512-Km7/voqtWVrN+qDHktoYb7DIliW+eakglH4jyT7C0dxODW/gDrMi19yC0ATNM2+rtaj3e2i46pgZ3A5UCa+44Q==}
+    peerDependencies:
+      '@capacitor/core': ^8.3.0
+
   '@capacitor/app@8.1.0':
     resolution: {integrity: sha512-MlmttTOWHDedr/G4SrhNRxsXMqY+R75S4MM4eIgzsgCzOYhb/MpCkA5Q3nuOCfL1oHm26xjUzqZ5aupbOwdfYg==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
-  '@capacitor/cli@7.6.4':
-    resolution: {integrity: sha512-lW692IiFQC5gd1fvMxrwLN3exS/Z9VmiCBL+k440edNSl4VxE+LhVmTXkqFg0tW46VJUbIdW3PXkx/Y64On7ag==}
-    engines: {node: '>=20.0.0'}
+  '@capacitor/cli@8.3.3':
+    resolution: {integrity: sha512-FHebL02KEyU5vs+Os5s1yZuE8QT3FzxoO4nZLywGk7Ny957E6gOujKouGKsnKYq01eAWWJGGV/Fv04rY27tSsw==}
+    engines: {node: '>=22.0.0'}
     hasBin: true
 
   '@capacitor/core@8.3.3':
@@ -954,6 +965,11 @@ packages:
     resolution: {integrity: sha512-c2hZzRR5Fk1tbTvhG1jhh2XBAf3EhnIerMIb2sl7Mt41Gxx1fhBJFDa0/BI1IbY4loVepyyuqNC9820/GZuoWQ==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
+
+  '@capacitor/ios@8.3.3':
+    resolution: {integrity: sha512-BHlTOxarrvkaqDdlTxKwip+dQmfQSnfctizpheR7SWp/VIlR0HcPpYzWMTiVbHQLq3nLRUdeZO1wSPVGvxzAPA==}
+    peerDependencies:
+      '@capacitor/core': ^8.3.0
 
   '@capacitor/network@8.0.1':
     resolution: {integrity: sha512-9xK/FHFmzKGanB6BdoSZOzXk8vF0OFVQSQ4PAsIrzAzLuXHryO317qy8dcHVpgxYeuZq2noI0My9z1DvVDi/9w==}
@@ -6577,11 +6593,15 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.3.3
 
+  '@capacitor/android@8.3.3(@capacitor/core@8.3.3)':
+    dependencies:
+      '@capacitor/core': 8.3.3
+
   '@capacitor/app@8.1.0(@capacitor/core@8.3.3)':
     dependencies:
       '@capacitor/core': 8.3.3
 
-  '@capacitor/cli@7.6.4':
+  '@capacitor/cli@8.3.3':
     dependencies:
       '@ionic/cli-framework-output': 2.2.8
       '@ionic/utils-subprocess': 3.0.1
@@ -6613,6 +6633,10 @@ snapshots:
       '@capacitor/synapse': 1.0.4
 
   '@capacitor/haptics@8.0.2(@capacitor/core@8.3.3)':
+    dependencies:
+      '@capacitor/core': 8.3.3
+
+  '@capacitor/ios@8.3.3(@capacitor/core@8.3.3)':
     dependencies:
       '@capacitor/core': 8.3.3
 

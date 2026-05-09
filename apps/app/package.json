@@ -17,7 +17,7 @@
     "cap:add:ios": "npx cap add ios"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.6.4",
+    "@capacitor/cli": "^8.3.3",
     "@tailwindcss/vite": "^4.2.1",
     "autoprefixer": "^10.4.27",
     "shadcn": "^3.8.5",
@@ -30,10 +30,12 @@
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^8.1.0",
+    "@capacitor/android": "^8.3.3",
     "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.3.3",
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.3.3",
     "@capacitor/network": "^8.0.1",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/push-notifications": "^8.0.4",
@@ -42,6 +44,8 @@
     "@capgo/camera-preview": "^8.3.4",
     "@dicebear/collection": "^9.3.2",
     "@dicebear/core": "^9.3.2",
+    "@finventree/shared": "workspace:*",
+    "@finventree/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@reduxjs/toolkit": "^2.11.2",
     "@supabase/supabase-js": "^2.98.0",
@@ -83,8 +87,6 @@
     "tesseract.js": "^7.0.0",
     "workbox-window": "^7.4.0",
     "xlsx": "^0.18.5",
-    "zod": "^4.3.6",
-    "@finventree/shared": "workspace:*",
-    "@finventree/ui": "workspace:*"
+    "zod": "^4.3.6"
   }
 }
