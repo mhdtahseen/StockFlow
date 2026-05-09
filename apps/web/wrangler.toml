@@ -1,0 +1,8 @@
+name = "finventree-web"
+compatibility_date = "2025-01-01"
+
+[env.production]
+name = "finventree-web"
+
+[env.preview]
+name = "finventree-web-preview"

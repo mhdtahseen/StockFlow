@@ -5,12 +5,20 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", "out/**", ".next/**", "!.next/cache/**"]
     },
     "build:capacitor": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["dist/**"]
+    },
+    "deploy": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "deploy:preview": {
+      "dependsOn": ["build"],
+      "cache": false
     },
     "dev": {
       "cache": false,

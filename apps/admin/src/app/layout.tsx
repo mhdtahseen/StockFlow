@@ -8,6 +8,11 @@ import { QueryProvider } from "@/components/QueryProvider";
 export const metadata: Metadata = {
   title: "Finventree Admin",
   description: "Super admin panel for Finventree",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

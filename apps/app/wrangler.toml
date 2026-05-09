@@ -1,0 +1,8 @@
+name = "finventree-app"
+compatibility_date = "2025-01-01"
+
+[env.production]
+name = "finventree-app"
+
+[env.preview]
+name = "finventree-app-preview"

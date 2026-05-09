@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "deploy": "tsc && vite build && wrangler pages deploy dist --project-name finventree-app",
+    "deploy:preview": "tsc && vite build && wrangler pages deploy dist --project-name finventree-app --branch preview",
     "build:capacitor": "tsc && vite build --mode capacitor",
     "cap:sync": "pnpm build:capacitor && npx cap sync",
     "cap:open:android": "npx cap open android",
