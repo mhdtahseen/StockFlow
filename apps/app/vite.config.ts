@@ -12,6 +12,18 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     tailwindcss(),
+    // When building for Capacitor, virtual:pwa-register has no provider
+    // (VitePWA is excluded). Provide a no-op stub so the import resolves.
+    ...(isCapacitor ? [{
+      name: "pwa-register-stub",
+      resolveId(id: string) {
+        if (id === "virtual:pwa-register") return "\0virtual:pwa-register";
+      },
+      load(id: string) {
+        if (id === "\0virtual:pwa-register")
+          return "export function registerSW() { return () => {}; }";
+      },
+    }] : []),
     ...(!isCapacitor ? [VitePWA({
       registerType: "autoUpdate",
       workbox: {
@@ -59,9 +71,6 @@ export default defineConfig(({ mode }) => {
           "vendor-xlsx": ["xlsx"],
         },
       },
-      // In capacitor builds the PWA plugin is disabled, so virtual:pwa-register
-      // doesn't exist. Mark it as external so the build doesn't fail.
-      external: isCapacitor ? ["virtual:pwa-register"] : [],
     },
   },
   resolve: {
