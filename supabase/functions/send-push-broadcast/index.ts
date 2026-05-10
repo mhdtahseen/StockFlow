@@ -50,7 +50,7 @@ serve(async (req) => {
     // 2. Configure Web Push (VAPID)
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')
-    const vapidEmail = Deno.env.get('VAPID_EMAIL') || 'admin@stockflow.app'
+    const vapidEmail = Deno.env.get('VAPID_EMAIL') || 'admin@finventree.com'
 
     if (!vapidPublicKey || !vapidPrivateKey) {
       throw new Error('VAPID keys not configured in Edge Environment')

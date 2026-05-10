@@ -158,7 +158,7 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
           <div className="flex items-center gap-3">
             <img
               src="/logo.svg"
-              alt="StockFlow"
+              alt="Finventree"
               className="h-9 w-9 dark:brightness-0 dark:invert shrink-0"
             />
             <div className="shrink-0">

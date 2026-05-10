@@ -38,7 +38,7 @@ export default function AppHeader({ onMenuOpen }: Props) {
     if (path.startsWith("/purchase-orders/")) return "PO Details";
     if (path.startsWith("/edit/")) return "Edit Phone";
 
-    return "StockFlow";
+    return "Finventree";
   };
 
   return (

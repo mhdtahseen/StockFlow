@@ -451,7 +451,7 @@ export default function CustomerDetail() {
                         createShareLink(o.id, isPO ? 'PURCHASE' : 'SALE', tenant.id)
                           .then(async (shareUrl) => {
                             const shareData = {
-                              title: `StockFlow: ${o.id.slice(0, 8).toUpperCase()}`,
+                              title: `Finventree: ${o.id.slice(0, 8).toUpperCase()}`,
                               text: `View the ${isPO ? "Purchase Order" : "Invoice"} for ${customer.name}.`,
                               url: shareUrl,
                             };

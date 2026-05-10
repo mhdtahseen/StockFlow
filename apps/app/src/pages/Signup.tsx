@@ -90,7 +90,7 @@ export default function Signup() {
                 Access Request Sent
               </CardTitle>
               <CardDescription className="text-base text-slate-600 dark:text-slate-400">
-                Your request to join StockFlow has been recorded. Please get in touch with the admin to grant you access. An invite link will be emailed to your address upon approval.
+                Your request to join Finventree has been recorded. Please get in touch with the admin to grant you access. An invite link will be emailed to your address upon approval.
               </CardDescription>
             </CardHeader>
             <CardFooter className="flex justify-center pb-10">
@@ -114,8 +114,7 @@ export default function Signup() {
         <div className="flex flex-col items-center mb-6">
           <img
             src="/logo.svg"
-            alt="StockFlow"
-            className="h-16 w-16 mb-2 dark:brightness-0 dark:invert"
+            alt="Finventree"
           />
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             Request Access

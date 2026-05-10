@@ -202,7 +202,7 @@ export default function Settings() {
         </section>
 
         <p className="text-center text-xs text-slate-400 mt-8 mb-4">
-          StockFlow System Settings v1.0
+          Finventree System Settings v1.0
         </p>
       </main>
 

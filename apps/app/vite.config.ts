@@ -33,8 +33,8 @@ export default defineConfig(({ mode }) => {
         skipWaiting: true,
       },
       manifest: {
-        name: "StockFlow - Smart Inventory",
-        short_name: "StockFlow",
+        name: "Finventree - Smart Inventory",
+        short_name: "Finventree",
         description:
           "Smart Inventory & Wallet Manager for Smartphone Resellers",
         theme_color: "#064a98",

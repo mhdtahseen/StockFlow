@@ -54,7 +54,7 @@ const rootReducer = combineReducers({
 });
 
 const persistConfig = {
-  key: "stockflow-root",
+  key: "finventree-root",
   storage: storageEngine,
   version: 2,
 };

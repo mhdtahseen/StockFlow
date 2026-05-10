@@ -72,12 +72,10 @@ export default function Verified() {
         <div className="flex flex-col items-center mb-8">
           <img
             src="/logo.svg"
-            alt="StockFlow"
-            className="h-12 w-12 mb-2 dark:brightness-0 dark:invert"
+            alt="Finventree"
           />
           <h1 className="text-2xl tracking-tight">
-            <span className="font-bold">Stock</span>
-            <span className="font-medium">Flow</span>
+            <span className="font-bold">Fin</span><span className="font-medium">ventree</span>
           </h1>
         </div>
 

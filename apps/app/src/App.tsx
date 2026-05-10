@@ -40,7 +40,7 @@ import { useAuth } from "./context/AuthContext";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
-  const hasLocalFlag = localStorage.getItem("stockflow_auth") === "true";
+  const hasLocalFlag = localStorage.getItem("finventree_auth") === "true";
 
   if (isLoading && !hasLocalFlag) {
     return (

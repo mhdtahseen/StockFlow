@@ -220,7 +220,7 @@ export const generateExport = (
   a.href =
     "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," +
     wbout;
-  a.download = `StockFlow_Export_${timestamp}.xlsx`;
+  a.download = `Finventree_Export_${timestamp}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

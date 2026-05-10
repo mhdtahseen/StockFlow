@@ -71,7 +71,7 @@ export default function IosInstallPrompt() {
           </div>
           <div>
             <h3 className="font-bold tracking-tight text-slate-900 dark:text-white mb-1">
-              Install StockFlow
+              Install Finventree
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
               Install this application on your home screen for quick and easy

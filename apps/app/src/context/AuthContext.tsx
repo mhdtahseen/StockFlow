@@ -123,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setUser(s?.user || null);
 
         if (s?.user) {
-          localStorage.setItem("stockflow_auth", "true");
+          localStorage.setItem("finventree_auth", "true");
           const { data: profile } = await supabase
             .from("profiles")
             .select("role, tenant_id, full_name, avatar_url")
@@ -138,8 +138,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             if (profile.tenant_id) await fetchTenant(profile.tenant_id);
           }
         } else {
-          localStorage.removeItem("stockflow_auth");
-          localStorage.removeItem("persist:stockflow-root");
+          localStorage.removeItem("finventree_auth");
+          localStorage.removeItem("persist:finventree-root");
         }
       } catch (error) {
         console.error("Auth init error:", error);
@@ -153,8 +153,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (event === 'SIGNED_OUT') {
-          localStorage.removeItem("stockflow_auth");
-          localStorage.removeItem("persist:stockflow-root");
+          localStorage.removeItem("finventree_auth");
+          localStorage.removeItem("persist:finventree-root");
           setSession(null);
           setUser(null);
           setIsSuperAdmin(false);
@@ -165,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         } else if (newSession) {
           setSession(newSession);
           setUser(newSession.user);
-          localStorage.setItem("stockflow_auth", "true");
+          localStorage.setItem("finventree_auth", "true");
           
           const { data: profile } = await supabase
             .from("profiles")

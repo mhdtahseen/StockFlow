@@ -111,7 +111,7 @@ export default function Features() {
         {/* Bento Grid */}
         <motion.ul
           role="list"
-          aria-label="StockFlow features"
+          aria-label="Finventree features"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 list-none p-0 m-0"
           variants={containerVariants}
           initial="hidden"

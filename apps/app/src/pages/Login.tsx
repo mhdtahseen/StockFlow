@@ -66,9 +66,9 @@ export default function Login() {
       }
 
       if (authData.session) {
-        localStorage.setItem("stockflow_auth", "true");
+        localStorage.setItem("finventree_auth", "true");
         toast.success("Login Successful", {
-          description: "Welcome back to StockFlow.",
+          description: "Welcome back to Finventree.",
         });
         navigate("/");
       }
@@ -86,12 +86,10 @@ export default function Login() {
         <div className="flex flex-col items-center mb-8">
           <img
             src="/logo.svg"
-            alt="StockFlow"
-            className="h-16 w-16 mb-2 dark:brightness-0 dark:invert"
+            alt="Finventree"
           />
           <h1 className="text-3xl tracking-tight text-slate-900 dark:text-slate-100">
-            <span className="font-bold">Stock</span>
-            <span className="font-medium">Flow</span>
+            <span className="font-bold">Fin</span><span className="font-medium">ventree</span>
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
             Smart Inventory Manager

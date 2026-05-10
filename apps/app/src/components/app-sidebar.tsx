@@ -25,7 +25,7 @@ import {
 const data = {
   user: {
     name: "Super Admin",
-    email: "admin@stockflow.app",
+    email: "admin@finventree.com",
     avatar: "/logo.svg",
   },
   navMain: [
@@ -81,7 +81,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <Store className="size-4" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">StockFlow Admin</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">Finventree Admin</span>
                   <span className="text-xs text-slate-500">Supervision</span>
                 </div>
               </Link>

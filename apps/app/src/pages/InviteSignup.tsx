@@ -92,7 +92,7 @@ export default function InviteSignup() {
         });
       } else if (authData.session) {
         // Auto-logged in
-        localStorage.setItem("stockflow_auth", "true");
+        localStorage.setItem("finventree_auth", "true");
         toast.success(`Welcome matching to ${orgName}!`);
         navigate("/");
       }

@@ -44,7 +44,7 @@ export default function SuspendedScreen() {
       </div>
 
       <p className="mt-12 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">
-        StockFlow Platform Protocol 403
+        Finventree Platform Protocol 403
       </p>
     </div>
   );

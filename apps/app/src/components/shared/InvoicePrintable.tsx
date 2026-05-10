@@ -851,7 +851,7 @@ export const InvoicePrintable: React.FC<InvoicePrintableProps> = ({
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span>Powered by</span>
-            <span style={{ color: HEX.blue200 }}>StockFlow Management</span>
+            <span style={{ color: HEX.blue200 }}>Finventree Management</span>
           </div>
           <div>© {new Date().getFullYear()} - Digital Invoice Registry</div>
         </div>

@@ -21,7 +21,7 @@ export default function AboutApp() {
             </span>
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mb-2">
-            StockFlow Manager
+            Finventree Manager
           </h2>
           <p className="text-sm font-medium text-primary-500 dark:text-blue-400 uppercase tracking-widest bg-blue-100 dark:bg-blue-900/30 px-3 py-1 rounded-full">
             Built for Mobile Merchants
@@ -41,7 +41,7 @@ export default function AboutApp() {
             manage it have remained painfully slow, complex, and frustrating.
           </p>
           <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-            StockFlow was built to change that. We are empowering independent
+            Finventree was built to change that. We are empowering independent
             shop owners and teams with an enterprise-grade, shockingly fast, and
             beautifully designed mobile application that simply gets out of your
             way and lets you do what you do best: make sales and scale your
@@ -102,7 +102,7 @@ export default function AboutApp() {
 
         <div className="text-center pt-8 border-t border-slate-200 dark:border-slate-800">
           <p className="text-xs text-slate-400 font-medium">
-            © 2026 StockFlow Technologies
+            © 2026 Finventree Technologies
           </p>
           <p className="text-[10px] text-slate-500 mt-1">
             Designed with precision for physical commerce.

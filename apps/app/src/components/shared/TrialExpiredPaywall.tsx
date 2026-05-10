@@ -18,8 +18,8 @@ export default function TrialExpiredPaywall() {
       </h1>
       <p className="text-slate-600 dark:text-slate-400 max-w-sm mb-8 leading-relaxed font-medium">
         {isEnterprise 
-          ? "Your Enterprise license for StockFlow has expired. Please contact your account manager or support to renew your access."
-          : "Your free trial of StockFlow has expired. To continue adding inventory and processing sales, please select a subscription plan."}
+          ? "Your Enterprise license for Finventree has expired. Please contact your account manager or support to renew your access."
+          : "Your free trial of Finventree has expired. To continue adding inventory and processing sales, please select a subscription plan."}
       </p>
       
       <div className="flex flex-col gap-3 w-full max-w-xs">
@@ -60,7 +60,7 @@ export default function TrialExpiredPaywall() {
         <div className="flex items-center justify-center gap-4 opacity-50">
           <Link to="/about" className="hover:text-slate-900 dark:hover:text-slate-100">Terms</Link>
           <Link to="/about" className="hover:text-slate-900 dark:hover:text-slate-100">Privacy</Link>
-          <a href="mailto:support@stockflow.com" className="hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-1">
+          <a href="mailto:support@finventree.com" className="hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-1">
             <Mail size={10} /> Email
           </a>
         </div>

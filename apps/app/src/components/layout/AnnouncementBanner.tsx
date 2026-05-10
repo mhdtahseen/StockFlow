@@ -21,7 +21,7 @@ export default function AnnouncementBanner() {
 
   useEffect(() => {
     // Load dismissed list from LocalStorage
-    const saved = localStorage.getItem("stockflow_dismissed_banners");
+    const saved = localStorage.getItem("finventree_dismissed_banners");
     if (saved) {
       try {
         setDismissed(JSON.parse(saved));
@@ -79,7 +79,7 @@ export default function AnnouncementBanner() {
   const handleDismiss = (id: string) => {
     const newList = [...dismissed, id];
     setDismissed(newList);
-    localStorage.setItem("stockflow_dismissed_banners", JSON.stringify(newList));
+    localStorage.setItem("finventree_dismissed_banners", JSON.stringify(newList));
   };
 
   if (visible.length === 0) return null;

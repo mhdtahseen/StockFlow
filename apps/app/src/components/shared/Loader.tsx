@@ -152,7 +152,7 @@ export const Loader: React.FC<LoaderProps> = ({
                 transition={{ delay: 0.5 }}
                 className="text-lg md:text-xl font-black tracking-[0.4em] text-slate-900 dark:text-white uppercase text-center relative"
               >
-                StockFlow
+                Finventree
                 <motion.div 
                   animate={{ x: ["-100%", "200%"] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "linear" }}

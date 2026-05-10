@@ -207,7 +207,7 @@ export default function Pricing() {
           <p className="text-sm font-semibold text-slate-500 mt-2">
             Need a custom plan for a large retail chain? <br />
             <a
-              href="mailto:support@stockflow.com"
+              href="mailto:support@finventree.com"
               className="text-primary-500 dark:text-blue-400"
             >
               Contact Sales

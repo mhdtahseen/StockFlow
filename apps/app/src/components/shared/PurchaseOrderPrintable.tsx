@@ -123,7 +123,7 @@ export const PurchaseOrderPrintable: React.FC<PurchaseOrderPrintableProps> = ({
 
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <h2 style={{ color: HEX.slate900, fontSize: "20px", fontWeight: "700", margin: "0" }}>
-              {tenant?.name || "STOCKFLOW MERCHANT"}
+              {tenant?.name || "FINVENTREE MERCHANT"}
             </h2>
             <p style={{ color: HEX.slate500, fontSize: "13px", lineHeight: "1.6", textTransform: "uppercase", margin: 0, maxWidth: "320px" }}>
               {tenant?.address || "Configure address in Settings"}
@@ -313,7 +313,7 @@ export const PurchaseOrderPrintable: React.FC<PurchaseOrderPrintableProps> = ({
       <div id="invoice-footer" style={{ paddingTop: "24px", borderTop: `1px solid ${HEX.slate100}` }}>
         <h4 style={{ color: HEX.slate900, fontSize: "10px", fontWeight: "900", textTransform: "uppercase", margin: "0 0 12px 0" }}>Notes & Observations</h4>
         <p style={{ color: HEX.slate400, fontSize: "10px", margin: 0, lineHeight: "1.5" }}>
-          This procurement request was generated via StockFlow. All items listed under "Items Received" have passed initial compliance inspection. 
+          This procurement request was generated via Finventree. All items listed under "Items Received" have passed initial compliance inspection. 
           Rejected items are listed for record adjustment and must be reconciled by the supplier. This is a computer-generated document.
         </p>
       </div>

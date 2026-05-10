@@ -77,7 +77,7 @@ export default function PublicView() {
           {error || 'This document is no longer available.'}
         </p>
         <Link to="/" className="mt-8 text-primary-400 font-bold text-sm hover:underline">
-          Return to StockFlow
+          Return to Finventree
         </Link>
       </div>
     );
@@ -143,7 +143,7 @@ export default function PublicView() {
             <span>Expires: {format(parseISO(data.expires_at), 'dd MMM yyyy')}</span>
           </div>
           <div className="w-1 h-1 rounded-full bg-slate-700" />
-          <p>Powered by StockFlow</p>
+          <p>Powered by Finventree</p>
         </div>
       </footer>
     </div>

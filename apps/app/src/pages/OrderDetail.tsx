@@ -695,7 +695,7 @@ export default function OrderDetail() {
       );
 
       const shareData = {
-        title: `StockFlow: ${order.id.slice(0, 8).toUpperCase()}`,
+        title: `Finventree: ${order.id.slice(0, 8).toUpperCase()}`,
         text: `View the ${isPurchaseOrder ? "Purchase Order" : "Invoice"} for ${customer?.name || "Order"}.`,
         url: shareUrl,
       };
