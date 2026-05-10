@@ -77,13 +77,9 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <div className="size-9 rounded-xl bg-amber-500 flex items-center justify-center">
-              <span className="text-black font-black text-lg">F</span>
-            </div>
-            <span className="text-white text-xl font-bold tracking-tight">Finventree</span>
-          </div>
-          <h1 className="text-white text-2xl font-bold mt-4">Request Access</h1>
+          <img src="/logo.svg" alt="Finventree" className="h-14 w-14 rounded-2xl mx-auto mb-3 shadow-lg shadow-amber-500/20" />
+          <p className="text-lg font-semibold tracking-widest text-amber-400 uppercase mb-4">Finventree</p>
+          <h1 className="text-white text-2xl font-bold">Request Access</h1>
           <p className="text-slate-400 text-sm mt-1">
             Start managing your smartphone inventory
           </p>

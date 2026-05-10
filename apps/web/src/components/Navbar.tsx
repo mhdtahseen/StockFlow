@@ -79,7 +79,7 @@ export default function Navbar() {
             </button>
           )}
           <a
-            href="#pricing"
+            href="/register"
             className="btn-primary text-sm px-5 py-2.5 rounded-xl inline-flex items-center"
           >
             Get Started
@@ -124,7 +124,7 @@ export default function Navbar() {
               </button>
             )}
             <a
-              href="#pricing"
+              href="/register"
               className="btn-primary text-sm px-5 py-2.5 rounded-xl flex-1 text-center"
               onClick={() => setMobileOpen(false)}
             >
