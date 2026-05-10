@@ -10,8 +10,26 @@ import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persist
 import { registerSW } from "virtual:pwa-register";
 import { AuthProvider } from "./context/AuthContext";
 import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
+import { supabase } from "./lib/supabase";
 import App from "./App";
 import "./index.css";
+
+// Handle deep links from auth emails on native (e.g. password reset, magic link).
+// When the user taps com.hyllos.finventree://callback?code=… in their email,
+// the OS opens the app here. We pass the URL to Supabase to exchange the code.
+if (Capacitor.isNativePlatform()) {
+  CapApp.addListener('appUrlOpen', async ({ url }) => {
+    if (url.startsWith('com.hyllos.finventree://')) {
+      // Extract query params and hand them to Supabase PKCE exchange
+      const urlObj = new URL(url.replace('com.hyllos.finventree://', 'https://placeholder/'));
+      const code = urlObj.searchParams.get('code');
+      if (code) {
+        await supabase.auth.exchangeCodeForSession(code);
+      }
+    }
+  });
+}
 
 // On native (Android/iOS via Capacitor), push notifications and updates are handled
 // by native plugins. Only activate the PWA service worker on the web platform.

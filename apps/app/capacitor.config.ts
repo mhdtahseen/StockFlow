@@ -25,6 +25,12 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
     },
+    // Register the custom URL scheme so the OS routes
+    // com.hyllos.finventree://callback back into this app
+    // after a user taps an auth email link on their phone.
+    App: {
+      appUrlOpen: true,
+    },
   },
 };
 

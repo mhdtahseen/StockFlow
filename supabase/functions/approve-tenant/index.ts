@@ -53,21 +53,10 @@ serve(async (req) => {
       tenantId = newTenant.id
     }
 
-    // Fix 2: Strip trailing slash from SITE_URL
-    let siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '')
-
-    if (!siteUrl) {
-      const origin = req.headers.get('origin')
-      // Don't use supabase generic origins for redirection
-      if (origin && !origin.includes('supabase.co')) {
-        siteUrl = origin.replace(/\/$/, '')
-      } else {
-        siteUrl = 'http://localhost:5173'
-      }
-    }
-
-    const redirectTo = `${siteUrl}/verified`
-    console.log(`Sending invitation. Site URL: ${siteUrl}, Redirect Target: ${redirectTo}`)
+    // Always redirect to the web activation page so users set their password
+    // on finventree.com regardless of where the admin approved from.
+    const redirectTo = "https://finventree.com/activate"
+    console.log(`Sending invitation. Redirect Target: ${redirectTo}`)
 
     // 3. Invite the user
     const { data: authUser, error: inviteError } = await supabaseClient.auth.admin.inviteUserByEmail(

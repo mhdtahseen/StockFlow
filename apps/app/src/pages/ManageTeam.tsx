@@ -68,7 +68,7 @@ export default function ManageTeam() {
   }, [session, tenant?.id, dispatch]);
 
   const inviteLink = tenant?.id
-    ? `${window.location.origin}/join?tenant_id=${tenant.id}&org_name=${encodeURIComponent(tenant.name || "")}`
+    ? `https://finventree.com/join?tenant_id=${tenant.id}&org_name=${encodeURIComponent(tenant.name || "")}`
     : "";
 
   const handleCopy = () => {

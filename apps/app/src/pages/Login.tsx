@@ -174,12 +174,14 @@ export default function Login() {
           <CardFooter className="flex flex-col space-y-4 justify-center pb-6">
             <div className="text-sm text-slate-500 dark:text-slate-400">
               Don't have an account?{" "}
-              <Link
-                to="/signup"
+              <a
+                href="https://finventree.com/register"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-primary-500 dark:text-blue-500 hover:underline font-medium"
               >
-                Create one
-              </Link>
+                Request access
+              </a>
             </div>
           </CardFooter>
         </Card>

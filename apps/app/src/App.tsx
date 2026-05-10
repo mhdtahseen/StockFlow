@@ -13,9 +13,6 @@ import AppLayout from "@/components/layout/AppLayout";
 
 // Auth pages
 import Login from "@/pages/Login";
-import Signup from "@/pages/Signup";
-import InviteSignup from "@/pages/InviteSignup";
-import Verified from "@/pages/Verified";
 
 // Main pages
 import Dashboard from "@/pages/Dashboard";
@@ -76,9 +73,6 @@ function App() {
         {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/join" element={<InviteSignup />} />
-          <Route path="/verified" element={<Verified />} />
           <Route path="/public/view/:token" element={<PublicView />} />
 
           <Route
