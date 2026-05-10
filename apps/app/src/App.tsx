@@ -57,8 +57,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-import AppGate from "./components/shared/AppGate";
-
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
