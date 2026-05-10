@@ -42,7 +42,7 @@ export default function AppHeader({ onMenuOpen }: Props) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex items-center bg-white dark:bg-slate-900 px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 justify-between border-b border-slate-100 dark:border-slate-800 shrink-0">
+    <header className="shrink-0 z-30 flex items-center bg-white dark:bg-slate-900 px-4 py-3 justify-between border-b border-slate-100 dark:border-slate-800">
       <div className="flex items-center gap-2">
         <button
           onClick={onMenuOpen}

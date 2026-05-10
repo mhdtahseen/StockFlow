@@ -6,8 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
-      launchAutoHide: true,
+      launchShowDuration: 3000,   // keep native splash visible for up to 3s
+      launchAutoHide: false,      // we call NativeSplash.hide() from React for a controlled fade
       backgroundColor: '#064a98',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
@@ -16,11 +16,20 @@ const config: CapacitorConfig = {
       splashImmersive: true,
     },
     StatusBar: {
-      // overlaysWebView: true → WebView extends edge-to-edge behind the status bar.
-      // The header uses env(safe-area-inset-top) to push content below the bar.
-      // Style is dynamically updated by ThemeContext to match the active theme.
-      style: 'dark', // dark icons — visible on white (light mode) header by default
-      overlaysWebView: true,
+      // overlaysWebView: false → WebView sits below the status bar.
+      // The OS reserves the status bar area — no safe-area padding needed in the app.
+      // ThemeContext calls setBackgroundColor + setStyle on every theme change.
+      overlaysWebView: false,
+      style: 'light',           // dark icons — visible on white background (light mode default)
+      backgroundColor: '#ffffff', // white — matches light-mode AppHeader bg
+    },
+    Keyboard: {
+      // resize: 'body' → only the <body> shrinks when the keyboard appears.
+      // Fixed elements (AppHeader, BottomNav) stay pinned in place.
+      // The scrollable <main> area shrinks so the focused input is reachable.
+      resize: 'body',
+      // style: 'dark' → keyboard appearance matches the current theme (set dynamically)
+      style: 'light',
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],

@@ -223,7 +223,7 @@ export function CustomerPicker({
 
       <SheetContent
         side="bottom"
-        className="h-[88vh] flex flex-col p-0 rounded-t-3xl border-t border-slate-200 dark:border-slate-800 overflow-hidden"
+        className="h-[88vh] max-h-[calc(100svh-4rem)] flex flex-col p-0 rounded-t-3xl border-t border-slate-200 dark:border-slate-800 overflow-hidden"
       >
         <SheetHeader className="px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <SheetTitle className="text-left text-lg font-black">

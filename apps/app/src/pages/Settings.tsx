@@ -22,7 +22,9 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 export default function Settings() {
   const { mode, setMode } = useTheme();
   const [showExportModal, setShowExportModal] = useState(false);
-  const [notifsEnabled, setNotifsEnabled] = useState(Notification.permission === 'granted');
+  const [notifsEnabled, setNotifsEnabled] = useState(
+    typeof Notification !== 'undefined' && Notification.permission === 'granted'
+  );
   const [offlineSyncEnabled, setOfflineSyncEnabled] = useState(true);
   const [hapticFeedback, setHapticFeedback] = useState(true);
 

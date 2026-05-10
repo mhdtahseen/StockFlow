@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { Clipboard } from "@capacitor/clipboard";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -71,9 +73,13 @@ export default function ManageTeam() {
     ? `https://finventree.com/join?tenant_id=${tenant.id}&org_name=${encodeURIComponent(tenant.name || "")}`
     : "";
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!inviteLink) return;
-    navigator.clipboard.writeText(inviteLink);
+    if (Capacitor.isNativePlatform()) {
+      await Clipboard.write({ string: inviteLink });
+    } else {
+      await navigator.clipboard.writeText(inviteLink);
+    }
     setIsCopied(true);
     toast.success("Copied to clipboard!", {
       description: "Send this link to your associate to join your team.",

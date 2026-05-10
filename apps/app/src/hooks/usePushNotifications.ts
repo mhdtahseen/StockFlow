@@ -134,7 +134,7 @@ export function usePushNotifications() {
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) return; // Native uses listener above
-    if (Notification.permission === 'granted') {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       const timer = setTimeout(() => togglePushNotifications(true), 2000);
       return () => clearTimeout(timer);
     }

@@ -139,14 +139,14 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
       {/* Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
+          className="fixed inset-0 bg-black/50 z-50 transition-opacity"
           onClick={(e) => { e.stopPropagation(); onClose(); }}
         />
       )}
       {/* Drawer panel */}
       <div
         className={clsx(
-          "fixed top-0 left-0 h-full w-72 md:w-80 z-50 transition-transform duration-300",
+          "fixed top-0 left-0 h-full w-72 md:w-80 z-[60] transition-transform duration-300",
           "bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800",
           "shadow-2xl flex flex-col",
           isOpen ? "translate-x-0" : "-translate-x-full",
@@ -154,7 +154,7 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="flex items-center justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+        <div className="flex items-center justify-between px-4 pt-3 pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
             <img
               src="/logo.svg"
@@ -234,7 +234,7 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
         </nav>
 
         {/* User Profile & Plan Badge at bottom */}
-        <div className="px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30">
+        <div className="px-4 pt-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30">
           <div className="flex items-center justify-between mb-4 px-1">
             <div className="flex items-center gap-3 min-w-0">
               <div className="size-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
@@ -279,12 +279,12 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
             </button>
           </div>
           
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+          {/* <div className="flex items-center gap-2 px-3 py-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
             <Crown size={14} className="text-amber-500 shrink-0" />
             <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight">
               {PLAN_LABELS[plan] ?? `${plan} plan`}
             </span>
-          </div>
+          </div> */}
         </div>
 
         {/* Confirmation Dialog */}

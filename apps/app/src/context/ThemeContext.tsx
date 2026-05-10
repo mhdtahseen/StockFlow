@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
+import { syncKeyboardStyle } from "@/hooks/useKeyboard";
 
 type ThemeMode = "system" | "light" | "dark";
 
@@ -61,11 +62,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       root.classList.remove("dark");
     }
-    // Keep status bar icons visible against the header background
+    // Keep status bar + keyboard in sync with the app theme (both iOS + Android)
     if (Capacitor.isNativePlatform()) {
+      const isDark = resolved === "dark";
+      StatusBar.setBackgroundColor({
+        color: isDark ? '#0f172a' : '#ffffff',
+      }).catch(() => {});
       StatusBar.setStyle({
-        style: resolved === "dark" ? Style.Light : Style.Dark,
-      }).catch(() => {/* ignore if plugin unavailable */});
+        style: isDark ? Style.Dark : Style.Light,
+      }).catch(() => {});
+      syncKeyboardStyle(resolved);
     }
   }, [resolved]);
 
