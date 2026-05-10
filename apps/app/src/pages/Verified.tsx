@@ -73,6 +73,7 @@ export default function Verified() {
           <img
             src="/logo.svg"
             alt="Finventree"
+            className="h-12 w-12 mb-2 dark:brightness-0 dark:invert"
           />
           <h1 className="text-2xl tracking-tight">
             <span className="font-bold">Fin</span><span className="font-medium">ventree</span>

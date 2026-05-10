@@ -31,7 +31,6 @@
     "vite-plugin-pwa": "^1.2.0"
   },
   "dependencies": {
-    "@capacitor-mlkit/barcode-scanning": "^8.1.0",
     "@capacitor/android": "^8.3.3",
     "@capacitor/app": "^8.1.0",
     "@capacitor/clipboard": "^8.0.1",
@@ -46,7 +45,6 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
-    "@capgo/camera-preview": "^8.3.4",
     "@dicebear/collection": "^9.3.2",
     "@dicebear/core": "^9.3.2",
     "@finventree/shared": "workspace:*",

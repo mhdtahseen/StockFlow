@@ -115,6 +115,7 @@ export default function Signup() {
           <img
             src="/logo.svg"
             alt="Finventree"
+            className="h-16 w-16 mb-2 dark:brightness-0 dark:invert"
           />
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             Request Access

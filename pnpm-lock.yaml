@@ -81,9 +81,6 @@ importers:
 
   apps/app:
     dependencies:
-      '@capacitor-mlkit/barcode-scanning':
-        specifier: ^8.1.0
-        version: 8.1.0(@capacitor/core@8.3.3)
       '@capacitor/android':
         specifier: ^8.3.3
         version: 8.3.3(@capacitor/core@8.3.3)
@@ -126,9 +123,6 @@ importers:
       '@capacitor/status-bar':
         specifier: ^8.0.2
         version: 8.0.2(@capacitor/core@8.3.3)
-      '@capgo/camera-preview':
-        specifier: ^8.3.4
-        version: 8.3.4(@capacitor/core@8.3.3)
       '@dicebear/collection':
         specifier: ^9.3.2
         version: 9.4.2(@dicebear/core@9.4.2)
@@ -957,11 +951,6 @@ packages:
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
 
-  '@capacitor-mlkit/barcode-scanning@8.1.0':
-    resolution: {integrity: sha512-lhOYHZINLOCT0i5YSbSMkouik3zh0BncJouumNTgXCT0/533Z4733jAX9zv+nEd++bE8QHeUl2g0NrewreumnQ==}
-    peerDependencies:
-      '@capacitor/core': '>=8.0.0'
-
   '@capacitor/android@8.3.3':
     resolution: {integrity: sha512-Km7/voqtWVrN+qDHktoYb7DIliW+eakglH4jyT7C0dxODW/gDrMi19yC0ATNM2+rtaj3e2i46pgZ3A5UCa+44Q==}
     peerDependencies:
@@ -1037,11 +1026,6 @@ packages:
 
   '@capacitor/synapse@1.0.4':
     resolution: {integrity: sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==}
-
-  '@capgo/camera-preview@8.3.4':
-    resolution: {integrity: sha512-mCuh/1XNox0sIguA/c848tXhY8JY1gmzkoODS4D5XbfbX6yp+7HjvfSSJJL55XFEqpGS9d4ll2XeIPooeJQAjg==}
-    peerDependencies:
-      '@capacitor/core': '>=8.0.0'
 
   '@cloudflare/kv-asset-handler@0.5.0':
     resolution: {integrity: sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg==}
@@ -6628,10 +6612,6 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@capacitor-mlkit/barcode-scanning@8.1.0(@capacitor/core@8.3.3)':
-    dependencies:
-      '@capacitor/core': 8.3.3
-
   '@capacitor/android@8.3.3(@capacitor/core@8.3.3)':
     dependencies:
       '@capacitor/core': 8.3.3
@@ -6712,10 +6692,6 @@ snapshots:
       '@capacitor/core': 8.3.3
 
   '@capacitor/synapse@1.0.4': {}
-
-  '@capgo/camera-preview@8.3.4(@capacitor/core@8.3.3)':
-    dependencies:
-      '@capacitor/core': 8.3.3
 
   '@cloudflare/kv-asset-handler@0.5.0': {}
 

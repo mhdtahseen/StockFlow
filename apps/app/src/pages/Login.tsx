@@ -87,6 +87,7 @@ export default function Login() {
           <img
             src="/logo.svg"
             alt="Finventree"
+            className="h-16 w-16 mb-2 dark:brightness-0 dark:invert"
           />
           <h1 className="text-3xl tracking-tight text-slate-900 dark:text-slate-100">
             <span className="font-bold">Fin</span><span className="font-medium">ventree</span>

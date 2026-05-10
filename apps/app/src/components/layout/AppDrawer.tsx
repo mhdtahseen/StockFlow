@@ -164,8 +164,8 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
             <div className="shrink-0">
               <div className="flex items-center gap-2">
                 <h1 className="text-xl tracking-tight text-slate-900 dark:text-slate-100 italic">
-                  <span className="font-black">Stock</span>
-                  <span className="font-bold text-primary-500">Flow</span>
+                  <span className="font-black">Finven</span>
+                  <span className="font-bold text-primary-500">Tree</span>
                 </h1>
                 {plan === "enterprise" && (
                   <span className="bg-linear-to-r from-emerald-600 to-teal-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter flex items-center gap-1">
