@@ -57,10 +57,7 @@ export default function AppHeader({ onMenuOpen }: Props) {
       </div>
 
       <div className="flex items-center gap-3 relative">
-        <div
-          id="header-actions-target"
-          className="flex items-center gap-2"
-        ></div>
+        <div className="header-actions-target flex items-center gap-2"></div>
         <NotificationsPopover />
       </div>
     </header>

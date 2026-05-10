@@ -27,6 +27,28 @@ export interface PublicOrderData {
 
 
 /**
+ * Copies text to clipboard with a textarea fallback for environments
+ * where the Clipboard API is unavailable (e.g., non-HTTPS, Capacitor WebView).
+ */
+export function copyToClipboard(text: string): boolean {
+  // Modern Clipboard API (async, may require permissions)
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).catch(() => {});
+    return true;
+  }
+  // Fallback: execCommand (deprecated but widely supported)
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const ok = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  return ok;
+}
+
+/**
  * Creates a public sharing token for a document.
  * Valid for 30 days.
  */
@@ -45,7 +67,10 @@ export async function createShareLink(orderId: string, orderType: 'SALE' | 'PURC
     .single();
 
   if (error) throw error;
-  return `${window.location.origin}/public/view/${data.token}`;
+  // Always use the configured public URL so native builds (capacitor://localhost)
+  // and local dev both produce a valid shareable link.
+  const base = (import.meta.env.VITE_APP_URL ?? window.location.origin).replace(/\/$/, '');
+  return `${base}/public/view/${data.token}`;
 }
 
 /**

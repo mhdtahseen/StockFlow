@@ -76,7 +76,7 @@ export default function Orders() {
   };
 
   return (
-    <div className="flex-1 bg-slate-50 dark:bg-slate-950 min-h-screen pb-24 font-sans selection:bg-primary-500/30">
+    <div className="flex-1 bg-slate-50 dark:bg-slate-950 min-h-screen pb-24 md:pb-12 font-sans selection:bg-primary-500/30">
       <HeaderActions>
         <motion.button
           whileTap={{ scale: 0.9 }}
@@ -140,7 +140,7 @@ export default function Orders() {
               </p>
             </motion.div>
           ) : (
-            <div className="space-y-3.5 mt-6 px-1">
+            <div className="space-y-3.5 md:space-y-0 mt-6 px-1 md:grid md:grid-cols-2 md:gap-4">
               {filteredOrders.map((order, index) => (
                 <motion.div
                   key={order.id}

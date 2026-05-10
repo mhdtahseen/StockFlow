@@ -6,6 +6,9 @@ import type { SaleOrder } from '@/features/billing/types';
 import type { Customer } from '@/features/customers/types';
 import type { TenantInfo } from '@/context/AuthContext';
 import { InvoicePrintable } from '@/components/shared/InvoicePrintable';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 /**
  * PRODUCTION-GRADE HTML-TO-PDF GENERATOR
@@ -108,7 +111,23 @@ export async function generateInvoicePDF(order: SaleOrder, customer: Customer | 
 
     // 5. Finalize
     const filename = `Invoice_${order.id.slice(0, 8)}.pdf`;
-    pdf.save(filename);
+
+    if (Capacitor.isNativePlatform()) {
+      // Write to cache dir and share via native sheet (iOS Files, WhatsApp, etc.)
+      const base64 = pdf.output('datauristring').split(',')[1];
+      const result = await Filesystem.writeFile({
+        path: filename,
+        data: base64,
+        directory: Directory.Cache,
+      });
+      await Share.share({
+        title: filename,
+        url: result.uri,
+        dialogTitle: 'Share Invoice PDF',
+      });
+    } else {
+      pdf.save(filename);
+    }
 
     // Cleanup
     root.unmount();

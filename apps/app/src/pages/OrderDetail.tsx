@@ -58,7 +58,7 @@ import { addEntry } from "@/features/ledger/slice";
 import { addPurchaseOrder, updatePurchaseOrder } from "@/features/purchasing/slice";
 import { generateInvoicePDF } from "@/utils/generateInvoice";
 import { generatePurchaseOrderPDF } from "@/utils/generatePurchaseOrderPDF";
-import { createShareLink } from "@/services/shareService";
+import { createShareLink, copyToClipboard } from "@/services/shareService";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import clsx from "clsx";
@@ -671,9 +671,13 @@ export default function OrderDetail() {
       } else {
         await generateInvoicePDF(order as any, customer, tenant);
       }
-      toast.success("Document Generated", {
-        description: `PDF for Order ${order.id.slice(0, 8)} saved.`,
-      });
+      // On native the share sheet opens — no toast needed (user sees the sheet).
+      // On web, the browser download starts.
+      if (!Capacitor.isNativePlatform()) {
+        toast.success("PDF Downloaded", {
+          description: `Invoice ${order.id.slice(0, 8)} saved to downloads.`,
+        });
+      }
     } catch (error) {
       console.error("Document Gen Error:", error);
       toast.error("Generation Failed", {
@@ -709,11 +713,12 @@ export default function OrderDetail() {
           await navigator.share(shareData);
           toast.success("Shared successfully");
         } catch {
-          await navigator.clipboard.writeText(shareUrl);
-          toast.success("Link copied", { description: "Link copied to clipboard." });
+          // AbortError = user cancelled — don't fall through to clipboard toast
+          copyToClipboard(shareUrl);
+          toast.success("Link copied", { description: "Paste it anywhere to share." });
         }
       } else {
-        await navigator.clipboard.writeText(shareUrl);
+        copyToClipboard(shareUrl);
         toast.success("Link copied", { description: "Sharing link copied to clipboard." });
       }
     } catch (err) {

@@ -139,8 +139,9 @@ export default function Dashboard() {
       <main
         ref={mainRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 pb-12"
+        className="flex-1 overflow-y-auto px-4 md:px-8 pb-12"
       >
+        <div className="md:max-w-5xl md:mx-auto">
         {isProfileIncomplete && (
           <div
             onClick={() => navigate("/profile")}
@@ -208,7 +209,7 @@ export default function Dashboard() {
           <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 pl-1">
             Capital Allocation
           </h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {/* Purchases → routes to Ledger with Purchases filter */}
             <Link
               to="/ledger?filter=Purchases"
@@ -419,6 +420,7 @@ export default function Dashboard() {
             </div>
           </section>
         )}
+        </div>
       </main>
 
       {showScrollTop && (

@@ -443,7 +443,7 @@ export default function Inventory() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24 z-10 w-full max-w-lg mx-auto space-y-5">
+      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-4 pb-24 md:pb-12 z-10 w-full max-w-lg md:max-w-none mx-auto md:mx-0 space-y-5">
         {/* Active search/filter indicator */}
         {(debouncedQuery || filterBrand) && (
           <div className="flex items-center gap-2 flex-wrap">
@@ -574,7 +574,7 @@ export default function Inventory() {
                       {brand} — {phones.length} Units
                     </h3>
                   </div>
-                  <div className="grid gap-3">
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                     {phones.map((phone) => (
                       <div
                         key={phone.id}
