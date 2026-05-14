@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { BrandCatalog } from "@/data/deviceCatalog"; // reuse types
+import { usePlan } from "@/hooks/usePlan";
 
 // Same type as ColorOption from catalogHelpers
 export type ColorOption = { label: string; hex: string };
@@ -53,6 +54,9 @@ const fetchCatalog = async (): Promise<BrandCatalog> => {
 };
 
 export function useDeviceCatalog() {
+  const { canUse } = usePlan();
+  const catalogEnabled = canUse("catalog_autofill");
+
   const {
     data: catalog,
     isLoading,
@@ -60,16 +64,20 @@ export function useDeviceCatalog() {
   } = useQuery({
     queryKey: ["global_device_catalog"],
     queryFn: fetchCatalog,
-    staleTime: 1000 * 60 * 60 * 24, // 24 hours - don't refetch frequently since it's mostly static
-    gcTime: 1000 * 60 * 60 * 24 * 7, // Keep in cache for 7 days
+    staleTime: 1000 * 60 * 60 * 24,
+    gcTime: 1000 * 60 * 60 * 24 * 7,
+    // Don't even fetch if the feature is not available
+    enabled: catalogEnabled,
   });
 
   // Provide exactly the same helper methods as `src/lib/catalogHelpers.ts` did
-  const c = catalog || {};
+  // When catalog_autofill is gated, return empty options so CatalogAutocomplete
+  // behaves as a plain text input (no suggestions shown).
+  const c = catalogEnabled ? (catalog || {}) : {};
 
   return {
     catalog: c,
-    isLoading,
+    isLoading: catalogEnabled ? isLoading : false,
     error,
 
     getBrandOptions: (): string[] => Object.keys(c).sort(),

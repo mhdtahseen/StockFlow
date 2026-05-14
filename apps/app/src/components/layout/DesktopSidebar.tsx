@@ -11,6 +11,7 @@ import {
 } from "./navConfig";
 import { usePlan, type FeatureKey } from "@/hooks/usePlan";
 import { useAuth } from "@/context/AuthContext";
+import { useUpgradeGate } from "@/context/UpgradeGateContext";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ export default function DesktopSidebar() {
   const location = useLocation();
   const { canUse, plan } = usePlan();
   const { isAdmin, user, signOut, tenant, fullName, avatarUrl } = useAuth();
+  const { showUpgrade } = useUpgradeGate();
   const [showSignOut, setShowSignOut] = React.useState(false);
 
   const renderItem = (item: NavItem) => {
@@ -44,15 +46,16 @@ export default function DesktopSidebar() {
 
     if (locked) {
       return (
-        <NavLink
+        <button
           key={item.to}
-          to="/pricing"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors text-sm font-medium"
+          type="button"
+          onClick={() => showUpgrade(item.feature as FeatureKey)}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors text-sm font-medium"
         >
           <item.icon size={18} className="shrink-0" />
-          <span className="flex-1 truncate">{item.label}</span>
+          <span className="flex-1 truncate text-left">{item.label}</span>
           <Crown size={13} className="text-amber-400 shrink-0" />
-        </NavLink>
+        </button>
       );
     }
 

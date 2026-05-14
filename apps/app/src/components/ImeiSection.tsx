@@ -18,6 +18,8 @@ import {
   type ImeiStatus,
 } from "../utils/validateImei";
 import ImeiScannerModal from "./ImeiScannerModal";
+import { usePlan } from "@/hooks/usePlan";
+import { useUpgradeGate } from "@/context/UpgradeGateContext";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -60,7 +62,9 @@ export default function ImeiSection({
   showVerificationSection = true,
 }: ImeiSectionProps) {
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [scanTarget, setScanTarget] = useState<number>(0); // Which IMEI slot to fill
+  const [scanTarget, setScanTarget] = useState<number>(0);
+  const { canUse } = usePlan();
+  const { showUpgrade } = useUpgradeGate();
 
   // ─── Add / Remove IMEI slots ──────────────────────────────────────────────
 
@@ -186,6 +190,10 @@ export default function ImeiSection({
                   <button
                     type="button"
                     onClick={() => {
+                      if (!canUse("imei_scanner")) {
+                        showUpgrade("imei_scanner");
+                        return;
+                      }
                       setScanTarget(index);
                       setScannerOpen(true);
                     }}

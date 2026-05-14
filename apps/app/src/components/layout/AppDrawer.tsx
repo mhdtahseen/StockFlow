@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import clsx from "clsx";
 import { usePlan, FeatureKey } from "@/hooks/usePlan";
 import { useAuth } from "@/context/AuthContext";
+import { useUpgradeGate } from "@/context/UpgradeGateContext";
 
 const PLAN_LABELS: Record<string, string> = {
   trial: '🟡 Trial Active',
@@ -83,6 +84,7 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
   const location = useLocation();
   const { canUse, plan } = usePlan();
   const { isAdmin, user, signOut, tenant, fullName, avatarUrl } = useAuth();
+  const { showUpgrade } = useUpgradeGate();
   const [showSignOutConfirm, setShowSignOutConfirm] = React.useState(false);
   const touchStartX = useRef<number>(0);
 
@@ -103,17 +105,17 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
     return (
       <div key={section.to}>
         {locked ? (
-          <NavLink
-            to="/pricing"
-            onClick={onClose}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 dark:text-slate-500 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+          <button
+            type="button"
+            onClick={() => { showUpgrade(section.feature as FeatureKey); onClose(); }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
           >
             <section.icon size={20} />
             <span className="text-sm font-medium flex-1 text-left">
               {section.label}
             </span>
             <Crown size={14} className="text-amber-400" />
-          </NavLink>
+          </button>
         ) : (
           <NavLink
             to={section.to}

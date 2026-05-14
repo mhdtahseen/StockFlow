@@ -1,7 +1,8 @@
 import React from "react";
-import { AlertCircle, Mail, MessageSquare } from "lucide-react";
-import { Link } from "react-router-dom";
+import { AlertCircle, MessageSquare, ArrowUpRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { Browser } from "@capacitor/browser";
+import { Capacitor } from "@capacitor/core";
 
 export default function TrialExpiredPaywall() {
   const { signOut, tenant } = useAuth();
@@ -34,12 +35,19 @@ export default function TrialExpiredPaywall() {
             Contact Support
           </a>
         ) : (
-          <Link 
-            to="/pricing" 
-            className="bg-primary-500 hover:bg-blue-800 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-lg shadow-blue-900/20"
+          <button
+            onClick={() => {
+              if (Capacitor.isNativePlatform()) {
+                Browser.open({ url: "https://finventree.com/pricing" });
+              } else {
+                window.open("https://finventree.com/pricing", "_blank", "noopener,noreferrer");
+              }
+            }}
+            className="bg-primary-500 hover:bg-blue-800 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
           >
             View Pricing Plans
-          </Link>
+            <ArrowUpRight size={18} />
+          </button>
         )}
         
         <button 
