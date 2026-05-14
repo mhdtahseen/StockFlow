@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Check, Sparkles, Loader2, AlertCircle, Zap, Building2, Star } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import CheckoutModal from "./CheckoutModal";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 type BillingPeriod = "monthly" | "yearly";
 
@@ -85,15 +86,45 @@ interface CheckoutState {
   billingPeriod: BillingPeriod;
 }
 
-export default function PricingPage() {
-  const [billing, setBilling] = useState<BillingPeriod>("monthly");
+function PricingContent() {
+  const searchParams = useSearchParams();
+  const [billing, setBilling] = useState<BillingPeriod>(
+    (searchParams.get("period") as BillingPeriod) ?? "monthly"
+  );
   const [plans, setPlans]     = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [handoffState, setHandoffState] = useState<"idle" | "exchanging" | "done" | "failed">("idle");
 
-  const [subscribing, setSubscribing] = useState<string | null>(null); // planId being subscribed
+  const [subscribing, setSubscribing] = useState<string | null>(null);
   const [checkout, setCheckout]       = useState<CheckoutState | null>(null);
 
+  // ── Token handoff: exchange ?token_hash= for a session ──────────────────
+  useEffect(() => {
+    const tokenHash = searchParams.get("token_hash");
+    const type      = searchParams.get("type") ?? "magiclink";
+    if (!tokenHash) return;
+
+    setHandoffState("exchanging");
+    supabase.auth
+      .verifyOtp({ token_hash: tokenHash, type: type as "magiclink" })
+      .then(({ error }) => {
+        if (error) {
+          console.warn("[pricing] handoff token exchange failed:", error.message);
+          setHandoffState("failed");
+        } else {
+          setHandoffState("done");
+        }
+        // Remove token from URL so it can't be replayed
+        const url = new URL(window.location.href);
+        url.searchParams.delete("token_hash");
+        url.searchParams.delete("type");
+        window.history.replaceState({}, "", url.toString());
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Fetch plans ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function fetchPlans() {
       const { data, error } = await supabase
@@ -105,7 +136,6 @@ export default function PricingPage() {
       if (error) {
         setFetchError("Failed to load plans. Please refresh.");
       } else {
-        // Sort by PLAN_ORDER
         const sorted = (data ?? []).sort(
           (a, b) => PLAN_ORDER.indexOf(a.id) - PLAN_ORDER.indexOf(b.id)
         );
@@ -119,8 +149,8 @@ export default function PricingPage() {
   async function handleSubscribe(plan: Plan) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      // Not logged in — redirect to register, come back after login
-      window.location.href = `/register?redirect=/pricing&plan=${plan.id}&period=${billing}`;
+      // Not logged in — send to /login, come back after auth
+      window.location.href = `/login?redirect=/pricing&plan=${plan.id}&period=${billing}`;
       return;
     }
 
@@ -217,7 +247,32 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Error */}
+        {/* Handoff banner */}
+        {handoffState === "exchanging" && (
+          <div className="flex items-center justify-center gap-2 text-amber-400 mb-8">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Signing you in…</span>
+          </div>
+        )}
+        {handoffState === "done" && (
+          <div className="flex items-center justify-center gap-2 text-emerald-400 mb-8">
+            <span className="text-sm">✓ Signed in — select a plan to continue</span>
+          </div>
+        )}
+        {handoffState === "failed" && (
+          <div className="flex items-center justify-center gap-2 text-rose-400 mb-8">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">
+              Session link expired.{" "}
+              <Link href="/login?redirect=/pricing" className="underline hover:text-rose-300">
+                Sign in
+              </Link>
+              {" "}to continue.
+            </span>
+          </div>
+        )}
+
+        {/* Error */}}
         {fetchError && (
           <div className="flex items-center justify-center gap-2 text-red-400 mb-8">
             <AlertCircle className="h-5 w-5" />
@@ -311,7 +366,7 @@ export default function PricingPage() {
 
         {/* Fee note */}
         <p className="text-center text-xs text-[var(--color-text-muted)] mt-8">
-          A ~2% payment processing fee is added at checkout. Prices include GST.
+          A 2.36% payment processing fee (Razorpay 2% + 18% GST) is added at checkout. Prices shown exclude this fee.
           Cancel any time before the trial ends — you won't be charged.
         </p>
       </div>
@@ -339,5 +394,17 @@ export default function PricingPage() {
         />
       )}
     </main>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   );
 }

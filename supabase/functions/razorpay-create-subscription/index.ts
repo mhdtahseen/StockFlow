@@ -11,9 +11,9 @@ const RAZORPAY_KEY_ID     = Deno.env.get("RAZORPAY_KEY_ID")     ?? "";
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET") ?? "";
 const RAZORPAY_AUTH       = "Basic " + btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
 
-// Razorpay charges ~2% + 18% GST on that fee ≈ 2.36%.
-// We add a flat 2% surcharge passed through to the customer.
-const PLATFORM_FEE_RATE = 0.02;
+// Razorpay charges 2% + 18% GST on that fee = 2.36% total.
+// This entire cost is passed through to the customer as a surcharge.
+const PLATFORM_FEE_RATE = 0.0236;
 
 // 14-day free trial
 const TRIAL_DAYS = 14;

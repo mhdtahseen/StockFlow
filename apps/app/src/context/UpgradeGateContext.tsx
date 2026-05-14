@@ -32,12 +32,14 @@ export function UpgradeGateProvider({ children }: { children: React.ReactNode })
 
 // ─── Upgrade Modal ────────────────────────────────────────────────────────────
 
-import { X, Lock, ArrowUpRight, Sparkles } from "lucide-react";
+import { X, Lock, ArrowUpRight, Sparkles, Loader2 } from "lucide-react";
 import { FEATURE_GATES } from "@/hooks/usePlan";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
+import { supabase } from "@/lib/supabase";
 
 const PRICING_URL = "https://finventree.com/pricing";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 const FEATURE_META: Record<FeatureKey, { name: string; description: string; requiredPlan: "pro" | "enterprise" }> = {
   // Pro features
@@ -67,11 +69,40 @@ const PLAN_BADGE: Record<"pro" | "enterprise", { label: string; color: string }>
   enterprise: { label: "Enterprise", color: "bg-violet-600" },
 };
 
-async function openPricing() {
+async function openPricing(planHint?: string) {
+  let url = PRICING_URL;
+  if (planHint) url += `?plan=${planHint}`;
+
+  try {
+    // Try to get a session token to hand off to the web — seamless auth
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      const res = await fetch(
+        `${SUPABASE_URL}/functions/v1/auth-handoff`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({}),
+        }
+      );
+      if (res.ok) {
+        const { token_hash, type } = await res.json() as { token_hash: string; type: string };
+        const sep = url.includes("?") ? "&" : "?";
+        url += `${sep}token_hash=${encodeURIComponent(token_hash)}&type=${type}`;
+      }
+      // If the handoff call fails, just open without token — user will see /login
+    }
+  } catch {
+    // Best-effort; swallow and fall back to plain URL
+  }
+
   if (Capacitor.isNativePlatform()) {
-    await Browser.open({ url: PRICING_URL });
+    await Browser.open({ url });
   } else {
-    window.open(PRICING_URL, "_blank", "noopener,noreferrer");
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 }
 
@@ -81,8 +112,16 @@ interface UpgradeModalProps {
 }
 
 function UpgradeModal({ feature, onClose }: UpgradeModalProps) {
-  const meta = FEATURE_META[feature];
+  const meta  = FEATURE_META[feature];
   const badge = PLAN_BADGE[meta.requiredPlan];
+  const [opening, setOpening] = React.useState(false);
+
+  async function handleUpgrade() {
+    setOpening(true);
+    await openPricing(meta.requiredPlan);
+    setOpening(false);
+    onClose();
+  }
 
   return (
     // Backdrop
@@ -131,11 +170,12 @@ function UpgradeModal({ feature, onClose }: UpgradeModalProps) {
         {/* CTA */}
         <div className="px-6 pb-6 space-y-2">
           <button
-            onClick={() => { openPricing(); onClose(); }}
-            className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-slate-900/20"
+            onClick={handleUpgrade}
+            disabled={opening}
+            className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-slate-900/20 disabled:opacity-60"
           >
+            {opening ? <Loader2 size={16} className="animate-spin" /> : <ArrowUpRight size={16} />}
             Upgrade on finventree.com
-            <ArrowUpRight size={16} />
           </button>
           <button
             onClick={onClose}

@@ -176,7 +176,7 @@ export default function CheckoutModal({
               <span className="font-medium text-white">₹{baseAmount.toLocaleString("en-IN")}</span>
             </div>
             <div className="flex justify-between">
-              <span>Payment processing fee (~2%)</span>
+              <span>Payment processing fee (2.36%)</span>
               <span className="font-medium text-white">₹{feeAmount.toLocaleString("en-IN")}</span>
             </div>
             <div className="border-t border-white/10 pt-1.5 flex justify-between font-semibold text-white">
