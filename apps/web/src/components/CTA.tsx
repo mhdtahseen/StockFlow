@@ -26,7 +26,7 @@ export default function CTA() {
             </h2>
             <p className="mt-5 text-[var(--color-text-secondary)] text-lg max-w-xl mx-auto">
               Join hundreds of smart dealers who went fully paperless with
-              Finventree. Start your 14-day free trial — no credit card needed.
+              Finventree. Start your 6-month free trial — no credit card needed.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
               <a

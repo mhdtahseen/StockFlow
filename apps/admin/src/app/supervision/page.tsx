@@ -26,6 +26,8 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  CalendarPlus,
+  CalendarClock,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -74,6 +76,7 @@ type Tenant = {
   plan: string;
   is_active: boolean;
   created_at: string;
+  plan_expires_at?: string | null;
   suspended_until?: string | null;
   profiles?: Profile[];
   phoneCount?: number;
@@ -276,6 +279,7 @@ function SupervisionContent() {
   const [targetName, setTargetName] = useState("");
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [suspensionId, setSuspensionId] = useState<string | null>(null);
+  const [extendTrialId, setExtendTrialId] = useState<string | null>(null);
 
   // Search / filter
   const [search, setSearch] = useState("");
@@ -458,6 +462,72 @@ function SupervisionContent() {
     } finally {
       setIsProcessing(null);
       setDeleteId(null);
+    }
+  };
+
+  const handleExtendTrial = async (months: number) => {
+    if (!extendTrialId) return;
+    setIsProcessing(`extend-${extendTrialId}`);
+    try {
+      // Calculate new expiry: max(now, current expiry) + months
+      const tenant = tenants.find((t) => t.id === extendTrialId);
+      const base = tenant?.plan_expires_at && new Date(tenant.plan_expires_at) > new Date()
+        ? new Date(tenant.plan_expires_at)
+        : new Date();
+      const newExpiry = new Date(base);
+      newExpiry.setMonth(newExpiry.getMonth() + months);
+
+      const { error } = await supabase
+        .from("tenants")
+        .update({
+          plan: "trial",
+          plan_expires_at: newExpiry.toISOString(),
+        })
+        .eq("id", extendTrialId);
+      if (error) throw error;
+      toast.success("Trial extended", {
+        description: `Trial now expires ${newExpiry.toLocaleDateString()}.`,
+      });
+      setExtendTrialId(null);
+      fetchData();
+    } catch (err: unknown) {
+      toast.error("Failed to extend trial", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleExtendTrial = async (months: number) => {
+    if (!extendTrialId) return;
+    setIsProcessing(`extend-${extendTrialId}`);
+    try {
+      // Extend from current expiry (if future) or from now
+      const tenant = tenants.find((t) => t.id === extendTrialId);
+      const base =
+        tenant?.plan_expires_at && new Date(tenant.plan_expires_at) > new Date()
+          ? new Date(tenant.plan_expires_at)
+          : new Date();
+      const newExpiry = new Date(base);
+      newExpiry.setMonth(newExpiry.getMonth() + months);
+
+      const { error } = await supabase
+        .from("tenants")
+        .update({ plan: "trial", plan_expires_at: newExpiry.toISOString() })
+        .eq("id", extendTrialId);
+      if (error) throw error;
+      toast.success("Trial extended", {
+        description: `Expires ${newExpiry.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+      });
+      setExtendTrialId(null);
+      fetchData();
+    } catch (err: unknown) {
+      toast.error("Failed to extend trial", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setIsProcessing(null);
     }
   };
 
@@ -797,6 +867,21 @@ function SupervisionContent() {
                           </p>
                         )}
 
+                        {tenant.plan === "trial" && tenant.plan_expires_at && (
+                          <p className={clsx(
+                            "mt-1 text-[10px] font-bold uppercase flex items-center gap-1",
+                            new Date(tenant.plan_expires_at) < new Date()
+                              ? "text-rose-500"
+                              : "text-amber-500"
+                          )}>
+                            <CalendarClock size={10} />
+                            Trial {new Date(tenant.plan_expires_at) < new Date() ? "expired" : "expires"}{" "}
+                            {new Date(tenant.plan_expires_at).toLocaleDateString("en-IN", {
+                              day: "numeric", month: "short", year: "numeric",
+                            })}
+                          </p>
+                        )}
+
                         {/* Quota bars */}
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <QuotaBar
@@ -848,6 +933,23 @@ function SupervisionContent() {
 
                         {/* Icon actions */}
                         <div className="flex items-center gap-1">
+                          {/* Extend trial */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setExtendTrialId(tenant.id)}
+                                className="size-8 rounded-lg text-amber-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+                              >
+                                <CalendarPlus size={16} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              Extend trial
+                            </TooltipContent>
+                          </Tooltip>
+
                           {/* Feature access toggle */}
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -1158,6 +1260,60 @@ function SupervisionContent() {
                 variant="ghost"
                 className="w-full font-bold"
                 onClick={() => setSuspensionId(null)}
+              >
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Extend Trial Dialog ──────────────────────────────────── */}
+        <Dialog open={!!extendTrialId} onOpenChange={() => setExtendTrialId(null)}>
+          <DialogContent className="rounded-2xl max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="font-black flex items-center gap-2">
+                <CalendarPlus size={18} className="text-amber-500" />
+                Extend Trial
+              </DialogTitle>
+              <DialogDescription>
+                {(() => {
+                  const t = tenants.find((x) => x.id === extendTrialId);
+                  if (!t) return "Choose how long to extend the trial.";
+                  if (t.plan_expires_at && new Date(t.plan_expires_at) > new Date()) {
+                    return `Current trial expires ${new Date(t.plan_expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}. Extension adds from that date.`;
+                  }
+                  return "Trial has expired. Extension starts from today.";
+                })()}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              {[
+                { label: "1 month",  months: 1 },
+                { label: "3 months", months: 3 },
+                { label: "6 months", months: 6 },
+                { label: "1 year",   months: 12 },
+                { label: "2 years",  months: 24 },
+              ].map(({ label, months }) => (
+                <Button
+                  key={months}
+                  variant="outline"
+                  className="font-black text-xs h-11 rounded-xl"
+                  onClick={() => handleExtendTrial(months)}
+                  disabled={!!isProcessing?.startsWith(`extend-`)}
+                >
+                  {isProcessing === `extend-${extendTrialId}` ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    label
+                  )}
+                </Button>
+              ))}
+            </div>
+            <DialogFooter className="mt-4">
+              <Button
+                variant="ghost"
+                className="w-full font-bold"
+                onClick={() => setExtendTrialId(null)}
               >
                 Cancel
               </Button>

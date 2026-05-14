@@ -15,8 +15,8 @@ const RAZORPAY_AUTH       = "Basic " + btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_S
 // This entire cost is passed through to the customer as a surcharge.
 const PLATFORM_FEE_RATE = 0.0236;
 
-// 14-day free trial
-const TRIAL_DAYS = 14;
+// 6-month free trial
+const TRIAL_DAYS = 180;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -129,7 +129,7 @@ serve(async (req) => {
       body: JSON.stringify({
         plan_id:        rzpPlanId,
         customer_id:    rzpCustomerId,
-        total_count:    0,          // infinite recurring
+        total_count:    120,        // Razorpay max meaningful value (~10 yrs)
         quantity:       1,
         start_at:       trialEndAt, // first charge after trial
         addons: [

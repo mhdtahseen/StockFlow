@@ -44,7 +44,7 @@ serve(async (req) => {
           name: tenantReq.org_name,
           slug: slug,
           plan: 'trial',
-          plan_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          plan_expires_at: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
           is_active: true
         })
         .select()

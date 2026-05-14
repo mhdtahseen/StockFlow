@@ -36,7 +36,7 @@ const PLAN_META: Record<string, {
       "Sales & purchase orders",
       "Customer directory",
       "PDF invoice generation",
-      "14-day free trial",
+      "6-month free trial",
     ],
     cta: "Start Free Trial",
   },
@@ -53,7 +53,7 @@ const PLAN_META: Record<string, {
       "Credit & receivables tracking",
       "Public share links",
       "Global device catalog autofill",
-      "14-day free trial",
+      "6-month free trial",
     ],
     cta: "Start Free Trial",
   },
@@ -68,7 +68,7 @@ const PLAN_META: Record<string, {
       "SLA guarantee",
       "Dedicated support",
       "Everything in Pro",
-      "14-day free trial",
+      "6-month free trial",
     ],
     cta: "Start Free Trial",
   },
@@ -212,7 +212,7 @@ function PricingContent() {
             <span className="text-gradient-gold">pricing</span>
           </h1>
           <p className="mt-4 text-[var(--color-text-secondary)] text-lg">
-            14-day free trial on every plan. No credit card required to start.
+            6-month free trial on every plan. No credit card required to start.
           </p>
         </motion.div>
 
@@ -272,7 +272,7 @@ function PricingContent() {
           </div>
         )}
 
-        {/* Error */}}
+        {/* Error */}
         {fetchError && (
           <div className="flex items-center justify-center gap-2 text-red-400 mb-8">
             <AlertCircle className="h-5 w-5" />
