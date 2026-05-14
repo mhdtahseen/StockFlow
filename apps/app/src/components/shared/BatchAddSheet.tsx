@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { CatalogAutocomplete } from "@/components/ui/CatalogAutocomplete";
 import { useDeviceCatalog, sortBySize } from "@/hooks/useDeviceCatalog";
 import { usePlan } from "@/hooks/usePlan";
+import { useUpgradeGate } from "@/context/UpgradeGateContext";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { addPurchaseOrder } from "@/features/purchasing/slice";
@@ -62,6 +63,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
   const dispatch = useAppDispatch();
   const { user } = useAuth();
   const { canUse } = usePlan();
+  const { showUpgrade } = useUpgradeGate();
   const {
     getBrandOptions,
     getModelOptions,
@@ -375,8 +377,10 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
 
     if (isCredit && !dueDateStr)
       return toast.error("Please provide a due date");
-    if (!canUse("purchase_orders"))
-      return toast.error("Purchase Orders require Pro plan");
+    if (!canUse("purchase_orders")) {
+      showUpgrade("purchase_orders");
+      return;
+    }
 
     const orderId = crypto.randomUUID();
     const orderItems = rows.map((r) => ({

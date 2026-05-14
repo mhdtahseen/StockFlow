@@ -15,6 +15,7 @@ import SuspendedScreen from "@/pages/SuspendedScreen";
 import AnnouncementBanner from "./AnnouncementBanner";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { UpgradeGateProvider } from "@/context/UpgradeGateContext";
 
 export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -39,6 +40,7 @@ export default function AppLayout() {
   }
 
   return (
+    <UpgradeGateProvider>
     <div className="flex h-[100dvh] overflow-hidden w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
       {isExpired && !isLedgerRoute && <TrialExpiredPaywall />}
       {/* Desktop: persistent sidebar; Mobile: slide-in drawer */}
@@ -61,5 +63,6 @@ export default function AppLayout() {
         {isMobile && <BottomNav onMenuOpen={() => setDrawerOpen(true)} />}
       </div>
     </div>
+    </UpgradeGateProvider>
   );
 }

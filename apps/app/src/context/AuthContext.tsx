@@ -3,6 +3,13 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
+export interface FeatureFlagEntry {
+  enabled_globally: boolean;
+  tenant_overrides: Record<string, boolean>;
+}
+
+export type FeatureFlagMap = Record<string, FeatureFlagEntry>;
+
 export interface TenantInfo {
   id: string;
   name: string;
@@ -22,6 +29,7 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   isLoading: boolean;
   tenant: TenantInfo | null;
+  featureFlags: FeatureFlagMap | null;
   fullName: string | null;
   avatarUrl: string | null;
   signOut: () => Promise<void>;
@@ -40,9 +48,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlagMap | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isTenantLoading, setIsTenantLoading] = useState(false);
+
+  const fetchFeatureFlags = async () => {
+    try {
+      const { data } = await supabase
+        .from("feature_flags")
+        .select("flag_key, enabled_globally, tenant_overrides");
+      if (data) {
+        const map: FeatureFlagMap = {};
+        for (const row of data) {
+          map[row.flag_key] = {
+            enabled_globally: row.enabled_globally,
+            tenant_overrides: row.tenant_overrides ?? {},
+          };
+        }
+        setFeatureFlags(map);
+      }
+    } catch (err) {
+      console.error("Error fetching feature flags:", err);
+    }
+  };
 
   const refreshProfile = async () => {
     if (!user) return;
@@ -136,6 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setIsSuperAdmin(profile.role === "super-admin");
             setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
             if (profile.tenant_id) await fetchTenant(profile.tenant_id);
+            await fetchFeatureFlags();
           }
         } else {
           localStorage.removeItem("finventree_auth");
@@ -160,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsSuperAdmin(false);
           setIsAdmin(false);
           setTenant(null);
+          setFeatureFlags(null);
           setFullName(null);
           setAvatarUrl(null);
         } else if (newSession) {
@@ -180,6 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
             const tid = newSession.user.user_metadata.tenant_id || profile.tenant_id;
             if (tid) await fetchTenant(tid);
+            await fetchFeatureFlags();
           }
         }
         setIsLoading(false);
@@ -218,6 +250,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             toast.info("Your subscription has been updated.");
           }
         }
+        // Also refresh feature flags on the periodic poll
+        await fetchFeatureFlags();
       },
       15 * 60 * 1000,
     );
@@ -240,6 +274,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isSuperAdmin,
         isLoading: isLoading || isTenantLoading,
         tenant,
+        featureFlags,
         fullName,
         avatarUrl,
         signOut,

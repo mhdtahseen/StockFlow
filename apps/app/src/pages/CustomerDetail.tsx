@@ -36,6 +36,8 @@ import { SupplierAllocationSheet } from "@/components/shared/SupplierAllocationS
 import { CustomerEditSheet } from "@/components/shared/CustomerEditSheet";
 import { createShareLink } from "@/services/shareService";
 import { useAuth } from "@/context/AuthContext";
+import { usePlan } from "@/hooks/usePlan";
+import { useUpgradeGate } from "@/context/UpgradeGateContext";
 import { toast } from "sonner";
 
 type Tab = "orders" | "payments" | "timeline";
@@ -44,6 +46,8 @@ export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { tenant } = useAuth();
+  const { canUse } = usePlan();
+  const { showUpgrade } = useUpgradeGate();
 
   const customer = useAppSelector((state) =>
     state.customers.customers.find((c) => c.id === id),
@@ -444,6 +448,10 @@ export default function CustomerDetail() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (!canUse("public_sharing")) {
+                          showUpgrade("public_sharing");
+                          return;
+                        }
                         const isPO = (o as any).isPurchaseOrder;
                         if (sharingOrderId || !tenant) return;
                         

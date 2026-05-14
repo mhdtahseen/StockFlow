@@ -734,18 +734,20 @@ export default function OrderDetail() {
       <HeaderActions>
         <div className="flex items-center gap-2">
           {isInspected && (
-            <button
-              onClick={handleShare}
-              disabled={isSharing}
-              className="size-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-              title="Share Document"
-            >
-              {isSharing ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Share size={18} />
-              )}
-            </button>
+            <FeatureGate feature="public_sharing">
+              <button
+                onClick={handleShare}
+                disabled={isSharing}
+                className="size-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                title="Share Document"
+              >
+                {isSharing ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Share size={18} />
+                )}
+              </button>
+            </FeatureGate>
           )}
 
           <FeatureGate feature="pdf_invoice">

@@ -1,32 +1,51 @@
 import { useAuth } from "@/context/AuthContext";
 
-export const FEATURE_GATES = {
-  unlimited_phones: ["pro", "enterprise"],
-  imei_scanner: ["pro", "enterprise"],
-  catalog_autofill: ["pro", "enterprise"],
-  full_ledger: ["pro", "enterprise"],
-  trade_orders: ["pro", "enterprise"],
-  customers: ["pro", "enterprise"],
-  pdf_invoice: ["pro", "enterprise"],
+// Which plans can access each feature.
+// "starter" features are intentionally limited — IMEI scanner pain drives Pro upgrades.
+// "bulk_invoice" and "trade_network" are Enterprise-only and NOT YET BUILT — placeholder gates.
+export const FEATURE_GATES: Record<string, readonly string[]> = {
+  // ── Starter + Pro + Enterprise ─────────────────────────────────────────────
+  trade_orders:    ["starter", "pro", "enterprise"],
+  purchase_orders: ["starter", "pro", "enterprise"],
+  customers:       ["starter", "pro", "enterprise"],
+  pdf_invoice:     ["starter", "pro", "enterprise"],
+
+  // ── Pro + Enterprise ──────────────────────────────────────────────────────
+  public_sharing:  ["pro", "enterprise"],
+  imei_scanner:    ["pro", "enterprise"],
+  catalog_autofill:["pro", "enterprise"],
+  full_ledger:     ["pro", "enterprise"],
+  analytics:       ["pro", "enterprise"],
   credit_tracking: ["pro", "enterprise"],
-  analytics: ["pro", "enterprise"],
-  purchase_orders: ["pro", "enterprise"],
-  bulk_orders: ["enterprise"],
-  bulk_invoice: ["enterprise"],
-  trade_network: ["enterprise"],
-  receivables: ["enterprise"],
-  customer_pnl: ["enterprise"],
+  receivables:     ["pro", "enterprise"],
+  customer_pnl:    ["pro", "enterprise"],
+  unlimited_phones:["pro", "enterprise"],
+  bulk_orders:     ["pro", "enterprise"],
+
+  // ── Enterprise only ───────────────────────────────────────────────────────
+  bulk_invoice:    ["enterprise"], // TODO: not yet built
+  trade_network:   ["enterprise"], // TODO: not yet built
   unlimited_seats: ["enterprise"],
 } as const;
+
 export type FeatureKey = keyof typeof FEATURE_GATES;
 
 export function usePlan() {
-  const { tenant } = useAuth();
+  const { tenant, featureFlags } = useAuth();
   const plan = tenant?.plan ?? "trial";
-  const Math_now = new Date().getTime();
+  const now = new Date().getTime();
   const expired = tenant?.planExpiresAt
-    ? new Date(tenant.planExpiresAt).getTime() < Math_now
+    ? new Date(tenant.planExpiresAt).getTime() < now
     : false;
+
+  const isFlagEnabled = (f: FeatureKey): boolean => {
+    if (!featureFlags) return true; // if flags haven't loaded yet, don't block
+    const flag = featureFlags[f as string];
+    if (!flag) return true; // no flag entry for this key = not kill-switched
+    const tenantOverride = tenant?.id ? flag.tenant_overrides?.[tenant.id] : undefined;
+    if (tenantOverride !== undefined) return tenantOverride;
+    return flag.enabled_globally;
+  };
 
   return {
     plan,
@@ -34,19 +53,11 @@ export function usePlan() {
     canUse: (f: FeatureKey): boolean => {
       if (expired || plan === "expired") return false;
       // P4-ENH-35: INTENTIONAL — Trial gives full Enterprise access for 14 days. Do not remove.
-      if (plan === "trial") return true;
+      if (plan === "trial") return isFlagEnabled(f);
+      if (plan === "enterprise") return isFlagEnabled(f);
 
-      if (plan === "enterprise") {
-        return true;
-      }
-
-      if (plan === "starter") {
-        // P2-BUG-15: Starter only has basic access — no IMEI scanner, no advanced features.
-        // The 200-phone limit is enforced at DB level via RLS. No feature gates here.
-        return false;
-      }
-
-      return (FEATURE_GATES[f] as readonly string[]).includes(plan);
+      const planAllows = FEATURE_GATES[f]?.includes(plan) ?? false;
+      return planAllows && isFlagEnabled(f);
     },
   };
 }

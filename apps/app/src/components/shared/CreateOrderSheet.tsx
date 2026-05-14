@@ -32,6 +32,7 @@ import CurrencyInput from "@/components/ui/CurrencyInput";
 import { PhoneSelectorSheet } from "./PhoneSelectorSheet";
 import { usePlan } from "@/hooks/usePlan";
 import { useAuth } from "@/context/AuthContext";
+import { useUpgradeGate } from "@/context/UpgradeGateContext";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { toast } from "sonner";
@@ -82,6 +83,7 @@ export function CreateOrderSheet({
   const [notes, setNotes] = useState("");
 
   const { canUse, isExpired } = usePlan();
+  const { showUpgrade } = useUpgradeGate();
   const { user } = useAuth();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -321,8 +323,10 @@ export function CreateOrderSheet({
   };
 
   const handleAddDevice = () => {
-    if (!canUse("bulk_orders") && items.length >= 1)
-      return toast.error("Bulk orders require Pro plan");
+    if (!canUse("bulk_orders") && items.length >= 1) {
+      showUpgrade("bulk_orders");
+      return;
+    }
     setSelectorOpen(true);
   };
 
@@ -383,10 +387,14 @@ export function CreateOrderSheet({
                         key={type}
                         type="button"
                         onClick={() => {
-                          if (isLocked)
-                            return toast.error(
-                              `Upgrade to ${type === "BULK" ? "Pro" : "Enterprise"} to unlock.`,
-                            );
+                          if (type === "BULK" && isLocked) {
+                            showUpgrade("bulk_orders");
+                            return;
+                          }
+                          if (type === "TRANSFER" && isLocked) {
+                            showUpgrade("trade_network");
+                            return;
+                          }
                           if (type === "TRANSFER") {
                             setComingSoonOpen(true);
                             return;
