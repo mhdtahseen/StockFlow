@@ -1,13 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Loader2, AlertCircle, FileText, Calendar, ShieldCheck, Download } from 'lucide-react';
+import { Loader2, AlertCircle, Calendar, ShieldCheck, Printer } from 'lucide-react';
 import { fetchPublicOrder, PublicOrderData } from '@/services/shareService';
-import { InvoicePrintable } from '@/components/shared/InvoicePrintable';
-import { PurchaseOrderPrintable } from '@/components/shared/PurchaseOrderPrintable';
+import { PrintableInvoice } from '@/components/shared/PrintableInvoice';
 import { format, isAfter, parseISO } from 'date-fns';
-import { generateInvoicePDF } from '@/utils/generateInvoice';
-import { generatePurchaseOrderPDF } from '@/utils/generatePurchaseOrderPDF';
-import { toast } from 'sonner';
 
 export default function PublicView() {
   const { token } = useParams<{ token: string }>();
@@ -43,18 +39,9 @@ export default function PublicView() {
     load();
   }, [token]);
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!data) return;
-    try {
-      if (data.order.type === 'PURCHASE') {
-        await generatePurchaseOrderPDF(data.order as any, data.counterparty as any, data.tenant as any);
-      } else {
-        await generateInvoicePDF(data.order as any, data.counterparty as any, data.tenant as any);
-      }
-      toast.success('Document downloaded');
-    } catch (err) {
-      toast.error('Download failed');
-    }
+    window.print();
   };
 
   if (loading) {
@@ -87,8 +74,19 @@ export default function PublicView() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* Print CSS: hide everything except the invoice when printing */}
+      <style>{`
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+        @media print {
+          body { background: none !important; margin: 0 !important; padding: 0 !important; }
+          .no-print, nav, footer { display: none !important; }
+          .print-wrapper { padding: 0 !important; margin: 0 !important; background: white !important; }
+          .print-wrapper > div { box-shadow: none !important; max-width: 100% !important; width: 100% !important; border-radius: 0 !important; }
+        }
+      `}</style>
+
       {/* Top Bar */}
-      <nav className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex justify-between items-center">
+      <nav className="no-print sticky top-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="size-8 bg-primary-500 rounded-lg flex items-center justify-center">
             <ShieldCheck className="text-white" size={18} />
@@ -107,33 +105,23 @@ export default function PublicView() {
           onClick={handleDownload}
           className="bg-white text-slate-900 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 active:scale-95 transition-transform"
         >
-          <Download size={14} /> PDF
+          <Printer size={14} /> Save PDF
         </button>
       </nav>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center">
+      <main className="print-wrapper flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center">
         <div className="w-full max-w-[210mm] shadow-2xl shadow-black/50 overflow-hidden rounded-sm bg-white">
-          {/* We use the same printable components restricted to Light Mode */}
-          <div className="text-slate-900">
-            {isPO ? (
-              <PurchaseOrderPrintable 
-                order={data.order as any} 
-                supplier={data.counterparty as any} 
-                tenant={data.tenant as any} 
-              />
-            ) : (
-              <InvoicePrintable 
-                order={data.order as any} 
-                customer={data.counterparty as any} 
-                tenant={data.tenant as any} 
-              />
-            )}
-          </div>
+          <PrintableInvoice
+            order={data.order as any}
+            counterparty={data.counterparty as any}
+            tenant={data.tenant as any}
+            type={isPO ? 'PURCHASE' : 'SALE'}
+          />
         </div>
       </main>
 
       {/* Footer Info */}
-      <footer className="p-8 text-center border-t border-white/5 bg-slate-900/30">
+      <footer className="no-print p-8 text-center border-t border-white/5 bg-slate-900/30">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-2">
           Secure Document Sharing
         </p>

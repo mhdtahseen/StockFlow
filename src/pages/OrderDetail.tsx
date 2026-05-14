@@ -160,6 +160,7 @@ export default function OrderDetail() {
   const [showPOEditSheet, setShowPOEditSheet] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [fetchFailed, setFetchFailed] = useState(false);
 
   // Lazy-fetch settled/historical orders not in Redux state (A-004 / QA-011)
@@ -665,6 +666,8 @@ export default function OrderDetail() {
   };
 
   const generateInvoice = async () => {
+    if (isGenerating) return;
+    setIsGenerating(true);
     try {
       if (isPurchaseOrder) {
         await generatePurchaseOrderPDF(order as any, customer, tenant);
@@ -679,6 +682,8 @@ export default function OrderDetail() {
       toast.error("Generation Failed", {
         description: "Could not create PDF document.",
       });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -746,10 +751,15 @@ export default function OrderDetail() {
           <FeatureGate feature="pdf_invoice">
             <button
               onClick={generateInvoice}
-              className="size-10 rounded-full flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-primary-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+              disabled={isGenerating}
+              className="size-10 rounded-full flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-primary-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors disabled:opacity-50"
               title="Download Document"
             >
-              <FileText size={20} />
+              {isGenerating ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <FileText size={20} />
+              )}
             </button>
           </FeatureGate>
 
@@ -904,9 +914,15 @@ export default function OrderDetail() {
             )}
             <button
               onClick={generateInvoice}
-              className="px-6 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold h-12 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
+              disabled={isGenerating}
+              className="px-6 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold h-12 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
             >
-              <FileText size={18} /> Document
+              {isGenerating ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <FileText size={18} />
+              )}
+              {isGenerating ? "Generating..." : "Document"}
             </button>
           </div>
         </div>
