@@ -1,7 +1,7 @@
 "use client";
 
 import AdminShell from "@/components/AdminShell";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import {
@@ -59,11 +59,13 @@ type FeatureFlag = {
   enabled_globally: boolean;
 };
 
-const PLAN_TIER_MAP: Record<string, PlanTier> = {
-  Starter: "starter",
-  Pro: "pro",
-  Enterprise: "enterprise",
-};
+const VALID_TIERS: PlanTier[] = ["starter", "pro", "enterprise"];
+
+function deriveTier(planId: string): PlanTier | undefined {
+  return VALID_TIERS.includes(planId as PlanTier)
+    ? (planId as PlanTier)
+    : undefined;
+}
 
 const PLAN_ICON_COLORS: Record<string, string> = {
   starter: "bg-slate-100 dark:bg-slate-800 text-slate-500",
@@ -197,7 +199,7 @@ function PricingContent() {
   };
 
   const handleResetToDefaults = async (plan: SubscriptionPlan) => {
-    const tier = PLAN_TIER_MAP[plan.name] as PlanTier | undefined;
+    const tier = deriveTier(plan.id);
     if (!tier) return;
     setResettingId(plan.id);
     try {
@@ -251,7 +253,7 @@ function PricingContent() {
         ) : (
           <div className="grid gap-6">
             {plans.map((plan) => {
-              const tier = PLAN_TIER_MAP[plan.name];
+              const tier = deriveTier(plan.id);
               const colors = tier ? TIER_COLORS[tier] : TIER_COLORS.expired;
               const defaults = tier ? DEFAULT_PLAN_KEYS[tier] : [];
               const currentFeatures =
