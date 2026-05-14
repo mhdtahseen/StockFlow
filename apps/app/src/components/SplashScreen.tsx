@@ -1,151 +1,95 @@
 import React, { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
-import { SplashScreen as NativeSplash } from "@capacitor/splash-screen";
-import { StatusBar, Style } from "@capacitor/status-bar";
 
 interface SplashScreenProps {
   onFinished: () => void;
   minDuration?: number;
 }
 
-// Animation phases:
-//   "hidden"  → React overlay not yet shown (native splash is covering)
-//   "enter"   → overlay mounted, logo/text animating in
-//   "visible" → fully visible, holding
-//   "exit"    → fading out to reveal app
-type Phase = "hidden" | "enter" | "visible" | "exit";
-
 export default function SplashScreen({
   onFinished,
   minDuration = 1800,
 }: SplashScreenProps) {
-  const isNative = Capacitor.isNativePlatform();
-  const [phase, setPhase] = useState<Phase>(isNative ? "hidden" : "enter");
+  const [phase, setPhase] = useState<"enter" | "visible" | "exit">("enter");
 
   useEffect(() => {
-    if (isNative) {
-      // 1. Hide status bar so splash is truly full-screen
-      StatusBar.hide().catch(() => {});
+    // Phase 1: Small delay to trigger enter animation
+    const enterTimer = setTimeout(() => setPhase("visible"), 100);
 
-      // 2. Instantly swap: hide native splash (no fade), show our React overlay.
-      //    The React overlay matches exactly so the user sees no cut.
-      NativeSplash.hide({ fadeOutDuration: 0 }).catch(() => {});
+    // Phase 2: Start exit after min duration
+    const exitTimer = setTimeout(() => setPhase("exit"), minDuration);
 
-      // 3. Start animating the React overlay in
-      setPhase("enter");
+    // Phase 3: Remove from DOM after exit animation
+    const doneTimer = setTimeout(() => onFinished(), minDuration + 500);
 
-      // 4. Hold the "visible" phase briefly, then animate out
-      const holdTimer = setTimeout(() => setPhase("exit"), minDuration);
-
-      // 5. After exit animation, restore status bar and hand off to app
-      const doneTimer = setTimeout(() => {
-        StatusBar.show().catch(() => {});
-        onFinished();
-      }, minDuration + 600);
-
-      return () => {
-        clearTimeout(holdTimer);
-        clearTimeout(doneTimer);
-      };
-    } else {
-      // Web: animate in, hold, animate out
-      const exitTimer = setTimeout(() => setPhase("exit"), minDuration);
-      const doneTimer = setTimeout(() => onFinished(), minDuration + 600);
-      return () => {
-        clearTimeout(exitTimer);
-        clearTimeout(doneTimer);
-      };
-    }
-  }, [isNative, minDuration, onFinished]);
-
-  // Don't render anything until we're ready to animate
-  if (phase === "hidden") return null;
-
-  const entering = phase === "enter";
-  const exiting  = phase === "exit";
+    return () => {
+      clearTimeout(enterTimer);
+      clearTimeout(exitTimer);
+      clearTimeout(doneTimer);
+    };
+  }, [minDuration, onFinished]);
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex flex-col items-center justify-center overflow-hidden"
+      className={`fixed inset-0 z-[200] flex flex-col items-center justify-center transition-all duration-500 ease-out ${
+        phase === "exit" ? "opacity-0 scale-105" : "opacity-100 scale-100"
+      }`}
       style={{
-        background: "linear-gradient(160deg, #064a98 0%, #0a3d7a 45%, #072e5c 100%)",
-        opacity: exiting ? 0 : 1,
-        transform: exiting ? "scale(1.04)" : "scale(1)",
-        transition: exiting ? "opacity 600ms ease-in, transform 600ms ease-in" : "none",
+        background: "linear-gradient(145deg, #064a98 0%, #0a3d7a 40%, #072e5c 100%)",
       }}
     >
-      {/* Radial glow */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse 60% 50% at 50% 45%, rgba(255,255,255,0.12) 0%, transparent 70%)",
-        }}
-      />
+      {/* Subtle radial glow behind logo */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div
+          className="w-80 h-80 rounded-full opacity-20"
+          style={{
+            background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)",
+          }}
+        />
+      </div>
 
-      {/* Logo — scales up from 0.6 */}
+      {/* Logo */}
       <img
         src="/logo.svg"
-        alt="Finventree"
-        className="brightness-0 invert drop-shadow-2xl"
-        style={{
-          width: "6rem",
-          height: "6rem",
-          opacity: entering ? 0 : 1,
-          transform: entering ? "scale(0.6)" : "scale(1)",
-          transition: "opacity 500ms ease-out, transform 600ms cubic-bezier(0.34,1.56,0.64,1)",
-        }}
+        alt="StockFlow"
+        className={`w-24 h-24 brightness-0 invert drop-shadow-2xl transition-all duration-700 ease-out ${
+          phase === "enter" ? "opacity-0 scale-75" : "opacity-100 scale-100"
+        }`}
       />
 
-      {/* App name — slides up */}
+      {/* App name */}
       <h1
-        className="text-white text-3xl tracking-tight mt-4"
-        style={{
-          opacity: entering ? 0 : 1,
-          transform: entering ? "translateY(16px)" : "translateY(0)",
-          transition: "opacity 500ms ease-out 150ms, transform 500ms ease-out 150ms",
-        }}
+        className={`text-white text-3xl tracking-tight mt-3 transition-all duration-700 ease-out delay-150 ${
+          phase === "enter"
+            ? "opacity-0 translate-y-3"
+            : "opacity-100 translate-y-0"
+        }`}
       >
-        <span className="font-black">Stock</span>
-        <span className="font-light">Flow</span>
+        <span className="font-bold">Stock</span>
+        <span className="font-medium">Flow</span>
       </h1>
 
-      {/* Tagline — slides up with more delay */}
+      {/* Tagline */}
       <p
-        className="text-white/50 text-xs font-semibold uppercase tracking-[0.25em] mt-2"
-        style={{
-          opacity: entering ? 0 : 1,
-          transform: entering ? "translateY(12px)" : "translateY(0)",
-          transition: "opacity 500ms ease-out 300ms, transform 500ms ease-out 300ms",
-        }}
+        className={`text-white/50 text-xs font-semibold uppercase tracking-[0.25em] mt-2 transition-all duration-700 ease-out delay-300 ${
+          phase === "enter"
+            ? "opacity-0 translate-y-3"
+            : "opacity-100 translate-y-0"
+        }`}
       >
         Smart Inventory Manager
       </p>
 
-      {/* Pulsing dots — appear after logo settles */}
-      <div
-        className="flex gap-2 mt-10"
-        style={{
-          opacity: entering ? 0 : 1,
-          transition: "opacity 400ms ease-out 500ms",
-        }}
-      >
+      {/* Loading pulse dots */}
+      <div className="flex gap-1.5 mt-10">
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="w-1.5 h-1.5 rounded-full bg-white/30"
-            style={{
-              animation: phase === "visible" ? `pulse 1.2s ease-in-out ${i * 220}ms infinite` : "none",
-            }}
+            className="w-1.5 h-1.5 bg-white/40 rounded-full animate-pulse"
+            style={{ animationDelay: `${i * 200}ms` }}
           />
         ))}
       </div>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50%       { opacity: 0.9; transform: scale(1.4); }
-        }
-      `}</style>
     </div>
   );
 }

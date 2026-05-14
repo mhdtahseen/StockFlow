@@ -6,11 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   plugins: {
     SplashScreen: {
-      launchShowDuration: 3000,   // keep native splash visible for up to 3s
-      launchAutoHide: false,      // we call NativeSplash.hide() from React for a controlled fade
+      launchShowDuration: 2000,
+      launchAutoHide: true,
       backgroundColor: '#064a98',
       androidSplashResourceName: 'splash',
-      androidScaleType: 'CENTER_CROP',
+      androidScaleType: 'CENTER',
       showSpinner: false,
       splashFullScreen: true,
       splashImmersive: true,
