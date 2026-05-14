@@ -18,8 +18,7 @@ import {
   type ImeiStatus,
 } from "../utils/validateImei";
 import ImeiScannerModal from "./ImeiScannerModal";
-import { usePlan } from "@/hooks/usePlan";
-import { useUpgradeGate } from "@/context/UpgradeGateContext";
+import { FeatureGate } from "@/components/shared/FeatureGate";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -63,8 +62,6 @@ export default function ImeiSection({
 }: ImeiSectionProps) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanTarget, setScanTarget] = useState<number>(0);
-  const { canUse } = usePlan();
-  const { showUpgrade } = useUpgradeGate();
 
   // ─── Add / Remove IMEI slots ──────────────────────────────────────────────
 
@@ -186,22 +183,20 @@ export default function ImeiSection({
                     )}
                   </div>
 
-                  {/* Scan button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!canUse("imei_scanner")) {
-                        showUpgrade("imei_scanner");
-                        return;
-                      }
-                      setScanTarget(index);
-                      setScannerOpen(true);
-                    }}
-                    className="size-[46px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-primary-500/10 dark:hover:bg-blue-500/10 hover:border-primary-500/30 dark:hover:border-blue-500/30 flex items-center justify-center text-primary-500 dark:text-blue-400 transition-all active:scale-95 shrink-0"
-                    title="Scan Barcode"
-                  >
-                    <ScanBarcode size={20} strokeWidth={2} />
-                  </button>
+                  {/* Scan button — visible always; PRO badge for non-Pro plans */}
+                  <FeatureGate feature="imei_scanner" badge>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScanTarget(index);
+                        setScannerOpen(true);
+                      }}
+                      className="size-[46px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-primary-500/10 dark:hover:bg-blue-500/10 hover:border-primary-500/30 dark:hover:border-blue-500/30 flex items-center justify-center text-primary-500 dark:text-blue-400 transition-all active:scale-95 shrink-0"
+                      title="Scan Barcode"
+                    >
+                      <ScanBarcode size={20} strokeWidth={2} />
+                    </button>
+                  </FeatureGate>
 
                   {/* Remove button (only if > 1 slot) */}
                   {imeis.length > 1 && (

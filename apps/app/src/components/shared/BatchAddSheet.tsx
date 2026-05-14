@@ -277,6 +277,11 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
   };
 
   const addRow = () => {
+    // Multi-device ingestion requires bulk_orders (Pro+)
+    if (!canUse("bulk_orders")) {
+      showUpgrade("bulk_orders");
+      return;
+    }
     setRows((prev) => {
       const next = [
         ...prev,
@@ -377,10 +382,6 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
 
     if (isCredit && !dueDateStr)
       return toast.error("Please provide a due date");
-    if (!canUse("purchase_orders")) {
-      showUpgrade("purchase_orders");
-      return;
-    }
 
     const orderId = crypto.randomUUID();
     const orderItems = rows.map((r) => ({

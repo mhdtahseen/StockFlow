@@ -105,16 +105,20 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
     return (
       <div key={section.to}>
         {locked ? (
+          // Locked: show the nav item in a muted style with a PRO badge.
+          // Tapping opens the upgrade modal — user understands what they're missing.
           <button
             type="button"
             onClick={() => { showUpgrade(section.feature as FeatureKey); onClose(); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-amber-50 dark:hover:bg-amber-950/20 hover:text-amber-600 dark:hover:text-amber-400 transition-colors group"
           >
-            <section.icon size={20} />
+            <section.icon size={20} className="shrink-0" />
             <span className="text-sm font-medium flex-1 text-left">
               {section.label}
             </span>
-            <Crown size={14} className="text-amber-400" />
+            <span className="text-[8px] font-black uppercase tracking-wider leading-none bg-amber-400/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full border border-amber-400/30 group-hover:bg-amber-400 group-hover:text-amber-950 transition-colors">
+              PRO
+            </span>
           </button>
         ) : (
           <NavLink
