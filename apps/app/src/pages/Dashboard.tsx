@@ -3,6 +3,8 @@ import { useAppSelector } from "../app/hooks";
 import { selectWalletBuckets } from "../features/wallet/selectors";
 import { selectInventoryMetrics } from "../features/analytics/selectors";
 import { useAuth } from "../context/AuthContext";
+import { usePlan } from "../hooks/usePlan";
+import { useUpgradeGate } from "../context/UpgradeGateContext";
 import { supabase } from "@/lib/supabase";
 import {
   ArrowRight,
@@ -86,6 +88,8 @@ export default function Dashboard() {
   const phones = useAppSelector((state) => state.inventory.phones);
   const { mode, setMode, resolved } = useTheme();
   const { session, isAdmin, tenant } = useAuth();
+  const { canUse } = usePlan();
+  const { showUpgrade } = useUpgradeGate();
   const [showExportModal, setShowExportModal] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
@@ -183,12 +187,13 @@ export default function Dashboard() {
                   {formatCurrency(buckets.wallet)}
                 </h2>
               </div>
-              <Link
-                to="/ledger"
+              <button
+                type="button"
+                onClick={() => canUse("full_ledger") ? navigate("/ledger") : showUpgrade("full_ledger")}
                 className="bg-white/20 dark:bg-white/10 rounded-full p-2 backdrop-blur-sm hover:bg-white/30 dark:hover:bg-white/20 transition-colors"
               >
                 <Wallet size={22} className="text-white" />
-              </Link>
+              </button>
             </div>
 
             <div className="relative z-10 flex gap-3 mt-5 border-t border-white/15 pt-4">
@@ -211,9 +216,9 @@ export default function Dashboard() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {/* Purchases → routes to Ledger with Purchases filter */}
-            <Link
-              to="/ledger?filter=Purchases"
-              className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-rose-200 dark:hover:border-rose-800 transition-all group"
+            <div
+              onClick={() => canUse("full_ledger") ? navigate("/ledger?filter=Purchases") : showUpgrade("full_ledger")}
+              className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-rose-200 dark:hover:border-rose-800 transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="size-10 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
@@ -226,7 +231,7 @@ export default function Dashboard() {
               <p className="font-bold text-xl text-slate-900 dark:text-slate-100 tracking-tight">
                 {formatCurrency(buckets.purchases)}
               </p>
-            </Link>
+            </div>
 
             {/* Pledged */}
             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800">
@@ -244,9 +249,9 @@ export default function Dashboard() {
             </div>
 
             {/* Sales → routes to Ledger with Sales filter */}
-            <Link
-              to="/ledger?filter=Sales"
-              className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all group"
+            <div
+              onClick={() => canUse("full_ledger") ? navigate("/ledger?filter=Sales") : showUpgrade("full_ledger")}
+              className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="size-10 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -259,12 +264,12 @@ export default function Dashboard() {
               <p className="font-bold text-xl text-emerald-600 dark:text-emerald-400 tracking-tight">
                 {formatCurrency(buckets.sales)}
               </p>
-            </Link>
+            </div>
 
             {/* Avg Profit Margin */}
-            <Link
-              to="/analytics"
-              className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-primary-500/20 dark:hover:border-blue-500/30 transition-all group"
+            <div
+              onClick={() => canUse("analytics") ? navigate("/analytics") : showUpgrade("analytics")}
+              className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-primary-500/20 dark:hover:border-blue-500/30 transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="size-10 rounded-full bg-blue-50 dark:bg-blue-950 text-primary-500 dark:text-blue-400 flex items-center justify-center shrink-0">
@@ -284,7 +289,7 @@ export default function Dashboard() {
               >
                 {metrics.avgMargin.toFixed(1)}%
               </p>
-            </Link>
+            </div>
           </div>
         </section>
 

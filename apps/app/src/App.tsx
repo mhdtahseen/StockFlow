@@ -37,6 +37,8 @@ import PublicView from "@/pages/PublicView";
 
 import "./index.css";
 import { useAuth } from "./context/AuthContext";
+import { usePlan, type FeatureKey } from "./hooks/usePlan";
+import { useUpgradeGate } from "./context/UpgradeGateContext";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
@@ -56,6 +58,23 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   return <>{children}</>;
 };
+
+// Renders the page if the plan allows, otherwise shows the upgrade modal and
+// renders an empty placeholder — so the user can't access the page content.
+function GatedRoute({ feature, element }: { feature: FeatureKey; element: React.ReactNode }) {
+  const { canUse } = usePlan();
+  const { showUpgrade } = useUpgradeGate();
+
+  if (canUse(feature)) return <>{element}</>;
+
+  // Trigger the modal on first render, show a blank slate behind it
+  React.useEffect(() => { showUpgrade(feature); }, []);
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400 dark:text-slate-500">
+      <Loader2 className="h-6 w-6 animate-spin opacity-30" />
+    </div>
+  );
+}
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -86,7 +105,7 @@ function App() {
             <Route path="add" element={<AddPhoneUpdate />} />
             <Route path="inventory/:id" element={<PhoneDetail />} />
             <Route path="edit/:id" element={<EditPhone />} />
-            <Route path="ledger" element={<LedgerPage />} />
+            <Route path="ledger" element={<GatedRoute feature="full_ledger" element={<LedgerPage />} />} />
             <Route
               path="financials"
               element={<Navigate to="/ledger" replace />}
@@ -102,7 +121,7 @@ function App() {
             />
             <Route path="pricing" element={<Pricing />} />
             <Route path="wallet" element={<Navigate to="/ledger" replace />} />
-            <Route path="analytics" element={<Analytics />} />
+            <Route path="analytics" element={<GatedRoute feature="analytics" element={<Analytics />} />} />
             <Route path="team" element={<ManageTeam />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
