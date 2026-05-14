@@ -19,6 +19,12 @@ const ADMIN_TITLES: Record<string, string> = {
   "/catalog": "Master Catalog",
   "/notifications": "Broadcast Center",
   "/pricing": "Rate Catalog",
+  "/revenue": "Revenue Dashboard",
+  "/analytics": "Usage Analytics",
+  "/funnel": "Onboarding Funnel",
+  "/audit": "Audit Log",
+  "/flags": "Feature Flags",
+  "/health": "System Health",
 };
 
 export default function AdminShell({

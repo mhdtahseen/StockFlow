@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bell, Database, Store } from "lucide-react";
+import { Bell, Database, Store, BarChart2, Flag, Shield, Activity, TrendingUp, Filter } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
@@ -30,12 +30,32 @@ const navMain = [
     ],
   },
   {
+    title: "Platform Analytics",
+    url: "#",
+    icon: BarChart2,
+    items: [
+      { title: "Revenue", url: "/revenue" },
+      { title: "Usage", url: "/analytics" },
+      { title: "Onboarding Funnel", url: "/funnel" },
+    ],
+  },
+  {
     title: "Platform Controls",
     url: "#",
     icon: Bell,
     items: [
       { title: "Notifications", url: "/notifications" },
       { title: "Rate Pricing", url: "/pricing" },
+      { title: "Feature Flags", url: "/flags" },
+    ],
+  },
+  {
+    title: "Security & Ops",
+    url: "#",
+    icon: Shield,
+    items: [
+      { title: "Audit Log", url: "/audit" },
+      { title: "System Health", url: "/health" },
     ],
   },
   {
