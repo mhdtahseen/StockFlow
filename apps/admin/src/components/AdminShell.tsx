@@ -20,11 +20,15 @@ const ADMIN_TITLES: Record<string, string> = {
   "/notifications": "Broadcast Center",
   "/pricing": "Rate Catalog",
   "/revenue": "Revenue Dashboard",
+  "/financials": "Platform Financials",
   "/analytics": "Usage Analytics",
   "/funnel": "Onboarding Funnel",
   "/audit": "Audit Log",
   "/flags": "Feature Flags",
   "/health": "System Health",
+  "/overdue": "Overdue Orders",
+  "/imei-lookup": "IMEI Lookup",
+  "/shares": "Share Links",
 };
 
 export default function AdminShell({

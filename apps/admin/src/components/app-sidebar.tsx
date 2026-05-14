@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bell, Database, Store, BarChart2, Flag, Shield, Activity, TrendingUp, Filter } from "lucide-react";
+import { Bell, Database, Store, BarChart2, Flag, Shield, Activity, TrendingUp, Filter, DollarSign, AlertTriangle, Link2, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
@@ -35,6 +35,7 @@ const navMain = [
     icon: BarChart2,
     items: [
       { title: "Revenue", url: "/revenue" },
+      { title: "Financials", url: "/financials" },
       { title: "Usage", url: "/analytics" },
       { title: "Onboarding Funnel", url: "/funnel" },
     ],
@@ -47,6 +48,7 @@ const navMain = [
       { title: "Notifications", url: "/notifications" },
       { title: "Rate Pricing", url: "/pricing" },
       { title: "Feature Flags", url: "/flags" },
+      { title: "Share Links", url: "/shares" },
     ],
   },
   {
@@ -56,6 +58,8 @@ const navMain = [
     items: [
       { title: "Audit Log", url: "/audit" },
       { title: "System Health", url: "/health" },
+      { title: "Overdue Orders", url: "/overdue" },
+      { title: "IMEI Lookup", url: "/imei-lookup" },
     ],
   },
   {
