@@ -43,7 +43,8 @@ serve(async (req) => {
         .insert({
           name: tenantReq.org_name,
           slug: slug,
-          plan: 'free',
+          plan: 'trial',
+          plan_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
           is_active: true
         })
         .select()

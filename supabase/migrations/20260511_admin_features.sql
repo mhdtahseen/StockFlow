@@ -63,7 +63,7 @@ INSERT INTO public.subscription_plans (id, name, price_monthly, price_yearly, cu
 VALUES 
     ('free', 'Free Tier', 0, 0, 'INR', 'Perfect for small shops just starting out.', ARRAY['1 User', 'Basic Inventory', 'Manual Sync'], true),
     ('starter', 'Starter', 999, 9990, 'INR', 'For growing businesses with dedicated staff.', ARRAY['3 Users', 'Advanced Reporting', 'Bulk Import'], true),
-    ('pro', 'Pro Business', 2499, 24990, 'INR', 'Full featured platform for serious players.', ARRAY['10 Users', 'AI Analytics', 'Multi-location', 'Priority Support'], true),
+    ('pro', 'Pro', 2499, 24990, 'INR', 'Full featured platform for serious players.', ARRAY['10 Users', 'AI Analytics', 'Multi-location', 'Priority Support'], true),
     ('enterprise', 'Enterprise', 9999, 99990, 'INR', 'Custom limits and dedicated infrastructure.', ARRAY['Unlimited Users', 'API Access', 'Custom Domain', 'SLA Guarantee'], true)
 ON CONFLICT (id) DO NOTHING;
 

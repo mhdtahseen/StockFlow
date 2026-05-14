@@ -54,7 +54,7 @@ VALUES
    'For solo shop owners getting started with digital inventory.',
    '["1 User", "100 Phone Limit", "Sales & Purchase Orders", "Customer Directory", "PDF Invoices"]'::jsonb,
    true),
-  ('pro',        'Pro Business',  2499,  24990, 'INR',
+  ('pro',        'Pro',           2499,  24990, 'INR',
    'Everything a serious single-shop needs to run efficiently.',
    '["10 Users", "Unlimited Phones", "IMEI Scanner", "Advanced P&L Ledger", "Analytics", "Credit Tracking", "Public Share Links", "Multi-device Orders"]'::jsonb,
    true),

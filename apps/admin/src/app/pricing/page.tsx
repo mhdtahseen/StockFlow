@@ -52,6 +52,8 @@ type SubscriptionPlan = {
   description: string;
   features: FeatureKey[];
   is_active: boolean;
+  razorpay_plan_id_monthly: string | null;
+  razorpay_plan_id_yearly: string | null;
 };
 
 type FeatureFlag = {
@@ -62,9 +64,8 @@ type FeatureFlag = {
 const VALID_TIERS: PlanTier[] = ["starter", "pro", "enterprise"];
 
 function deriveTier(planId: string): PlanTier | undefined {
-  return VALID_TIERS.includes(planId as PlanTier)
-    ? (planId as PlanTier)
-    : undefined;
+  const lower = planId.toLowerCase() as PlanTier;
+  return VALID_TIERS.includes(lower) ? lower : undefined;
 }
 
 const PLAN_ICON_COLORS: Record<string, string> = {
@@ -327,8 +328,23 @@ function PricingContent() {
                               </Badge>
                             )}
                           </div>
-                          <CardDescription className="font-mono text-[10px] mt-0.5">
-                            id: {plan.id}
+                          <CardDescription className="font-mono text-[10px] mt-0.5 space-y-0.5">
+                            <div>id: {plan.id}</div>
+                            {plan.razorpay_plan_id_monthly && (
+                              <div className="text-blue-500 dark:text-blue-400">
+                                rzp/mo: {plan.razorpay_plan_id_monthly}
+                              </div>
+                            )}
+                            {plan.razorpay_plan_id_yearly && (
+                              <div className="text-blue-500 dark:text-blue-400">
+                                rzp/yr: {plan.razorpay_plan_id_yearly}
+                              </div>
+                            )}
+                            {!plan.razorpay_plan_id_monthly && !plan.razorpay_plan_id_yearly && (
+                              <div className="text-amber-500 dark:text-amber-400">
+                                ⚠ No Razorpay plan IDs — run scripts/razorpay_setup_plans.mjs
+                              </div>
+                            )}
                           </CardDescription>
                         </div>
                       </div>
