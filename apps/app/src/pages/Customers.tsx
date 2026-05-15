@@ -3,7 +3,7 @@ import { useAppSelector } from "@/app/hooks";
 import { useNavigate } from "react-router-dom";
 import Fuse from "fuse.js";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Search, ChevronRight, UserPlus, Filter, ArrowUpDown, Phone } from "lucide-react";
+import { Search, ChevronRight, UserPlus, Filter, Phone } from "lucide-react";
 import { selectCustomers } from "@/features/customers/selectors";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
@@ -30,26 +30,19 @@ export default function Customers() {
   const allPurchaseOrders = useAppSelector((state) => state.purchasing.orders) || [];
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("ALL");
-  const [sortBy, setSortBy] = useState<"name" | "activity" | "balance">("name");
   const navigate = useNavigate();
 
-  // A3+A4: precompute per-customer balance and last activity
+  // A4: precompute per-customer last activity
   const customerStats = useMemo(() => {
-    const map = new Map<string, { ar: number; ap: number; lastActivity: string | null }>();
+    const map = new Map<string, { lastActivity: string | null }>();
     customers.forEach((c) => {
       const saleOrders = allSaleOrders.filter((o) => o.counterpartyId === c.id);
       const purchaseOrders = allPurchaseOrders.filter((o) => o.counterpartyId === c.id);
-      const ar = saleOrders
-        .filter((o) => o.status !== "SETTLED" && o.status !== "RETURNED")
-        .reduce((s, o) => s + (o.totalAmount - o.amountPaid), 0);
-      const ap = purchaseOrders
-        .filter((o) => o.status !== "SETTLED" && o.status !== "CANCELLED")
-        .reduce((s, o) => s + (o.totalAmount - o.amountPaid), 0);
       const allDates = [
         ...saleOrders.map((o) => o.createdAt),
         ...purchaseOrders.map((o) => o.createdAt),
       ].sort().reverse();
-      map.set(c.id, { ar, ap, lastActivity: allDates[0] ?? null });
+      map.set(c.id, { lastActivity: allDates[0] ?? null });
     });
     return map;
   }, [customers, allSaleOrders, allPurchaseOrders]);
@@ -68,36 +61,6 @@ export default function Customers() {
     ? searched
     : searched.filter(c => c.type === filterType);
 
-  // A5: sort
-  const sorted = useMemo(() => {
-    if (sortBy === "name") return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-    if (sortBy === "activity") {
-      return [...filtered].sort((a, b) => {
-        const aDate = customerStats.get(a.id)?.lastActivity ?? "";
-        const bDate = customerStats.get(b.id)?.lastActivity ?? "";
-        return bDate.localeCompare(aDate);
-      });
-    }
-    if (sortBy === "balance") {
-      return [...filtered].sort((a, b) => {
-        const aStats = customerStats.get(a.id);
-        const bStats = customerStats.get(b.id);
-        const aTotal = (aStats?.ar ?? 0) + (aStats?.ap ?? 0);
-        const bTotal = (bStats?.ar ?? 0) + (bStats?.ap ?? 0);
-        return bTotal - aTotal;
-      });
-    }
-    return filtered;
-  }, [filtered, sortBy, customerStats]);
-
-  // A1: summary metrics
-  const metrics = useMemo(() => ({
-    total: customers.length,
-    customer: customers.filter(c => c.type === "CUSTOMER").length,
-    retailer: customers.filter(c => c.type === "RETAILER").length,
-    wholesaler: customers.filter(c => c.type === "WHOLESALER").length,
-  }), [customers]);
-
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
       <HeaderActions>
@@ -114,18 +77,6 @@ export default function Customers() {
 
       {/* A7: Sticky search + filter */}
       <div className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-950 px-4 pt-4 pb-3 md:px-8 md:max-w-5xl md:mx-auto md:w-full">
-        {/* A1: Summary metrics */}
-        {metrics.total > 0 && (
-          <div className="flex items-center gap-3 mb-3 px-1">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total: {metrics.total}</span>
-            <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span className="text-[11px] font-bold text-blue-500 uppercase tracking-wider">Customers: {metrics.customer}</span>
-            <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span className="text-[11px] font-bold text-violet-500 uppercase tracking-wider">Retailers: {metrics.retailer}</span>
-            <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">Wholesalers: {metrics.wholesaler}</span>
-          </div>
-        )}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search
@@ -155,27 +106,16 @@ export default function Customers() {
               <SelectItem value="PLATFORM">Platform</SelectItem>
             </SelectContent>
           </Select>
-          {/* A5: Sort */}
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-            <SelectTrigger className="w-10 h-12 px-0 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus:ring-0 justify-center">
-              <ArrowUpDown size={16} className="text-slate-400 mx-auto" />
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectItem value="name">Name A–Z</SelectItem>
-              <SelectItem value="activity">Recent Activity</SelectItem>
-              <SelectItem value="balance">Outstanding Balance</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
         {/* A7: result count */}
         {search.trim() && (
-          <p className="text-[11px] font-bold text-slate-400 mt-2 px-1">Showing {sorted.length} of {customers.length}</p>
+          <p className="text-[11px] font-bold text-slate-400 mt-2 px-1">Showing {filtered.length} of {customers.length}</p>
         )}
       </div>
 
       <div className="px-4 pt-2 pb-24 md:px-8 md:max-w-5xl md:mx-auto md:w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {sorted.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="col-span-full">
               {customers.length === 0 ? (
                 // A6: Actionable empty state
@@ -202,9 +142,8 @@ export default function Customers() {
               )}
             </div>
           ) : (
-            sorted.map((c) => {
+            filtered.map((c) => {
               const stats = customerStats.get(c.id);
-              const hasBalance = stats && (stats.ar > 0 || stats.ap > 0);
               const lastActivity = stats?.lastActivity;
               return (
               <div
@@ -222,12 +161,6 @@ export default function Customers() {
                     <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                       {c.type}
                     </span>
-                    {/* A3: balance preview */}
-                    {hasBalance && (
-                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                        ₹{((stats!.ar + stats!.ap)).toLocaleString()} due
-                      </span>
-                    )}
                   </div>
                   {/* A4: last activity */}
                   {lastActivity && (

@@ -33,6 +33,7 @@ import {
   ExternalLink,
   Trash2,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { format, parseISO, compareDesc, formatDistanceToNowStrict } from "date-fns";
@@ -40,8 +41,7 @@ import clsx from "clsx";
 import { parseStructuredNote } from "@/utils/financeUtils";
 import { SaleOrder } from "@/features/billing/types";
 import { CustomerPayment } from "@/features/customers/types";
-import { AllocationSheet } from "@/components/shared/AllocationSheet";
-import { SupplierAllocationSheet } from "@/components/shared/SupplierAllocationSheet";
+import { PaymentAllocationSheet } from "@/components/shared/PaymentAllocationSheet";
 import { CustomerEditSheet } from "@/components/shared/CustomerEditSheet";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 import { createShareLink } from "@/services/shareService";
@@ -49,6 +49,7 @@ import { useAuth } from "@/context/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
 import { useUpgradeGate } from "@/context/UpgradeGateContext";
 import { removeCustomer } from "@/features/customers/slice";
+import { selectCounterpartyAdvance } from "@/features/customers/selectors";
 import { toast } from "sonner";
 
 type Tab = "orders" | "payments" | "timeline";
@@ -60,6 +61,10 @@ export default function CustomerDetail() {
   const { tenant, isAdmin } = useAuth();
   const { canUse } = usePlan();
   const { showUpgrade } = useUpgradeGate();
+
+  const { arAdvance, apAdvance } = useAppSelector(
+    selectCounterpartyAdvance(id ?? ""),
+  );
 
   const customer = useAppSelector((state) =>
     state.customers.customers.find((c) => c.id === id),
@@ -298,16 +303,16 @@ export default function CustomerDetail() {
 
         {/* D2: Lifetime Value Stats */}
         {lifetimeStats.count > 0 && (
-          <div className="grid grid-cols-3 gap-2 px-1">
-            <div className="flex flex-col">
+          <div className="grid grid-cols-3 gap-4 justify-center px-3">
+            <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orders</span>
               <span className="text-lg font-black text-slate-900 dark:text-slate-100">{lifetimeStats.count}</span>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lifetime</span>
               <span className="text-lg font-black text-slate-900 dark:text-slate-100">₹{lifetimeStats.lifetime >= 100000 ? `${(lifetimeStats.lifetime / 100000).toFixed(1)}L` : lifetimeStats.lifetime.toLocaleString()}</span>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Avg Order</span>
               <span className="text-lg font-black text-slate-900 dark:text-slate-100">₹{lifetimeStats.avg >= 1000 ? `${(lifetimeStats.avg / 1000).toFixed(1)}K` : lifetimeStats.avg}</span>
             </div>
@@ -325,9 +330,9 @@ export default function CustomerDetail() {
         )}
 
         {/* D4: Balance Card — hidden when both are zero */}
-        {(totalReceivable > 0 || totalPayable > 0) && (
-        <FeatureGate feature="credit_tracking" badge>
-        <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 relative overflow-hidden flex flex-col gap-3">
+        {(totalReceivable > 0 || totalPayable > 0 || arAdvance > 0 || apAdvance > 0) && (
+          <FeatureGate feature="credit_tracking" badge>
+            <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 relative overflow-hidden flex flex-col gap-3">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-500"></div>
 
           <div className="flex justify-between items-center w-full">
@@ -338,6 +343,12 @@ export default function CustomerDetail() {
               <span className="text-2xl font-black tracking-tight text-emerald-600 dark:text-emerald-500">
                 ₹{totalReceivable.toLocaleString()}
               </span>
+              {arAdvance > 0 && (
+                <span className="flex items-center gap-1 mt-1 text-[10px] font-black text-teal-600 dark:text-teal-400">
+                  <Sparkles size={10} />
+                  ₹{arAdvance.toLocaleString()} advance
+                </span>
+              )}
             </div>
 
             <div className="text-right">
@@ -347,6 +358,12 @@ export default function CustomerDetail() {
               <span className="text-2xl font-black tracking-tight text-amber-600 dark:text-amber-500">
                 ₹{totalPayable.toLocaleString()}
               </span>
+              {apAdvance > 0 && (
+                <span className="flex items-center gap-1 justify-end mt-1 text-[10px] font-black text-teal-600 dark:text-teal-400">
+                  <Sparkles size={10} />
+                  ₹{apAdvance.toLocaleString()} prepaid
+                </span>
+              )}
             </div>
           </div>
 
@@ -370,8 +387,8 @@ export default function CustomerDetail() {
               )}
             </div>
           )}
-        </div>
-        </FeatureGate>
+            </div>
+          </FeatureGate>
         )}
 
         {/* Tabs */}
@@ -753,13 +770,13 @@ export default function CustomerDetail() {
         {activeTab === "timeline" && (
           <div className="space-y-3">
             {/* D5: Timeline filter pills */}
-            <div className="flex gap-2 mb-1">
+            <div className="flex gap-2">
               {(["ALL", "ORDERS", "PAYMENTS"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setTimelineFilter(f)}
                   className={clsx(
-                    "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border",
+                    "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border",
                     timelineFilter === f
                       ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100"
                       : "bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800",
@@ -769,7 +786,7 @@ export default function CustomerDetail() {
                 </button>
               ))}
             </div>
-          <div className="relative border-l-2 border-slate-200 dark:border-slate-800 pl-4 py-2 space-y-6">
+            <div className="relative border-l-2 border-slate-200 dark:border-slate-800 pl-4 py-2 space-y-6">
             {filteredTimeline.length === 0 ? (
               <div className="text-center py-12 text-slate-400 font-medium -ml-4">
                 No activity.
@@ -904,20 +921,22 @@ export default function CustomerDetail() {
                 }
               })
             )}
-          </div>
+            </div>
           </div>
         )}
       </div>
 
-      <AllocationSheet
+      <PaymentAllocationSheet
         open={arOpen}
         onOpenChange={setArOpen}
-        customerId={customer.id}
+        counterpartyId={customer.id}
+        mode="receipt"
       />
-      <SupplierAllocationSheet
+      <PaymentAllocationSheet
         open={apOpen}
         onOpenChange={setApOpen}
-        supplierId={customer.id}
+        counterpartyId={customer.id}
+        mode="payout"
       />
       <CustomerEditSheet
         open={editOpen}

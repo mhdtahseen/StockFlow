@@ -14,6 +14,7 @@ import {
   DollarSign,
   Check,
   Smartphone,
+  Sparkles,
 } from "lucide-react";
 import { useAppDispatch } from "@/app/hooks";
 import { addOrder, updateOrder } from "@/features/billing/slice";
@@ -26,7 +27,8 @@ import { addEntry } from "@/features/ledger/slice";
 import { SaleOrder, OrderType, PayMode } from "@/features/billing/types";
 import { Phone } from "@/features/inventory/types";
 import { Customer } from "@/features/customers/types";
-import { selectCustomers } from "@/features/customers/selectors";
+import { selectCustomers, selectCounterpartyAdvance } from "@/features/customers/selectors";
+import { addCustomerSettlement } from "@/features/customers/slice";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import CurrencyInput from "@/components/ui/CurrencyInput";
 import { PhoneSelectorSheet } from "./PhoneSelectorSheet";
@@ -89,6 +91,9 @@ export function CreateOrderSheet({
   const navigate = useNavigate();
   const ledgerEntries = useAppSelector((state) => state.ledger.entries);
   const allCustomers = useAppSelector(selectCustomers);
+  const { arAdvance } = useAppSelector(
+    selectCounterpartyAdvance(customer?.id ?? ""),
+  );
 
   // ── Reset when sheet opens ─────────────────────────────────────────────────
   const prevOpen = React.useRef(open);
@@ -144,7 +149,9 @@ export function CreateOrderSheet({
   const upiPaid = parseFloat(upiStr) || 0;
   const bankPaid = parseFloat(bankStr) || 0;
   const totalPaid = cashPaid + upiPaid + bankPaid;
-  const outstanding = Math.max(0, totalAmount - totalPaid);
+  // Advance that can be auto-applied against new order total
+  const appliedAdvance = Math.min(arAdvance, totalAmount);
+  const outstanding = Math.max(0, totalAmount - totalPaid - appliedAdvance);
   // Credit due date is required automatically when there's an outstanding balance
   const requiresDueDate = outstanding > 0;
 
@@ -190,6 +197,9 @@ export function CreateOrderSheet({
     const orderId = crypto.randomUUID();
     const ts = new Date().toISOString();
 
+    // Apply any existing advance credit against the new order total
+    const effectivePaid = Math.min(totalPaid + appliedAdvance, totalAmount);
+
     const paymentNote = totalPaid > 0 
       ? `[ADVANCE] [#${orderId.slice(0, 8).toUpperCase()}] [${dominantPayMode}][${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] [₹${totalPaid.toLocaleString()}]`
       : undefined;
@@ -199,11 +209,11 @@ export function CreateOrderSheet({
       counterpartyId: customer.id,
       orderType,
       totalAmount,
-      amountPaid: totalPaid,
+      amountPaid: effectivePaid,
       status:
-        totalPaid >= totalAmount
+        effectivePaid >= totalAmount
           ? "SETTLED"
-          : totalPaid > 0
+          : effectivePaid > 0
             ? "PARTIAL"
             : "OPEN",
       // Store dominant mode for the TO record
@@ -273,6 +283,21 @@ export function CreateOrderSheet({
           note: paymentNote || `Initial Bill Receipt · #${orderId.slice(0, 8).toUpperCase()}`,
           recordedBy: user?.id || "system",
           createdAt: ts,
+        }),
+      );
+    }
+
+    // Auto-apply existing advance credit: create a zero-cash settlement linking it to this order
+    if (appliedAdvance > 0) {
+      dispatch(
+        addCustomerSettlement({
+          id: crypto.randomUUID(),
+          counterpartyId: customer.id,
+          amount: 0, // no new cash — advance was already recorded previously
+          mode: "CASH",
+          allocations: [{ orderId, amount: appliedAdvance }],
+          recordedBy: user?.id || "system",
+          note: `Advance credit applied · #${orderId.slice(0, 8).toUpperCase()}`,
         }),
       );
     }
@@ -424,6 +449,15 @@ export function CreateOrderSheet({
                     selectedId={customer?.id}
                     onSelect={setCustomer}
                   />
+                  {/* Advance credit banner */}
+                  {arAdvance > 0 && (
+                    <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-900/40 rounded-lg">
+                      <Sparkles size={12} className="text-teal-500 shrink-0" />
+                      <p className="text-[11px] font-bold text-teal-700 dark:text-teal-400">
+                        ₹{Math.min(arAdvance, totalAmount || arAdvance).toLocaleString()} advance credit will be auto-applied to this order
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
