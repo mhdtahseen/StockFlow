@@ -92,7 +92,7 @@ export const syncActionToSupabase = async (
       case "inventory/removePhone": {
         const { error } = await supabase
           .from("phones")
-          .delete()
+          .update({ deleted_at: new Date().toISOString() })
           .eq("id", payload)
           .eq("tenant_id", tenant_id);
         if (error) throw error;
@@ -457,7 +457,7 @@ export const syncActionToSupabase = async (
       case "customers/removeCustomer": {
         const { error } = await supabase
           .from("counterparties")
-          .delete()
+          .update({ deleted_at: new Date().toISOString() })
           .eq("id", payload)
           .eq("tenant_id", tenant_id);
         if (error) throw error;
