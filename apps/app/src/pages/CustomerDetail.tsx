@@ -35,7 +35,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import HeaderActions from "@/components/layout/HeaderActions";
-import { format, parseISO, compareDesc } from "date-fns";
+import { format, parseISO, compareDesc, formatDistanceToNowStrict } from "date-fns";
 import clsx from "clsx";
 import { parseStructuredNote } from "@/utils/financeUtils";
 import { SaleOrder } from "@/features/billing/types";
@@ -57,7 +57,7 @@ export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { tenant } = useAuth();
+  const { tenant, isAdmin } = useAuth();
   const { canUse } = usePlan();
   const { showUpgrade } = useUpgradeGate();
 
@@ -77,6 +77,7 @@ export default function CustomerDetail() {
   const [apOpen, setApOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [timelineFilter, setTimelineFilter] = useState<"ALL" | "ORDERS" | "PAYMENTS">("ALL");
   const [orderTypeFilter, setOrderTypeFilter] = useState<"ALL" | "SALE" | "PURCHASE">("ALL");
   const [orderStatusFilter, setOrderStatusFilter] = useState<"ALL" | "ACTIVE" | "SETTLED">("ALL");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -132,6 +133,42 @@ export default function CustomerDetail() {
       return new Date(dateB).getTime() - new Date(dateA).getTime();
     });
   }, [allCustomerPayments, allSupplierPayments, id]);
+
+  // Derived stats for D2 lifetime value
+  const lifetimeStats = React.useMemo(() => {
+    const saleTotal = allSaleOrders
+      .filter((o) => o.counterpartyId === id)
+      .reduce((s, o) => s + o.totalAmount, 0);
+    const purchaseTotal = allPurchaseOrders
+      .filter((o) => o.counterpartyId === id)
+      .reduce((s, o) => s + o.totalAmount, 0);
+    const count = orders.length;
+    const lifetime = saleTotal + purchaseTotal;
+    const avg = count > 0 ? Math.round(lifetime / count) : 0;
+    return { count, lifetime, avg };
+  }, [orders, allSaleOrders, allPurchaseOrders, id]);
+
+  // Derived overdue orders for D3
+  const overdueOrders = React.useMemo(() => {
+    const today = new Date();
+    return orders.filter((o) => {
+      const dueDate = (o as any).dueDate;
+      return (
+        dueDate &&
+        new Date(dueDate) < today &&
+        o.status !== "SETTLED" &&
+        o.status !== "RETURNED" &&
+        o.status !== "CANCELLED"
+      );
+    });
+  }, [orders]);
+
+  const overdueAmount = overdueOrders.reduce(
+    (s, o) => s + (o.totalAmount - o.amountPaid),
+    0,
+  );
+
+  // D5 filtered timeline — moved below mergedTimeline declaration
 
   const handleDelete = () => {
     if (!id) return;
@@ -191,16 +228,26 @@ export default function CustomerDetail() {
     return compareDesc(parseISO(dateA), parseISO(dateB));
   });
 
+  // D5: filtered timeline (placed after mergedTimeline)
+  const filteredTimeline =
+    timelineFilter === "ORDERS"
+      ? mergedTimeline.filter((i) => "createdAt" in i)
+      : timelineFilter === "PAYMENTS"
+        ? mergedTimeline.filter((i) => !("createdAt" in i))
+        : mergedTimeline;
+
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
       <HeaderActions>
-        <button
-          onClick={() => setShowDeleteConfirm(true)}
-          className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm active:scale-95"
-          aria-label="Delete Customer"
-        >
-          <Trash2 size={18} />
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm active:scale-95"
+            aria-label="Delete Customer"
+          >
+            <Trash2 size={18} />
+          </button>
+        )}
         <button
           onClick={() => setEditOpen(true)}
           className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 flex items-center justify-center transition-colors shadow-sm active:scale-95"
@@ -249,7 +296,36 @@ export default function CustomerDetail() {
           </div>
         </div>
 
-        {/* Balance Card */}
+        {/* D2: Lifetime Value Stats */}
+        {lifetimeStats.count > 0 && (
+          <div className="grid grid-cols-3 gap-2 px-1">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orders</span>
+              <span className="text-lg font-black text-slate-900 dark:text-slate-100">{lifetimeStats.count}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lifetime</span>
+              <span className="text-lg font-black text-slate-900 dark:text-slate-100">₹{lifetimeStats.lifetime >= 100000 ? `${(lifetimeStats.lifetime / 100000).toFixed(1)}L` : lifetimeStats.lifetime.toLocaleString()}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Avg Order</span>
+              <span className="text-lg font-black text-slate-900 dark:text-slate-100">₹{lifetimeStats.avg >= 1000 ? `${(lifetimeStats.avg / 1000).toFixed(1)}K` : lifetimeStats.avg}</span>
+            </div>
+          </div>
+        )}
+
+        {/* D3: Overdue Banner */}
+        {overdueOrders.length > 0 && (
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl">
+            <AlertCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
+            <span className="text-xs font-bold text-rose-700 dark:text-rose-400 flex-1">
+              {overdueOrders.length} order{overdueOrders.length > 1 ? "s" : ""} overdue · ₹{overdueAmount.toLocaleString()} outstanding
+            </span>
+          </div>
+        )}
+
+        {/* D4: Balance Card — hidden when both are zero */}
+        {(totalReceivable > 0 || totalPayable > 0) && (
         <FeatureGate feature="credit_tracking" badge>
         <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 relative overflow-hidden flex flex-col gap-3">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-500"></div>
@@ -296,6 +372,7 @@ export default function CustomerDetail() {
           )}
         </div>
         </FeatureGate>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl">
@@ -477,6 +554,7 @@ export default function CustomerDetail() {
                       )}
                     </div>
                     
+                    {/* D6: De-noised share — smaller muted icon */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -486,16 +564,14 @@ export default function CustomerDetail() {
                         }
                         const isPO = (o as any).isPurchaseOrder;
                         if (sharingOrderId || !tenant) return;
-                        
                         setSharingOrderId(o.id);
-                        createShareLink(o.id, isPO ? 'PURCHASE' : 'SALE', tenant.id)
+                        createShareLink(o.id, isPO ? "PURCHASE" : "SALE", tenant.id)
                           .then(async (shareUrl) => {
                             const shareData = {
                               title: `Finventree: ${o.id.slice(0, 8).toUpperCase()}`,
                               text: `View the ${isPO ? "Purchase Order" : "Invoice"} for ${customer.name}.`,
                               url: shareUrl,
                             };
-  
                             if (Capacitor.isNativePlatform()) {
                               await ShareIcon.share(shareData);
                             } else if (navigator.share && navigator.canShare(shareData)) {
@@ -508,12 +584,13 @@ export default function CustomerDetail() {
                           .catch(() => toast.error("Failed to share"))
                           .finally(() => setSharingOrderId(null));
                       }}
-                      className="size-8 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary-500 flex items-center justify-center transition-colors border border-slate-100 dark:border-slate-700 active:scale-95"
+                      className="size-7 rounded-full text-slate-300 dark:text-slate-600 hover:text-primary-500 dark:hover:text-primary-400 flex items-center justify-center transition-colors active:scale-95"
+                      title="Share"
                     >
                       {sharingOrderId === o.id ? (
-                        <Loader2 size={12} className="animate-spin" />
+                        <Loader2 size={11} className="animate-spin" />
                       ) : (
-                        <Share size={14} />
+                        <Share size={13} />
                       )}
                     </button>
                   </div>
@@ -674,13 +751,31 @@ export default function CustomerDetail() {
         )}
 
         {activeTab === "timeline" && (
+          <div className="space-y-3">
+            {/* D5: Timeline filter pills */}
+            <div className="flex gap-2 mb-1">
+              {(["ALL", "ORDERS", "PAYMENTS"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setTimelineFilter(f)}
+                  className={clsx(
+                    "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border",
+                    timelineFilter === f
+                      ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100"
+                      : "bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800",
+                  )}
+                >
+                  {f === "ALL" ? "All" : f === "ORDERS" ? "Orders" : "Payments"}
+                </button>
+              ))}
+            </div>
           <div className="relative border-l-2 border-slate-200 dark:border-slate-800 pl-4 py-2 space-y-6">
-            {mergedTimeline.length === 0 ? (
+            {filteredTimeline.length === 0 ? (
               <div className="text-center py-12 text-slate-400 font-medium -ml-4">
-                No recent activity.
+                No activity.
               </div>
             ) : (
-              mergedTimeline.map((item) => {
+              filteredTimeline.map((item) => {
                 const isOrder = "createdAt" in item;
                 const timestamp = isOrder
                   ? (item as any).createdAt
@@ -809,6 +904,7 @@ export default function CustomerDetail() {
                 }
               })
             )}
+          </div>
           </div>
         )}
       </div>

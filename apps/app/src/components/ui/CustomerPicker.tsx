@@ -22,6 +22,8 @@ import {
   ChevronRight,
   MapPin,
   BadgeCheck,
+  AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
@@ -61,6 +63,11 @@ const CUSTOMER_TYPES: {
     label: "Customer — Wholesaler",
     description: "Bulk B2B buyer",
   },
+  {
+    value: "PLATFORM",
+    label: "Platform",
+    description: "Online marketplace (Amazon, Flipkart…)",
+  },
 ];
 
 const TYPE_BADGE: Record<CustomerType, string> = {
@@ -93,13 +100,21 @@ export function CustomerPicker({
   // Create-form state
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [newType, setNewType] = useState<CustomerType>("CUSTOMER");
   const [newAadhaar, setNewAadhaar] = useState("");
   const [aadhaarValid, setAadhaarValid] = useState(false);
   const [newAddress, setNewAddress] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const customers = useAppSelector(selectCustomers);
   const dispatch = useAppDispatch();
+
+  // B3: detect duplicate phone
+  const formattedPhone = newPhone.length > 2 ? `+${newPhone}` : "";
+  const duplicateCustomer = formattedPhone
+    ? customers.find((c) => c.phone === formattedPhone)
+    : null;
 
   const fuse = useMemo(
     () => new Fuse(customers, { keys: ["name", "phone"], threshold: 0.3 }),
@@ -122,10 +137,12 @@ export function CustomerPicker({
   const resetCreateForm = () => {
     setNewName("");
     setNewPhone("");
+    setNewEmail("");
     setNewType("CUSTOMER");
     setNewAadhaar("");
     setAadhaarValid(false);
     setNewAddress("");
+    setShowAdvanced(false);
     setIsCreating(false);
   };
 
@@ -148,7 +165,8 @@ export function CustomerPicker({
       const newCustomer: Customer = {
         id: crypto.randomUUID(),
         name: newName.trim(),
-        phone: newPhone.length > 2 ? `+${newPhone}` : undefined,
+        phone: formattedPhone || undefined,
+        email: newEmail.trim() || undefined,
         type: newType,
         aadhaarLast4,
         aadhaarEncrypted,
@@ -393,6 +411,39 @@ export function CustomerPicker({
                   }}
                 />
               </div>
+              {/* B3: duplicate phone warning */}
+              {duplicateCustomer && (
+                <div className="flex items-center gap-2 mt-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40">
+                  <AlertTriangle size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 flex-1">
+                    {duplicateCustomer.name} already uses this number
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      onSelect(duplicateCustomer);
+                    }}
+                    className="text-[10px] font-black text-amber-700 dark:text-amber-400 underline underline-offset-2 shrink-0"
+                  >
+                    View Profile
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* B1: Email */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
+                Email <span className="text-slate-400 font-medium normal-case tracking-normal">(Optional)</span>
+              </label>
+              <Input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="e.g. ravi@example.com"
+                className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
+              />
             </div>
 
             {/* Customer Type */}
@@ -424,38 +475,56 @@ export function CustomerPicker({
               </Select>
             </div>
 
-            {/* Aadhaar Number */}
+            {/* B2: Advanced — Aadhaar + Address in collapsible section */}
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
-                Aadhaar Number{" "}
-                <span className="text-slate-400 font-medium normal-case tracking-normal"></span>
-              </label>
-              <AadhaarInput
-                value={newAadhaar}
-                onChange={(val) => setNewAadhaar(val)}
-                onValidate={(valid) => setAadhaarValid(valid)}
-              />
-              <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
-                🔒 Aadhaar is stored and displayed securely
-              </p>
-            </div>
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors w-full py-1"
+              >
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`}
+                />
+                Advanced (Aadhaar, Address)
+              </button>
+              {showAdvanced && (
+                <div className="mt-4 space-y-5 pl-1 border-l-2 border-slate-100 dark:border-slate-800">
+                  {/* Aadhaar Number */}
+                  <div>
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
+                      Aadhaar Number{" "}
+                      <span className="text-slate-400 font-medium normal-case tracking-normal"></span>
+                    </label>
+                    <AadhaarInput
+                      value={newAadhaar}
+                      onChange={(val) => setNewAadhaar(val)}
+                      onValidate={(valid) => setAadhaarValid(valid)}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
+                      🔒 Aadhaar is stored and displayed securely
+                    </p>
+                  </div>
 
-            {/* Address */}
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block flex items-center gap-1.5">
-                <MapPin size={12} />
-                Address{" "}
-                <span className="text-slate-400 font-medium normal-case tracking-normal">
-                  (Optional)
-                </span>
-              </label>
-              <textarea
-                value={newAddress}
-                onChange={(e) => setNewAddress(e.target.value)}
-                placeholder="Shop/House No., Street, City, State..."
-                rows={3}
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-none"
-              />
+                  {/* Address */}
+                  <div>
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block flex items-center gap-1.5">
+                      <MapPin size={12} />
+                      Address{" "}
+                      <span className="text-slate-400 font-medium normal-case tracking-normal">
+                        (Optional)
+                      </span>
+                    </label>
+                    <textarea
+                      value={newAddress}
+                      onChange={(e) => setNewAddress(e.target.value)}
+                      placeholder="Shop/House No., Street, City, State..."
+                      rows={3}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-none"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Footer Buttons */}
