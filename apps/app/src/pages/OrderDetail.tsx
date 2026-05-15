@@ -58,6 +58,7 @@ import { addEntry } from "@/features/ledger/slice";
 import { addPurchaseOrder, updatePurchaseOrder } from "@/features/purchasing/slice";
 import { printDocument } from "@/utils/printDocument";
 import { createShareLink, copyToClipboard } from "@/services/shareService";
+import posthog from "@/lib/posthog";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import clsx from "clsx";
@@ -669,6 +670,7 @@ export default function OrderDetail() {
     setIsGenerating(true);
     try {
       await printDocument(order as any, customer, tenant, isPurchaseOrder);
+      posthog.capture("invoice.generated", { type: isPurchaseOrder ? "purchase" : "sale" });
       // On native the share sheet opens — no toast needed (user sees the sheet).
       // On web, the print dialog opens.
       if (!Capacitor.isNativePlatform()) {
@@ -697,6 +699,7 @@ export default function OrderDetail() {
         isPurchaseOrder ? "PURCHASE" : "SALE",
         tenant.id,
       );
+      posthog.capture("share_link.created", { type: isPurchaseOrder ? "purchase" : "sale" });
 
       const shareData = {
         title: `Finventree: ${order.id.slice(0, 8).toUpperCase()}`,

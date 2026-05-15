@@ -22,11 +22,14 @@ export function initPostHog() {
     person_profiles: "identified_only",
     capture_pageview: false,
     capture_pageleave: true,
-    autocapture: true,
+    // Autocapture fires ~40-60 events/session — too expensive for 1M quota.
+    // We use deliberate manual captures instead for full control.
+    autocapture: false,
     session_recording: {
       maskAllInputs: true,
-      // Only enable session recording in production to save on quotas and keep dev noise out
-      enabled: !import.meta.env.DEV,
+      // Sample 10% of sessions — enough for UX review without burning quota.
+      // At 100 beta users × 30 days that's ~300 recordings/month.
+      sample_rate: 0.1,
     },
     loaded: () => {
       initialized = true;

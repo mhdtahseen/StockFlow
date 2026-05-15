@@ -227,6 +227,9 @@ export const syncActionToSupabase = async (
           p_status: payload.status,
         });
         if (error) throw error;
+        if (payload.status === "SETTLED") {
+          posthog.capture("order.settled", { type: "sale", amount: payload.amountPaid });
+        }
         break;
       }
       case "billing/returnOrder": {
@@ -340,6 +343,7 @@ export const syncActionToSupabase = async (
           p_note: payload.note ?? null,
         });
         if (error) throw error;
+        posthog.capture("payment.logged", { direction: "outbound", mode: payload.mode, amount: payload.totalPaid });
         break;
       }
       case "purchasing/markPOItemAccepted": {
@@ -457,6 +461,7 @@ export const syncActionToSupabase = async (
           .eq("id", payload)
           .eq("tenant_id", tenant_id);
         if (error) throw error;
+        posthog.capture("customer.deleted");
         break;
       }
       case "tenant/updateTenant": {
@@ -511,9 +516,14 @@ export const syncActionToSupabase = async (
     if (pgErrorCode === "23503") {
       console.warn("Supabase Sync: Foreign Key Violation. Dependency record missing.", error.message);
     } else {
-      console.warn("Supabase Sync Failed:", error.message || error);
+        console.warn("Supabase Sync Failed:", error.message || error);
+      posthog.capture("sync.failed", {
+        action: action.type,
+        error_code: pgErrorCode ?? null,
+        error_message: error.message ?? null,
+      });
     }
-    
+
     return false; // Sync failed
   }
 };

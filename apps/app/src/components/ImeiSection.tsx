@@ -18,6 +18,7 @@ import {
   type ImeiStatus,
 } from "../utils/validateImei";
 import ImeiScannerModal from "./ImeiScannerModal";
+import posthog from "@/lib/posthog";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -104,6 +105,7 @@ export default function ImeiSection({
   const handleScan = useCallback(
     (scanned: string) => {
       updateImeiValue(scanTarget, scanned);
+      posthog.capture("imei.scanned", { success: Boolean(scanned) });
     },
     [scanTarget, updateImeiValue],
   );
