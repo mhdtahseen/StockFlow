@@ -2,12 +2,19 @@ import React, { useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Share as ShareIcon } from "@capacitor/share";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAppSelector } from "@/app/hooks";
+import { useAppSelector, useAppDispatch } from "@/app/hooks";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   ChevronLeft,
   FileText,
@@ -24,6 +31,8 @@ import {
   Loader2,
   Clock,
   ExternalLink,
+  Trash2,
+  AlertCircle,
 } from "lucide-react";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { format, parseISO, compareDesc } from "date-fns";
@@ -39,6 +48,7 @@ import { createShareLink } from "@/services/shareService";
 import { useAuth } from "@/context/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
 import { useUpgradeGate } from "@/context/UpgradeGateContext";
+import { removeCustomer } from "@/features/customers/slice";
 import { toast } from "sonner";
 
 type Tab = "orders" | "payments" | "timeline";
@@ -46,6 +56,7 @@ type Tab = "orders" | "payments" | "timeline";
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { tenant } = useAuth();
   const { canUse } = usePlan();
   const { showUpgrade } = useUpgradeGate();
@@ -65,6 +76,7 @@ export default function CustomerDetail() {
   const [arOpen, setArOpen] = useState(false);
   const [apOpen, setApOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [orderTypeFilter, setOrderTypeFilter] = useState<"ALL" | "SALE" | "PURCHASE">("ALL");
   const [orderStatusFilter, setOrderStatusFilter] = useState<"ALL" | "ACTIVE" | "SETTLED">("ALL");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -121,6 +133,16 @@ export default function CustomerDetail() {
     });
   }, [allCustomerPayments, allSupplierPayments, id]);
 
+  const handleDelete = () => {
+    if (!id) return;
+    dispatch(removeCustomer(id));
+    setShowDeleteConfirm(false);
+    toast.success("Customer deleted", {
+      description: `${customer?.name} has been removed from your directory.`,
+    });
+    navigate("/customers", { replace: true });
+  };
+
   if (!customer) {
     return (
       <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 p-4 justify-center items-center text-red-500 font-bold">
@@ -172,6 +194,13 @@ export default function CustomerDetail() {
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
       <HeaderActions>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm active:scale-95"
+          aria-label="Delete Customer"
+        >
+          <Trash2 size={18} />
+        </button>
         <button
           onClick={() => setEditOpen(true)}
           className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 flex items-center justify-center transition-colors shadow-sm active:scale-95"
@@ -799,6 +828,37 @@ export default function CustomerDetail() {
         onOpenChange={setEditOpen}
         customer={customer}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-xs bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-slate-200 dark:border-slate-800 text-center p-6 gap-0">
+          <DialogHeader className="flex flex-col items-center">
+            <div className="size-14 rounded-full bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center mb-4 border border-rose-100 dark:border-rose-900 text-rose-600 dark:text-rose-400">
+              <AlertCircle size={28} />
+            </div>
+            <DialogTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              Delete {customer.name}?
+            </DialogTitle>
+            <DialogDescription className="text-[13px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+              This customer will be removed from your directory. Their orders and payment history will be preserved.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 mt-6">
+            <button
+              onClick={handleDelete}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold h-11 rounded-xl shadow-lg shadow-rose-600/20 transition-colors active:scale-[0.98]"
+            >
+              Yes, Delete
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="w-full h-11 rounded-xl text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
