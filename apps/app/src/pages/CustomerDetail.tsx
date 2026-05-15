@@ -34,6 +34,7 @@ import { CustomerPayment } from "@/features/customers/types";
 import { AllocationSheet } from "@/components/shared/AllocationSheet";
 import { SupplierAllocationSheet } from "@/components/shared/SupplierAllocationSheet";
 import { CustomerEditSheet } from "@/components/shared/CustomerEditSheet";
+import { FeatureGate } from "@/components/shared/FeatureGate";
 import { createShareLink } from "@/services/shareService";
 import { useAuth } from "@/context/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
@@ -220,6 +221,7 @@ export default function CustomerDetail() {
         </div>
 
         {/* Balance Card */}
+        <FeatureGate feature="credit_tracking" badge>
         <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 relative overflow-hidden flex flex-col gap-3">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-500"></div>
 
@@ -264,6 +266,7 @@ export default function CustomerDetail() {
             </div>
           )}
         </div>
+        </FeatureGate>
 
         {/* Tabs */}
         <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl">

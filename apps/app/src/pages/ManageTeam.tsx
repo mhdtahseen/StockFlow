@@ -3,6 +3,8 @@ import { Clipboard } from "@capacitor/clipboard";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { usePlan } from "@/hooks/usePlan";
+import { useUpgradeGate } from "@/context/UpgradeGateContext";
 import {
   Users,
   Shield,
@@ -33,6 +35,11 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 export default function ManageTeam() {
   const dispatch = useDispatch();
   const { session, isAdmin, tenant } = useAuth();
+  const { canUse, plan } = usePlan();
+  const { showUpgrade } = useUpgradeGate();
+  // Per-plan seat caps (mirrors admin PLAN_SEAT_LIMITS)
+  const SEAT_LIMITS: Record<string, number | undefined> = { starter: 1, pro: 10, enterprise: undefined };
+  const seatLimit = SEAT_LIMITS[plan];
   const profiles =
     useSelector((state: RootState) => state.tenant?.teamMembers) || [];
   const [isLoading, setIsLoading] = useState(false);
@@ -151,7 +158,14 @@ export default function ManageTeam() {
                   </p>
                   {!showInviteDetails ? (
                     <Button
-                      onClick={() => setShowInviteDetails(true)}
+                      onClick={() => {
+                        // Enforce per-plan seat limit
+                        if (seatLimit !== undefined && profiles.length >= seatLimit) {
+                          showUpgrade(plan === "starter" ? "bulk_orders" : "unlimited_seats");
+                          return;
+                        }
+                        setShowInviteDetails(true);
+                      }}
                       className="w-full bg-primary-500 hover:bg-blue-800 text-white font-semibold py-2"
                     >
                       <Plus size={16} className="mr-2" />

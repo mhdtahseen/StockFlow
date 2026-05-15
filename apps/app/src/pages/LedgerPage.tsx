@@ -49,6 +49,7 @@ import CurrencyInput from "../components/ui/CurrencyInput";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { supabase } from "../lib/supabase";
 import { parseStructuredNote } from "@/utils/financeUtils";
+import { FeatureGate } from "@/components/shared/FeatureGate";
 
 export default function LedgerPage() {
   const dispatch = useAppDispatch();
@@ -590,6 +591,7 @@ export default function LedgerPage() {
 
         {/* Financial Metrics Cards */}
         <section className="pt-2 pb-4 space-y-3">
+          <FeatureGate feature="receivables" badge>
           <div className="grid grid-cols-2 gap-3">
             {/* AR Card */}
             <div
@@ -631,6 +633,7 @@ export default function LedgerPage() {
               </div>
             </div>
           </div>
+          </FeatureGate>
 
           {/* EOD Summary - Collapsible */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all duration-300">

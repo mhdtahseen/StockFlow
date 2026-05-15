@@ -69,6 +69,10 @@ export default function AddPhoneUpdate() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const phones = useAppSelector((s) => s.inventory.phones);
+  const { canUse } = usePlan();
+  const { showUpgrade } = useUpgradeGate();
+
+  const DEVICE_LIMIT = 100;
 
   const {
     getBrandOptions,
@@ -143,6 +147,11 @@ export default function AddPhoneUpdate() {
   const customers = useAppSelector((state) => state.customers.customers);
 
   const handleSubmit = () => {
+    // Enforce 100-device cap for Starter plan
+    if (!canUse("unlimited_phones") && phones.length + rows.length > DEVICE_LIMIT) {
+      showUpgrade("unlimited_phones");
+      return;
+    }
     // Determine effective counterparty
     let effectiveVendor = vendor;
     if (channel === "PLATFORM") {
