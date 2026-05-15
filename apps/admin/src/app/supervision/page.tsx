@@ -469,40 +469,6 @@ function SupervisionContent() {
     if (!extendTrialId) return;
     setIsProcessing(`extend-${extendTrialId}`);
     try {
-      // Calculate new expiry: max(now, current expiry) + months
-      const tenant = tenants.find((t) => t.id === extendTrialId);
-      const base = tenant?.plan_expires_at && new Date(tenant.plan_expires_at) > new Date()
-        ? new Date(tenant.plan_expires_at)
-        : new Date();
-      const newExpiry = new Date(base);
-      newExpiry.setMonth(newExpiry.getMonth() + months);
-
-      const { error } = await supabase
-        .from("tenants")
-        .update({
-          plan: "trial",
-          plan_expires_at: newExpiry.toISOString(),
-        })
-        .eq("id", extendTrialId);
-      if (error) throw error;
-      toast.success("Trial extended", {
-        description: `Trial now expires ${newExpiry.toLocaleDateString()}.`,
-      });
-      setExtendTrialId(null);
-      fetchData();
-    } catch (err: unknown) {
-      toast.error("Failed to extend trial", {
-        description: err instanceof Error ? err.message : undefined,
-      });
-    } finally {
-      setIsProcessing(null);
-    }
-  };
-
-  const handleExtendTrial = async (months: number) => {
-    if (!extendTrialId) return;
-    setIsProcessing(`extend-${extendTrialId}`);
-    try {
       // Extend from current expiry (if future) or from now
       const tenant = tenants.find((t) => t.id === extendTrialId);
       const base =
