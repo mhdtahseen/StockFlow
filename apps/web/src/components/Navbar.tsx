@@ -15,7 +15,7 @@ const navLinks = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -67,11 +67,11 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {mounted && (
             <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
               className="p-2 rounded-xl hover:bg-[var(--color-surface)] transition-colors duration-200 cursor-pointer"
               aria-label="Toggle theme"
             >
-              {theme === "dark" ? (
+              {resolvedTheme === "dark" ? (
                 <Sun className="w-4 h-4" />
               ) : (
                 <Moon className="w-4 h-4" />
@@ -112,11 +112,11 @@ export default function Navbar() {
           <div className="flex items-center gap-3 pt-2">
             {mounted && (
               <button
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
                 className="p-2 rounded-xl hover:bg-[var(--color-surface)] transition-colors cursor-pointer"
                 aria-label="Toggle theme"
               >
-                {theme === "dark" ? (
+                {resolvedTheme === "dark" ? (
                   <Sun className="w-4 h-4" />
                 ) : (
                   <Moon className="w-4 h-4" />

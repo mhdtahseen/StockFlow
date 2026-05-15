@@ -160,6 +160,13 @@ body {
 /* ─── Text Gradients ─── */
 
 .text-gradient-gold {
+  background: linear-gradient(135deg, #D97706 0%, #F59E0B 50%, #D97706 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark .text-gradient-gold {
   background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 50%, #F59E0B 100%);
   -webkit-background-clip: text;
   background-clip: text;
