@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import type { FeatureKey } from "@/hooks/usePlan";
+import posthog from "@/lib/posthog";
 
 interface UpgradeGateContextType {
   showUpgrade: (feature: FeatureKey) => void;
@@ -18,6 +19,7 @@ export function UpgradeGateProvider({ children }: { children: React.ReactNode })
 
   const showUpgrade = useCallback((feature: FeatureKey) => {
     setActiveFeature(feature);
+    posthog.capture("upgrade_gate.hit", { feature });
   }, []);
 
   const close = useCallback(() => setActiveFeature(null), []);

@@ -12,8 +12,11 @@ import { AuthProvider } from "./context/AuthContext";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { supabase } from "./lib/supabase";
+import { initPostHog } from "./lib/posthog";
 import App from "./App";
 import "./index.css";
+
+initPostHog();
 
 // Handle deep links from auth emails on native (e.g. password reset, magic link).
 // When the user taps com.hyllos.finventree://callback?code=… in their email,

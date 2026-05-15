@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from "react";
-import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useState, useCallback, useEffect } from "react";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import posthog from "@/lib/posthog";
 
 // Capacitor serves files via capacitor:// — BrowserRouter needs a server to
 // resolve paths, so we use HashRouter in native builds (/#/route style URLs)
@@ -76,6 +77,14 @@ function GatedRoute({ feature, element }: { feature: FeatureKey; element: React.
   );
 }
 
+function PageViewTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    posthog.capture("$pageview", { $current_url: location.pathname });
+  }, [location.pathname]);
+  return null;
+}
+
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
@@ -86,6 +95,7 @@ function App() {
   return (
     <TooltipProvider>
       <Router>
+        <PageViewTracker />
         {/* <AppGate> */}
         {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
         <Routes>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import posthog from "@/lib/posthog";
 import { toast } from "sonner";
 
 export interface FeatureFlagEntry {
@@ -193,6 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setFeatureFlags(null);
           setFullName(null);
           setAvatarUrl(null);
+          posthog.reset();
         } else if (newSession) {
           setSession(newSession);
           setUser(newSession.user);
@@ -212,6 +214,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             const tid = newSession.user.user_metadata.tenant_id || profile.tenant_id;
             if (tid) await fetchTenant(tid);
             await fetchFeatureFlags();
+            posthog.identify(newSession.user.id, {
+              email: newSession.user.email,
+              role: profile.role,
+              tenant_id: tid ?? null,
+            });
           }
         }
         setIsLoading(false);

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import posthog from "@/lib/posthog";
 
 type AnyAction = { type: string; payload?: any };
 
@@ -65,6 +66,7 @@ export const syncActionToSupabase = async (
           created_at: payload.createdAt,
         });
         if (error) throw error;
+        posthog.capture("phone.added", { brand: payload.brand, model: payload.model, status: payload.status });
         break;
       }
       case "inventory/updatePhone": {
@@ -94,6 +96,7 @@ export const syncActionToSupabase = async (
           .eq("id", payload)
           .eq("tenant_id", tenant_id);
         if (error) throw error;
+        posthog.capture("phone.deleted");
         break;
       }
       case "inventory/markAsInStock": {
@@ -214,6 +217,7 @@ export const syncActionToSupabase = async (
           p_payment_note: payload.paymentNote ?? null,
         });
         if (error) throw error;
+        posthog.capture("order.created", { type: "sale", item_count: payload.items?.length ?? 1, amount: payload.totalAmount });
         break;
       }
       case "billing/updateOrderPayment": {
@@ -282,6 +286,7 @@ export const syncActionToSupabase = async (
           p_payment_note: payload.paymentNote ?? null,
         });
         if (error) throw error;
+        posthog.capture("order.created", { type: "purchase", item_count: payload.items?.length ?? 1, channel: payload.acquisitionChannel, amount: payload.totalAmount });
         break;
       }
       // ─── CUSTOMERS ──────────────────────────────────────────────────
@@ -309,6 +314,7 @@ export const syncActionToSupabase = async (
           p_type: payload.type ?? "CUSTOMER_PAYMENT",
         });
         if (error) throw error;
+        posthog.capture("payment.logged", { direction: "inbound", mode: payload.mode, amount: payload.totalReceived });
         break;
       }
       case "purchasing/addSupplierSettlement": {
@@ -423,6 +429,7 @@ export const syncActionToSupabase = async (
           created_at: payload.createdAt,
         });
         if (error) throw error;
+        posthog.capture("customer.added", { type: mappedType });
         break;
       }
       case "customers/updateCustomer": {
