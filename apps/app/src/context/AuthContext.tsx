@@ -3,7 +3,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import posthog from "@/lib/posthog";
 import { toast } from "sonner";
-import { persistor } from "@/app/store";
+import { persistor, store, RESET_STORE } from "@/app/store";
 
 export interface FeatureFlagEntry {
   enabled_globally: boolean;
@@ -271,8 +271,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signOut = async () => {
     // Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
     import('@/app/supabaseApi').then(m => m.clearTenantCache?.());
-    // Purge redux-persist store through its own storage engine
-    // (covers both web/localforage and native/@capacitor/preferences)
+    // 1. Reset in-memory Redux state immediately (prevents old tenant data showing)
+    store.dispatch({ type: RESET_STORE });
+    // 2. Purge the persisted store (covers web/localforage + native/@capacitor/preferences)
     await persistor.purge();
     localStorage.removeItem("finventree_auth");
     localStorage.removeItem("persist:finventree-root");

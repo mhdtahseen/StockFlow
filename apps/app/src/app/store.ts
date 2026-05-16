@@ -55,13 +55,24 @@ const rootReducer = combineReducers({
   orderEdits: orderEditsReducer,
 });
 
+// Root action that resets all slices to their initialState.
+// Dispatched on sign-out so in-memory state is wiped for the next user.
+export const RESET_STORE = "store/reset";
+
+const resettableRootReducer: typeof rootReducer = (state, action) => {
+  if (action.type === RESET_STORE) {
+    return rootReducer(undefined, action);
+  }
+  return rootReducer(state, action);
+};
+
 const persistConfig = {
   key: "finventree-root",
   storage: storageEngine,
   version: 2,
 };
 
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+const persistedReducer = persistReducer(persistConfig, resettableRootReducer);
 
 export const store = configureStore({
   reducer: persistedReducer,
