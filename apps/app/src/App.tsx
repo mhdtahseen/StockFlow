@@ -41,6 +41,12 @@ import { useAuth } from "./context/AuthContext";
 import { usePlan, type FeatureKey } from "./hooks/usePlan";
 import { useUpgradeGate } from "./context/UpgradeGateContext";
 
+/** Web deep-link redirect: /connect/:code → /customers?connect=CODE */
+const ConnectRedirect = () => {
+  const { code } = { code: window.location.pathname.split("/connect/")[1] ?? "" };
+  return <Navigate to={`/customers?connect=${code.toUpperCase()}`} replace />;
+};
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
   const hasLocalFlag = localStorage.getItem("finventree_auth") === "true";
@@ -101,6 +107,11 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/public/view/:token" element={<PublicView />} />
+          {/* Trade Network connect deep link: /connect/:code → redirect to /customers?connect=CODE */}
+          <Route
+            path="/connect/:code"
+            element={<ConnectRedirect />}
+          />
 
           <Route
             path="/"

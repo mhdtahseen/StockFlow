@@ -17,8 +17,13 @@ import {
   LogOut,
   Copy,
   CheckCheck,
+  Share2,
 } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
+import { Clipboard } from "@capacitor/clipboard";
+import { Share } from "@capacitor/share";
+import { Capacitor } from "@capacitor/core";
+import { QRCodeSVG } from "qrcode.react";
 import { Loader } from "@/components/shared/Loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,10 +70,34 @@ export default function ProfilePage() {
 
   const handleCopyTradeCode = () => {
     if (!tenant?.tradeCode) return;
-    navigator.clipboard.writeText(tenant.tradeCode).then(() => {
-      setCodeCopied(true);
-      setTimeout(() => setCodeCopied(false), 2000);
-    });
+    if (Capacitor.isNativePlatform()) {
+      Clipboard.write({ string: tenant.tradeCode }).then(() => {
+        setCodeCopied(true);
+        setTimeout(() => setCodeCopied(false), 2000);
+      });
+    } else {
+      navigator.clipboard.writeText(tenant.tradeCode).then(() => {
+        setCodeCopied(true);
+        setTimeout(() => setCodeCopied(false), 2000);
+      });
+    }
+  };
+
+  const handleShareConnectLink = async () => {
+    if (!tenant?.tradeCode) return;
+    const url = `https://finventree.app/connect/${tenant.tradeCode}`;
+    if (Capacitor.isNativePlatform()) {
+      await Share.share({
+        title: `Connect with ${tenant.name} on Finventree`,
+        text: `Scan my Trade Code to connect on Finventree: ${tenant.tradeCode}`,
+        url,
+      });
+    } else if (navigator.share) {
+      await navigator.share({ title: `Connect with ${tenant.name} on Finventree`, url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success("Connect link copied!");
+    }
   };
 
   const [fullName, setFullName] = useState("");
@@ -477,12 +506,29 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <CardTitle className="text-lg">Trade Network</CardTitle>
-                  <CardDescription>Share your Trade Code with partners to link accounts</CardDescription>
+                  <CardDescription>Share your Trade Code or QR to connect with other Finventree businesses</CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-3">
+            <CardContent className="space-y-4">
+              {/* QR Code */}
+              {tenant?.tradeCode && (
+                <div className="flex flex-col items-center gap-3 py-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <div className="bg-white p-3 rounded-2xl shadow-sm">
+                    <QRCodeSVG
+                      value={`com.hyllos.finventree://connect/${tenant.tradeCode}`}
+                      size={160}
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Scan to connect on Finventree
+                  </p>
+                </div>
+              )}
+              {/* Trade code + copy + share */}
+              <div className="flex items-center gap-2">
                 <div className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3">
                   <span className="text-2xl font-black tracking-[0.3em] text-slate-900 dark:text-white">
                     {tenant?.tradeCode ?? "------"}
@@ -498,6 +544,13 @@ export default function ProfilePage() {
                   }`}
                 >
                   {codeCopied ? <CheckCheck size={18} /> : <Copy size={18} />}
+                </button>
+                <button
+                  onClick={handleShareConnectLink}
+                  disabled={!tenant?.tradeCode}
+                  className="size-12 rounded-xl flex items-center justify-center transition-all shrink-0 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50"
+                >
+                  <Share2 size={18} />
                 </button>
               </div>
             </CardContent>

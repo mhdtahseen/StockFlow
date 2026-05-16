@@ -693,3 +693,28 @@ export const syncTransferStatus = async (poId: string) => {
   });
   if (error) throw new Error(error.message);
 };
+
+// ─── TRADE NETWORK: QR CONNECT ──────────────────────────────────────────────
+
+/**
+ * Connect two businesses mutually via Trade Code.
+ * Creates a counterparty on BOTH sides and links them.
+ * Idempotent — returns existing connection if already linked.
+ */
+export const connectByTradeCode = async (
+  tradeCode: string,
+  typeForMe: string,   // how I classify them
+  typeForThem: string, // how they classify me
+): Promise<{ counterpartyId: string; theirName: string; alreadyConnected: boolean }> => {
+  const { data, error } = await supabase.rpc("connect_by_trade_code", {
+    p_trade_code:    tradeCode,
+    p_type_for_me:   typeForMe,
+    p_type_for_them: typeForThem,
+  });
+  if (error) throw new Error(error.message);
+  return {
+    counterpartyId:   data.counterparty_id,
+    theirName:        data.their_name,
+    alreadyConnected: data.already_connected,
+  };
+};

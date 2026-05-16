@@ -1,12 +1,14 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAppSelector } from "@/app/hooks";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Fuse from "fuse.js";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Search, ChevronRight, UserPlus, Filter, Phone } from "lucide-react";
+import { Search, ChevronRight, UserPlus, Filter, Phone, QrCode } from "lucide-react";
 import { selectCustomers } from "@/features/customers/selectors";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
+import { ConnectSheet } from "@/components/shared/ConnectSheet";
+import { usePlan } from "@/hooks/usePlan";
 import { CustomerType } from "@/features/customers/types";
 import {
   Select,
@@ -38,6 +40,20 @@ export default function Customers() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("ALL");
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { canUse } = usePlan();
+
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [connectCode, setConnectCode] = useState<string | undefined>(undefined);
+
+  // Handle deep link: /customers?connect=CODE
+  useEffect(() => {
+    const code = searchParams.get("connect");
+    if (code && code.length === 6) {
+      setConnectCode(code.toUpperCase());
+      setConnectOpen(true);
+    }
+  }, [searchParams]);
 
   // A4: precompute per-customer last activity + order count + AR balance
   const customerStats = useMemo(() => {
@@ -78,15 +94,26 @@ export default function Customers() {
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
       <HeaderActions>
-        <CustomerPicker
-          mode="add"
-          onSelect={(c) => navigate(`/customers/${c.id}`)}
-          trigger={
-            <button className="size-10 rounded-full bg-primary-500 text-white flex items-center justify-center transition-all shadow-lg shadow-blue-500/20 active:scale-95">
-              <UserPlus size={20} />
+        <React.Fragment>
+          {canUse("trade_network") && (
+            <button
+              onClick={() => { setConnectCode(undefined); setConnectOpen(true); }}
+              className="size-10 rounded-full bg-violet-500 text-white flex items-center justify-center transition-all shadow-lg shadow-violet-500/20 active:scale-95"
+              title="Scan to Connect"
+            >
+              <QrCode size={20} />
             </button>
-          }
-        />
+          )}
+          <CustomerPicker
+            mode="add"
+            onSelect={(c) => navigate(`/customers/${c.id}`)}
+            trigger={
+              <button className="size-10 rounded-full bg-primary-500 text-white flex items-center justify-center transition-all shadow-lg shadow-blue-500/20 active:scale-95">
+                <UserPlus size={20} />
+              </button>
+            }
+          />
+        </React.Fragment>
       </HeaderActions>
 
       {/* A7: Sticky search + filter */}
@@ -235,6 +262,12 @@ export default function Customers() {
           )}
         </div>
       </div>
+
+      <ConnectSheet
+        open={connectOpen}
+        onOpenChange={setConnectOpen}
+        initialCode={connectCode}
+      />
     </div>
   );
 }
