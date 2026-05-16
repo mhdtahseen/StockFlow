@@ -35,6 +35,7 @@ import Profile from "@/pages/Profile";
 import Settings from "@/pages/Settings";
 import AboutApp from "@/pages/AboutApp";
 import PublicView from "@/pages/PublicView";
+import AuthHandoff from "@/pages/AuthHandoff";
 
 import "./index.css";
 import { useAuth } from "./context/AuthContext";
@@ -106,6 +107,7 @@ function App() {
         {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/auth/handoff" element={<AuthHandoff />} />
           <Route path="/public/view/:token" element={<PublicView />} />
           {/* Trade Network connect deep link: /connect/:code → redirect to /customers?connect=CODE */}
           <Route

@@ -7,6 +7,44 @@
 
 ## 16 May 2026
 
+### Auth — Full Registration Flow on finventree.com
+**Commits:** (current)
+
+- **`apps/web` activate page** (`finventree.com/activate`): After the user sets their password, the page calls the `auth-handoff` Edge Function to mint a one-time cross-domain session token.
+- **Two-button success screen**: "Open Web App" navigates to `app.finventree.com/auth/handoff?token_hash=...` — user lands on the dashboard already signed in. "Open in App" opens the native app via `com.hyllos.finventree://callback?token_hash=...` — also lands directly in the dashboard.
+- **`AuthHandoff.tsx`** (new page at `/auth/handoff` in `apps/app`): Receives the handoff token, calls `supabase.auth.verifyOtp()` to establish a session on the `app.finventree.com` domain, then redirects to `/`. Shows loading → success → error states.
+- **`main.tsx` native deep link**: Extended `appUrlOpen` to handle `token_hash` param — calls `supabase.auth.verifyOtp()` directly in the native app and navigates home.
+- **`apps/web` supabase client**: Added `flowType: 'pkce'` for correct PKCE invite token exchange.
+- **No more "log in again"**: The cross-domain session ferry means a user who activates on `finventree.com` is immediately authenticated on `app.finventree.com` and in the native app — zero extra login steps.
+
+---
+
+### Feature Gates — Gap Fixes
+**Commit:** `6e99b05`
+
+- **Trade Network deep-link bypass fixed**: `?connect=` query param on the Customers page now checks `canUse("trade_network")` before opening ConnectSheet — previously a free-plan user could bypass the gate via a deep link URL.
+- **PDF Invoice secondary button gated**: The "Document" button in the OrderDetail core actions row was missing a `FeatureGate pdf_invoice` wrapper (the identical button in the header was gated, this one wasn't). Now consistent.
+- **Excel export gated**: "Export Financial ledgers" button in Settings wrapped with `FeatureGate full_ledger` — free users now see the upgrade prompt.
+
+---
+
+### Bug Fixes
+**Commit:** `6e99b05`
+
+- **`useKeyboard.ts`**: Was calling `Keyboard.removeAllListeners()` in cleanup, which nuked all Capacitor internal keyboard listeners and caused extra keyboard state churn. Now only removes the specific `keyboardWillShow` listener this hook registered.
+- **`posthog.ts`**: Fixed `sample_rate` → `sampleRate` typo (TypeScript compile error).
+- **`TrialExpiredPaywall.tsx`**: Added missing `Link` (react-router-dom) and `Mail` (lucide-react) imports (TypeScript compile error).
+
+---
+
+### Branding / Copy
+**Commit:** `6e99b05`
+
+- `ConnectSheet.tsx`: Cleaned up input placeholder (`"e.g. AB3K7Z"` → `"AB3K7Z"`).
+- `LinkTenantSheet.tsx`: Updated in-sheet copy: "StockFlow" → "Finventree", "Settings" → "Profile" (trade code is now displayed on Profile, not Settings).
+
+---
+
 ### Trade Network — QR Connect (in-app scanner)
 **Commits:** `7114843`, `1fa6340`
 

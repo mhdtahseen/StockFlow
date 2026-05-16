@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Lock, Loader2, CheckCircle2, ArrowRight, AlertCircle } from "lucide-react";
+import { Lock, Loader2, CheckCircle2, ArrowRight, AlertCircle, Smartphone } from "lucide-react";
 
 export default function ActivatePage() {
   const [password, setPassword] = useState("");
@@ -11,6 +11,7 @@ export default function ActivatePage() {
   const [isDone, setIsDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const [handoffToken, setHandoffToken] = useState<string | null>(null);
 
   // Supabase automatically exchanges the invite token in the URL hash for a session.
   // We just need to wait for it to resolve.
@@ -41,13 +42,26 @@ export default function ActivatePage() {
 
     setIsSubmitting(true);
     const { error: updateError } = await supabase.auth.updateUser({ password });
-    setIsSubmitting(false);
 
     if (updateError) {
+      setIsSubmitting(false);
       setError(updateError.message);
       return;
     }
 
+    // Generate a cross-domain handoff token so the user can open the app
+    // (app.finventree.com or native) already signed in.
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data } = await supabase.functions.invoke("auth-handoff", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (data?.token_hash) setHandoffToken(data.token_hash);
+    } catch {
+      // Non-critical — the buttons will fall back to plain login
+    }
+
+    setIsSubmitting(false);
     setIsDone(true);
   };
 
@@ -101,14 +115,30 @@ export default function ActivatePage() {
               </div>
               <h1 className="text-2xl font-bold text-white mb-3">Account Activated!</h1>
               <p className="text-slate-400 text-sm leading-relaxed mb-8">
-                Your password has been set. You can now log in to the app using your email and this password.
+                Your password has been set. Choose how you'd like to get started:
               </p>
-              <a
-                href="https://app.finventree.com"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-sm font-semibold text-black hover:bg-amber-400 transition-colors"
-              >
-                Go to App Login <ArrowRight size={16} />
-              </a>
+              <div className="flex flex-col gap-3">
+                <a
+                  href={
+                    handoffToken
+                      ? `https://app.finventree.com/auth/handoff?token_hash=${handoffToken}&type=magiclink`
+                      : "https://app.finventree.com/login"
+                  }
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-sm font-semibold text-black hover:bg-amber-400 transition-colors"
+                >
+                  <ArrowRight size={16} /> Open Web App
+                </a>
+                <a
+                  href={
+                    handoffToken
+                      ? `com.hyllos.finventree://callback?token_hash=${handoffToken}&type=magiclink`
+                      : "com.hyllos.finventree://callback"
+                  }
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors"
+                >
+                  <Smartphone size={16} /> Open in App
+                </a>
+              </div>
             </div>
           ) : (
             <>
