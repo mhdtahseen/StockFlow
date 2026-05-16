@@ -164,6 +164,7 @@ const purchasingSlice = createSlice({
       o.notes             = a.payload.notes;
       o.items             = a.payload.items;
       o.phonesOrdered     = a.payload.items.length;
+      // phonesReceived is set by confirmReceipt only — do not overwrite here
       o.totalAmount       = a.payload.newTotalAmount;
       o.status            = a.payload.newStatus;
     },

@@ -16,6 +16,7 @@ import {
   PurchaseOrder,
   PurchaseOrderItem,
   AcquisitionChannel,
+  POItemStatus,
 } from "@/features/purchasing/types";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import { Customer } from "@/features/customers/types";
@@ -41,8 +42,10 @@ interface Props {
 }
 
 interface ItemDraft {
-  id?: string;        // present for existing items
+  id?: string;             // present for existing items
   phoneId?: string | null;
+  status: POItemStatus;    // preserves ACCEPTED / REJECTED / PENDING_INSPECTION
+  rejectionReason?: string;
   brand: string;
   model: string;
   storage: string;
@@ -51,7 +54,7 @@ interface ItemDraft {
   imei: string;
   issueTags: string[];
   purchasePriceStr: string;
-  hasPhone: boolean;  // true if phone record already exists (received)
+  hasPhone: boolean;       // true if phone record already exists in inventory
 }
 
 const CHANNELS: { value: AcquisitionChannel; label: string }[] = [
@@ -64,6 +67,8 @@ function toDraft(item: PurchaseOrderItem): ItemDraft {
   return {
     id: item.id,
     phoneId: item.phoneId,
+    status: item.status ?? "PENDING_INSPECTION",
+    rejectionReason: item.rejectionReason,
     brand: item.brand || "",
     model: item.model || "",
     storage: item.storage || "",
@@ -115,16 +120,32 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
   const canDelete = order.status === "SETTLED";
   const isLocked = order.status === "CANCELLED";
 
+  // Only non-rejected items count toward the order total (rejected items = ₹0)
   const newTotal =
-    items.reduce((sum, i) => sum + (parseFloat(i.purchasePriceStr) || 0), 0) +
+    items
+      .filter((i) => i.status !== "REJECTED")
+      .reduce((sum, i) => sum + (parseFloat(i.purchasePriceStr) || 0), 0) +
     (parseFloat(platformFeeStr) || 0);
 
+  // Are all items resolved (none still PENDING_INSPECTION)?
+  const allItemsResolved = items.length > 0 && items.every(
+    (i) => i.status !== "PENDING_INSPECTION",
+  );
+
   function newStatus(): PurchaseOrder["status"] {
+    // If currently AWAITING_RECEIPT (not yet received at all)
     if (order.status === "AWAITING_RECEIPT") {
       if (order.amountPaid <= 0) return "AWAITING_RECEIPT";
       if (order.amountPaid >= newTotal) return "SETTLED";
       return "PARTIAL";
     }
+    // For RECEIVED / PARTIAL / SETTLED — receipt already happened, preserve that
+    if (allItemsResolved) {
+      if (order.amountPaid <= 0) return "RECEIVED";
+      if (order.amountPaid >= newTotal) return "SETTLED";
+      return "PARTIAL";
+    }
+    // Some items still pending inspection
     if (order.amountPaid <= 0) return "RECEIVED";
     if (order.amountPaid >= newTotal) return "SETTLED";
     return "PARTIAL";
@@ -135,7 +156,8 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
     setItems((prev) => [
       ...prev,
       {
-        brand: "Apple",
+        status: "PENDING_INSPECTION" as POItemStatus,
+        brand: "",
         model: "",
         storage: "",
         color: "",
@@ -149,9 +171,16 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
   }
 
   function removeItem(idx: number) {
-    if (items[idx].hasPhone) {
+    const item = items[idx];
+    if (item.status === "ACCEPTED") {
       toast.error(
-        `Cannot remove ${items[idx].brand} ${items[idx].model} — phone already exists in inventory.`,
+        `Cannot remove ${item.brand} ${item.model} — already accepted into inventory.`,
+      );
+      return;
+    }
+    if (item.status === "REJECTED") {
+      toast.error(
+        `Cannot remove ${item.brand} ${item.model} — rejected items stay as audit records.`,
       );
       return;
     }
@@ -177,20 +206,26 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
 
     setIsSubmitting(true);
     try {
-      const mappedItems: PurchaseOrderItem[] = items.map((d) => ({
-        id: d.id!,
-        purchaseOrderId: order.id,
-        phoneId: d.phoneId ?? null,
-        purchasePrice: parseFloat(d.purchasePriceStr),
-        status: "PENDING_INSPECTION" as const,
-        brand: d.brand,
-        model: d.model,
-        storage: d.storage,
-        color: d.color,
-        ram: d.ram,
-        imei: d.imei,
-        issueTags: d.issueTags,
-      }));
+      const mappedItems: PurchaseOrderItem[] = items.map((d) => {
+        // Preserve the original item status — never reset ACCEPTED/REJECTED back to PENDING
+        const originalItem = d.id ? order.items.find((i) => i.id === d.id) : undefined;
+        const preservedStatus: POItemStatus = originalItem?.status ?? "PENDING_INSPECTION";
+        return {
+          id: d.id!,
+          purchaseOrderId: order.id,
+          phoneId: d.phoneId ?? null,
+          purchasePrice: parseFloat(d.purchasePriceStr),
+          status: preservedStatus,
+          rejectionReason: originalItem?.rejectionReason,
+          brand: d.brand,
+          model: d.model,
+          storage: d.storage,
+          color: d.color,
+          ram: d.ram,
+          imei: d.imei,
+          issueTags: d.issueTags,
+        };
+      });
 
       dispatch(
         editPurchaseOrder({
@@ -330,131 +365,169 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
             </div>
 
             <div className="divide-y divide-slate-50 dark:divide-slate-800">
-              {items.map((item, idx) => (
-                <div
-                  key={item.id ?? `new-${idx}`}
-                  className="p-6 bg-white dark:bg-slate-900 animate-in fade-in slide-in-from-right-2 duration-300"
-                >
-                  {/* Row header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="size-6 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg flex items-center justify-center text-[10px] font-black">
-                        {idx + 1}
-                      </span>
-                      <span className="text-xs font-black text-slate-500 uppercase tracking-tight">
-                        Device
-                        {item.hasPhone && (
-                          <span className="ml-2 text-emerald-600 dark:text-emerald-400">· In Inventory</span>
+              {items.map((item, idx) => {
+                const isAccepted = item.status === "ACCEPTED";
+                const isRejected = item.status === "REJECTED";
+                const isPending  = item.status === "PENDING_INSPECTION";
+                // ACCEPTED: only price editable (COGS). REJECTED: fully read-only. PENDING: fully editable.
+                const fieldsLocked = isLocked || isAccepted || isRejected;
+                const priceEditable = !isLocked && (isAccepted || isPending);
+
+                return (
+                  <div
+                    key={item.id ?? `new-${idx}`}
+                    className={clsx(
+                      "p-6 animate-in fade-in slide-in-from-right-2 duration-300",
+                      isRejected
+                        ? "bg-slate-50 dark:bg-slate-900/50 opacity-60"
+                        : "bg-white dark:bg-slate-900",
+                    )}
+                  >
+                    {/* Row header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={clsx(
+                          "size-6 rounded-lg flex items-center justify-center text-[10px] font-black",
+                          isAccepted
+                            ? "bg-emerald-500 text-white"
+                            : isRejected
+                            ? "bg-rose-400 text-white"
+                            : "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900",
+                        )}>
+                          {idx + 1}
+                        </span>
+                        <span className="text-xs font-black text-slate-500 uppercase tracking-tight">
+                          Device
+                        </span>
+                        {isAccepted && (
+                          <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                            ✓ In Inventory
+                          </span>
                         )}
-                      </span>
+                        {isRejected && (
+                          <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                            ✕ Rejected{item.rejectionReason ? ` · ${item.rejectionReason.replace("_", " ")}` : ""}
+                          </span>
+                        )}
+                        {isPending && (
+                          <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                            Awaiting Inspection
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(idx)}
+                        disabled={!isPending || isLocked}
+                        className={clsx(
+                          "p-2 rounded-lg transition-colors",
+                          !isPending || isLocked
+                            ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                            : "text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20",
+                        )}
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(idx)}
-                      disabled={item.hasPhone || isLocked}
-                      className={clsx(
-                        "p-2 rounded-lg transition-colors",
-                        item.hasPhone || isLocked
-                          ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                          : "text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20",
-                      )}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
 
-                  {/* COGS warning */}
-                  {cogsChanged(item) && (
-                    <div className="mb-4 flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-3 text-xs text-amber-700 dark:text-amber-400">
-                      <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                      <span>
-                        Price change will update this phone's cost (COGS) from ₹
-                        {order.items.find((i) => i.id === item.id)?.purchasePrice} → ₹{item.purchasePriceStr}
-                      </span>
-                    </div>
-                  )}
+                    {/* COGS warning for accepted items with changed price */}
+                    {cogsChanged(item) && (
+                      <div className="mb-4 flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-3 text-xs text-amber-700 dark:text-amber-400">
+                        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <span>
+                          Price change will update this phone's cost (COGS) from ₹
+                          {order.items.find((i) => i.id === item.id)?.purchasePrice} → ₹{item.purchasePriceStr}
+                        </span>
+                      </div>
+                    )}
 
-                  {/* Fields grid — matching BatchAddSheet layout */}
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-                    <div className="sm:col-span-3">
-                      <CatalogAutocomplete
-                        label="Brand"
-                        value={item.brand}
-                        onChange={(v) => updateItem(idx, { brand: v, model: "" })}
-                        options={getBrandOptions()}
-                        disabled={isLocked}
-                      />
-                    </div>
-                    <div className="sm:col-span-3">
-                      <CatalogAutocomplete
-                        label="Model"
-                        value={item.model}
-                        onChange={(v) => updateItem(idx, { model: v })}
-                        options={getModelOptions(item.brand)}
-                        placeholder="Model…"
-                        disabled={isLocked || !item.brand}
-                      />
-                    </div>
-                    <div className="sm:col-span-4 space-y-4">
-                      <div className="grid grid-cols-2 gap-2">
+                    {/* Fields grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                      <div className="sm:col-span-3">
                         <CatalogAutocomplete
-                          label="RAM"
-                          value={item.ram}
-                          onChange={(v) => updateItem(idx, { ram: v })}
-                          options={getRamOptions(item.brand, item.model)}
-                          disabled={isLocked || !item.model}
-                          placeholder="RAM"
-                        />
-                        <CatalogAutocomplete
-                          label="Storage"
-                          value={item.storage}
-                          onChange={(v) => updateItem(idx, { storage: v })}
-                          options={sortBySize(getStorageOptions(item.brand, item.model))}
-                          disabled={isLocked || !item.model}
-                          placeholder="Storage"
+                          label="Brand"
+                          value={item.brand}
+                          onChange={(v) => updateItem(idx, { brand: v, model: "" })}
+                          options={getBrandOptions()}
+                          disabled={fieldsLocked}
                         />
                       </div>
-                      <CatalogAutocomplete
-                        label="Color"
-                        value={item.color}
-                        onChange={(v) => updateItem(idx, { color: v })}
-                        options={getColorOptions(item.brand, item.model)}
-                        disabled={isLocked || !item.model}
-                        placeholder="Color"
-                      />
+                      <div className="sm:col-span-3">
+                        <CatalogAutocomplete
+                          label="Model"
+                          value={item.model}
+                          onChange={(v) => updateItem(idx, { model: v })}
+                          options={getModelOptions(item.brand)}
+                          placeholder="Model…"
+                          disabled={fieldsLocked || !item.brand}
+                        />
+                      </div>
+                      <div className="sm:col-span-4 space-y-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          <CatalogAutocomplete
+                            label="RAM"
+                            value={item.ram}
+                            onChange={(v) => updateItem(idx, { ram: v })}
+                            options={getRamOptions(item.brand, item.model)}
+                            disabled={fieldsLocked || !item.model}
+                            placeholder="RAM"
+                          />
+                          <CatalogAutocomplete
+                            label="Storage"
+                            value={item.storage}
+                            onChange={(v) => updateItem(idx, { storage: v })}
+                            options={sortBySize(getStorageOptions(item.brand, item.model))}
+                            disabled={fieldsLocked || !item.model}
+                            placeholder="Storage"
+                          />
+                        </div>
+                        <CatalogAutocomplete
+                          label="Color"
+                          value={item.color}
+                          onChange={(v) => updateItem(idx, { color: v })}
+                          options={getColorOptions(item.brand, item.model)}
+                          disabled={fieldsLocked || !item.model}
+                          placeholder="Color"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500 block mb-2">
+                          Cost (₹)
+                          {isAccepted && (
+                            <span className="ml-1 normal-case font-semibold text-amber-500"> · COGS</span>
+                          )}
+                        </label>
+                        <CurrencyInput
+                          value={item.purchasePriceStr}
+                          onChange={(v) => updateItem(idx, { purchasePriceStr: v })}
+                          className="h-12 text-sm! font-black py-0! rounded-xl pl-10!"
+                          placeholder="0.00"
+                          disabled={!priceEditable}
+                        />
+                      </div>
                     </div>
-                    <div className="sm:col-span-2">
-                      <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500 block mb-2">
-                        Cost (₹)
-                      </label>
-                      <CurrencyInput
-                        value={item.purchasePriceStr}
-                        onChange={(v) => updateItem(idx, { purchasePriceStr: v })}
-                        className="h-12 text-sm! font-black py-0! rounded-xl pl-10!"
-                        placeholder="0.00"
-                        disabled={isLocked}
-                      />
-                    </div>
-                  </div>
 
-                  {/* IMEI */}
-                  <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
-                    <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500 block mb-2">
-                      IMEI
-                      {item.hasPhone && (
-                        <span className="ml-2 normal-case font-semibold text-slate-400">(locked after receipt)</span>
-                      )}
-                    </label>
-                    <Input
-                      value={item.imei}
-                      onChange={(e) => updateItem(idx, { imei: e.target.value })}
-                      placeholder="IMEI (optional)"
-                      disabled={isLocked || item.hasPhone}
-                      className="text-sm font-semibold"
-                    />
+                    {/* IMEI — shown for PENDING and ACCEPTED, hidden for REJECTED */}
+                    {!isRejected && (
+                      <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                        <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500 block mb-2">
+                          IMEI
+                          {isAccepted && (
+                            <span className="ml-2 normal-case font-semibold text-slate-400">(locked — already in inventory)</span>
+                          )}
+                        </label>
+                        <Input
+                          value={item.imei}
+                          onChange={(e) => updateItem(idx, { imei: e.target.value })}
+                          placeholder="IMEI (optional)"
+                          disabled={fieldsLocked}
+                          className="text-sm font-semibold"
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {items.length === 0 && (
