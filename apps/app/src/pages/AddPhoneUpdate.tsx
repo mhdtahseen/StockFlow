@@ -32,6 +32,8 @@ import {
   PurchaseOrder,
   PurchaseOrderItem,
 } from "../features/purchasing/types";
+import { usePlan } from "../hooks/usePlan";
+import { useUpgradeGate } from "../context/UpgradeGateContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

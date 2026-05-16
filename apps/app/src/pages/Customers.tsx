@@ -24,6 +24,13 @@ const TYPE_AVATAR: Record<CustomerType, string> = {
   PLATFORM: "bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400",
 };
 
+const TYPE_BAR: Record<CustomerType, string> = {
+  CUSTOMER: "bg-blue-400",
+  RETAILER: "bg-violet-400",
+  WHOLESALER: "bg-amber-400",
+  PLATFORM: "bg-teal-400",
+};
+
 export default function Customers() {
   const customers = useAppSelector(selectCustomers);
   const allSaleOrders = useAppSelector((state) => state.billing.orders) || [];
@@ -32,9 +39,9 @@ export default function Customers() {
   const [filterType, setFilterType] = useState<string>("ALL");
   const navigate = useNavigate();
 
-  // A4: precompute per-customer last activity
+  // A4: precompute per-customer last activity + order count + AR balance
   const customerStats = useMemo(() => {
-    const map = new Map<string, { lastActivity: string | null }>();
+    const map = new Map<string, { lastActivity: string | null; orderCount: number; arBalance: number }>();
     customers.forEach((c) => {
       const saleOrders = allSaleOrders.filter((o) => o.counterpartyId === c.id);
       const purchaseOrders = allPurchaseOrders.filter((o) => o.counterpartyId === c.id);
@@ -42,7 +49,14 @@ export default function Customers() {
         ...saleOrders.map((o) => o.createdAt),
         ...purchaseOrders.map((o) => o.createdAt),
       ].sort().reverse();
-      map.set(c.id, { lastActivity: allDates[0] ?? null });
+      const arBalance = saleOrders
+        .filter((o) => o.status !== "SETTLED" && o.status !== "RETURNED")
+        .reduce((s, o) => s + (o.totalAmount - o.amountPaid), 0);
+      map.set(c.id, {
+        lastActivity: allDates[0] ?? null,
+        orderCount: saleOrders.length + purchaseOrders.length,
+        arBalance,
+      });
     });
     return map;
   }, [customers, allSaleOrders, allPurchaseOrders]);
@@ -145,45 +159,75 @@ export default function Customers() {
             filtered.map((c) => {
               const stats = customerStats.get(c.id);
               const lastActivity = stats?.lastActivity;
+              const orderCount = stats?.orderCount ?? 0;
+              const arBalance = stats?.arBalance ?? 0;
+              const type = (c.type as CustomerType) ?? "CUSTOMER";
               return (
               <div
                 key={c.id}
                 onClick={() => navigate(`/customers/${c.id}`)}
-                className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 cursor-pointer hover:border-primary-500/30 active:scale-[0.98] transition-all group"
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex cursor-pointer active:scale-[0.98] transition-all group hover:shadow-md hover:border-slate-200 dark:hover:border-slate-700"
               >
-                {/* A2: color-coded avatar */}
-                <div className={`size-12 rounded-full flex items-center justify-center font-black text-lg shrink-0 ${TYPE_AVATAR[c.type as CustomerType] ?? TYPE_AVATAR.CUSTOMER}`}>
-                  {c.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">{c.name}</h3>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                      {c.type}
-                    </span>
+                {/* Type accent bar */}
+                <div className={`w-1 shrink-0 ${TYPE_BAR[type]}`} />
+
+                <div className="flex items-center gap-3 px-4 py-3.5 flex-1 min-w-0">
+                  {/* Avatar */}
+                  <div className={`size-11 rounded-xl flex items-center justify-center font-black text-lg shrink-0 ${TYPE_AVATAR[type]}`}>
+                    {c.name.charAt(0).toUpperCase()}
                   </div>
-                  {/* A4: last activity */}
-                  {lastActivity && (
-                    <p className="text-[10px] font-medium text-slate-400 mt-1">
-                      {formatDistanceToNowStrict(new Date(lastActivity), { addSuffix: true })}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* A7: phone call shortcut */}
-                  {c.phone && (
-                    <a
-                      href={`tel:${c.phone}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="size-8 rounded-full text-slate-300 dark:text-slate-600 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center justify-center transition-colors"
-                    >
-                      <Phone size={14} />
-                    </a>
-                  )}
-                  <ChevronRight
-                    size={18}
-                    className="text-slate-300 group-hover:text-primary-500 transition-colors"
-                  />
+
+                  {/* Main content */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-black text-[15px] text-slate-900 dark:text-slate-100 truncate leading-tight">
+                      {c.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[9px] uppercase tracking-widest font-black text-slate-400">
+                        {c.type}
+                      </span>
+                      {c.phone && (
+                        <>
+                          <span className="text-slate-300 dark:text-slate-700 text-[9px]">·</span>
+                          <span className="text-[10px] font-semibold text-slate-400 truncate">{c.phone}</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1.5">
+                      {orderCount > 0 && (
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {orderCount} order{orderCount !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {arBalance > 0 && (
+                        <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded-md">
+                          ₹{arBalance >= 100000 ? `${(arBalance / 100000).toFixed(1)}L` : arBalance >= 1000 ? `${(arBalance / 1000).toFixed(1)}K` : arBalance.toLocaleString()} due
+                        </span>
+                      )}
+                      {!arBalance && lastActivity && (
+                        <span className="text-[10px] font-medium text-slate-400">
+                          {formatDistanceToNowStrict(new Date(lastActivity), { addSuffix: true })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {c.phone && (
+                      <a
+                        href={`tel:${c.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="size-8 rounded-full text-slate-300 dark:text-slate-600 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center justify-center transition-colors"
+                      >
+                        <Phone size={13} />
+                      </a>
+                    )}
+                    <ChevronRight
+                      size={16}
+                      className="text-slate-300 dark:text-slate-700 group-hover:text-primary-500 transition-colors ml-0.5"
+                    />
+                  </div>
                 </div>
               </div>
               );

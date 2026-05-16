@@ -57,6 +57,7 @@ function SheetContent({
   return (
     <SheetPortal>
       <SheetOverlay />
+      <SheetPrimitive.Description className="sr-only" />
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
