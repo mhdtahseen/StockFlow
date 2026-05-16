@@ -55,7 +55,7 @@ import { supabase } from "@/lib/supabase";
 import { addOrder, returnOrder } from "@/features/billing/slice";
 import { markAsInStock } from "@/features/inventory/slice";
 import { addEntry } from "@/features/ledger/slice";
-import { addPurchaseOrder, updatePurchaseOrder } from "@/features/purchasing/slice";
+import { addPurchaseOrder } from "@/features/purchasing/slice";
 import { printDocument } from "@/utils/printDocument";
 import { createShareLink, copyToClipboard } from "@/services/shareService";
 import posthog from "@/lib/posthog";
@@ -65,15 +65,8 @@ import clsx from "clsx";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 import { RecordPaymentSheet } from "@/components/shared/RecordPaymentSheet";
 import { POConfirmSheet } from "@/components/shared/POConfirmSheet";
-import { CreateOrderSheet } from "@/components/shared/CreateOrderSheet";
 import { EditPurchaseOrderSheet } from "@/components/shared/EditPurchaseOrderSheet";
 import { EditSaleOrderSheet } from "@/components/shared/EditSaleOrderSheet";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { DeviceListItem } from "@/components/shared/DeviceListItem";
 
@@ -180,11 +173,7 @@ export default function OrderDetail() {
 
   const [showPayment, setShowPayment] = useState(false);
   const [showConfirmSheet, setShowConfirmSheet] = useState(false);
-  const [showEditSheet, setShowEditSheet] = useState(false);
   const [showFullEditSheet, setShowFullEditSheet] = useState(false);
-  const [poEditNotes, setPoEditNotes] = useState("");
-  const [poEditDueDate, setPoEditDueDate] = useState("");
-  const [showPOEditSheet, setShowPOEditSheet] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -1302,15 +1291,7 @@ export default function OrderDetail() {
         />
       )}
 
-      {!isPurchaseOrder && (
-        <CreateOrderSheet
-          open={showEditSheet}
-          onOpenChange={setShowEditSheet}
-          existingOrder={order as any}
-        />
-      )}
-
-      {/* Full Edit Sheets (new — items, prices, supplier/customer) */}
+      {/* Full Edit Sheets (items, prices, supplier/customer) */}
       {isPurchaseOrder && order && (
         <EditPurchaseOrderSheet
           open={showFullEditSheet}
@@ -1324,71 +1305,6 @@ export default function OrderDetail() {
           onOpenChange={setShowFullEditSheet}
           order={order as any}
         />
-      )}
-
-      {isPurchaseOrder && (
-        <Sheet open={showPOEditSheet} onOpenChange={setShowPOEditSheet}>
-          <SheetContent
-            side="bottom"
-            className="rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 h-auto"
-          >
-            <SheetHeader className="p-6 pb-4">
-              <SheetTitle className="font-black text-slate-900 dark:text-slate-100">
-                Edit Purchase Order
-              </SheetTitle>
-            </SheetHeader>
-            <div className="px-6 pb-8 space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
-                  Notes
-                </label>
-                <textarea
-                  value={poEditNotes}
-                  onChange={(e) => setPoEditNotes(e.target.value)}
-                  placeholder="Add notes..."
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 resize-none outline-none focus:border-primary-500 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  value={poEditDueDate}
-                  onChange={(e) => setPoEditDueDate(e.target.value)}
-                  min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-                  className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-primary-500 transition-colors"
-                />
-              </div>
-              <button
-                onClick={() => {
-                  if (poEditDueDate) {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    if (new Date(poEditDueDate) <= today) {
-                      toast.error("Due date must be a future date (after today)");
-                      return;
-                    }
-                  }
-                  dispatch(
-                    updatePurchaseOrder({
-                      id: order.id,
-                      notes: poEditNotes || undefined,
-                      dueDate: poEditDueDate || undefined,
-                    }),
-                  );
-                  toast.success("Purchase order updated");
-                  setShowPOEditSheet(false);
-                }}
-                className="w-full py-4 rounded-2xl bg-primary-500 text-white font-black text-sm shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all"
-              >
-                Save Changes
-              </button>
-            </div>
-          </SheetContent>
-        </Sheet>
       )}
     </div>
   );
