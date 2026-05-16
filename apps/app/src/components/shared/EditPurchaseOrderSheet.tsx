@@ -241,310 +241,319 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="h-[92dvh] flex flex-col p-0 rounded-t-2xl overflow-hidden"
+        className="h-[95vh] flex flex-col p-0 rounded-t-[2.5rem] border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-hidden"
       >
-        <SheetHeader className="px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
-          <SheetTitle className="text-left text-lg font-black">
-            Edit Purchase Order
-          </SheetTitle>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            #{order.id.slice(0, 8).toUpperCase()}
-          </p>
+        {/* Header */}
+        <SheetHeader className="px-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-4 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center">
+            <div>
+              <SheetTitle className="text-2xl font-black">Edit Order</SheetTitle>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                #{order.id.slice(0, 8).toUpperCase()}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] font-black text-primary-500 dark:text-blue-400">
+                NEW TOTAL
+              </span>
+              <p className="text-xl font-black text-slate-900 dark:text-slate-100 italic">
+                ₹{newTotal.toLocaleString("en-IN")}
+              </p>
+            </div>
+          </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
-          {/* Edit locked notice */}
+        <div className="flex-1 overflow-y-auto w-full p-4 sm:p-6 pb-32 space-y-6">
+          {/* Locked notice */}
           {isLocked && (
-            <div className="flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 p-3 text-sm text-slate-500 dark:text-slate-400">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div className="flex items-center gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 text-sm font-semibold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-slate-400" />
               Cancelled orders cannot be edited.
             </div>
           )}
 
-          {/* Supplier */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Supplier
-            </label>
-            <CustomerPicker
-              selectedId={vendor?.id}
-              onSelect={setVendor}
-              placeholder="Select supplier…"
-            />
-          </div>
-
-          {/* Channel */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Channel
-            </label>
-            <div className="flex gap-2">
-              {CHANNELS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => setChannel(c.value)}
-                  className={clsx(
-                    "flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors",
-                    channel === c.value
-                      ? "bg-primary-500 text-white border-primary-500"
-                      : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400",
-                  )}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Items */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Items ({items.length})
+          {/* Section 1: Supplier + Channel */}
+          <section className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-6">
+            <div className="flex-1">
+              <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-3 block">
+                1. Supplier
               </label>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={addItem}
-                disabled={isLocked}
-                className="text-primary-500 font-semibold text-sm"
-              >
-                <Plus className="w-4 h-4 mr-1" /> Add
-              </Button>
+              <CustomerPicker
+                selectedId={vendor?.id}
+                onSelect={setVendor}
+                placeholder="Select supplier…"
+              />
             </div>
-
-            {items.map((item, idx) => (
-              <div
-                key={item.id ?? `new-${idx}`}
-                className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3"
-              >
-                {/* Header row */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    Item {idx + 1}
-                    {item.hasPhone && (
-                      <span className="ml-2 text-emerald-600 dark:text-emerald-400">
-                        · In Inventory
-                      </span>
-                    )}
-                  </span>
+            <div className="w-full sm:w-64">
+              <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-3 block">
+                2. Channel
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {CHANNELS.map((c) => (
                   <button
+                    key={c.value}
                     type="button"
-                    onClick={() => removeItem(idx)}
-                    disabled={item.hasPhone || isLocked}
+                    onClick={() => setChannel(c.value)}
+                    disabled={isLocked}
                     className={clsx(
-                      "p-1 rounded-lg transition-colors",
-                      item.hasPhone || isLocked
-                        ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                        : "text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20",
+                      "py-2.5 rounded-xl text-[10px] font-black tracking-wide border transition-all",
+                      channel === c.value
+                        ? "bg-primary-500 text-white border-primary-500 shadow-lg shadow-blue-900/20"
+                        : "bg-slate-50 dark:bg-slate-950 text-slate-400 border-slate-200 dark:border-slate-800",
                     )}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {c.label}
                   </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Section 2: Items */}
+          <section className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Items</h3>
+                <p className="text-xs text-slate-400 font-medium">
+                  {items.length} device{items.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              {!isLocked && (
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="flex items-center gap-1.5 text-[10px] font-black text-primary-500 uppercase tracking-widest hover:opacity-70 transition-opacity"
+                >
+                  <Plus size={14} /> Add
+                </button>
+              )}
+            </div>
+
+            <div className="divide-y divide-slate-50 dark:divide-slate-800">
+              {items.map((item, idx) => (
+                <div
+                  key={item.id ?? `new-${idx}`}
+                  className="p-6 bg-white dark:bg-slate-900 animate-in fade-in slide-in-from-right-2 duration-300"
+                >
+                  {/* Row header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="size-6 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg flex items-center justify-center text-[10px] font-black">
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-tight">
+                        Device
+                        {item.hasPhone && (
+                          <span className="ml-2 text-emerald-600 dark:text-emerald-400">· In Inventory</span>
+                        )}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(idx)}
+                      disabled={item.hasPhone || isLocked}
+                      className={clsx(
+                        "p-2 rounded-lg transition-colors",
+                        item.hasPhone || isLocked
+                          ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                          : "text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20",
+                      )}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  {/* COGS warning */}
+                  {cogsChanged(item) && (
+                    <div className="mb-4 flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-3 text-xs text-amber-700 dark:text-amber-400">
+                      <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      <span>
+                        Price change will update this phone's cost (COGS) from ₹
+                        {order.items.find((i) => i.id === item.id)?.purchasePrice} → ₹{item.purchasePriceStr}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Fields grid — matching BatchAddSheet layout */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                    <div className="sm:col-span-3">
+                      <CatalogAutocomplete
+                        label="Brand"
+                        value={item.brand}
+                        onChange={(v) => updateItem(idx, { brand: v, model: "" })}
+                        options={getBrandOptions()}
+                        disabled={isLocked}
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <CatalogAutocomplete
+                        label="Model"
+                        value={item.model}
+                        onChange={(v) => updateItem(idx, { model: v })}
+                        options={getModelOptions(item.brand)}
+                        placeholder="Model…"
+                        disabled={isLocked || !item.brand}
+                      />
+                    </div>
+                    <div className="sm:col-span-4 space-y-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <CatalogAutocomplete
+                          label="RAM"
+                          value={item.ram}
+                          onChange={(v) => updateItem(idx, { ram: v })}
+                          options={getRamOptions(item.brand, item.model)}
+                          disabled={isLocked || !item.model}
+                          placeholder="RAM"
+                        />
+                        <CatalogAutocomplete
+                          label="Storage"
+                          value={item.storage}
+                          onChange={(v) => updateItem(idx, { storage: v })}
+                          options={sortBySize(getStorageOptions(item.brand, item.model))}
+                          disabled={isLocked || !item.model}
+                          placeholder="Storage"
+                        />
+                      </div>
+                      <CatalogAutocomplete
+                        label="Color"
+                        value={item.color}
+                        onChange={(v) => updateItem(idx, { color: v })}
+                        options={getColorOptions(item.brand, item.model)}
+                        disabled={isLocked || !item.model}
+                        placeholder="Color"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500 block mb-2">
+                        Cost (₹)
+                      </label>
+                      <CurrencyInput
+                        value={item.purchasePriceStr}
+                        onChange={(v) => updateItem(idx, { purchasePriceStr: v })}
+                        className="h-12 text-sm! font-black py-0! rounded-xl pl-10!"
+                        placeholder="0.00"
+                        disabled={isLocked}
+                      />
+                    </div>
+                  </div>
+
+                  {/* IMEI */}
+                  <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                    <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500 block mb-2">
+                      IMEI
+                      {item.hasPhone && (
+                        <span className="ml-2 normal-case font-semibold text-slate-400">(locked after receipt)</span>
+                      )}
+                    </label>
+                    <Input
+                      value={item.imei}
+                      onChange={(e) => updateItem(idx, { imei: e.target.value })}
+                      placeholder="IMEI (optional)"
+                      disabled={isLocked || item.hasPhone}
+                      className="text-sm font-semibold"
+                    />
+                  </div>
                 </div>
+              ))}
+            </div>
 
-                {/* COGS impact warning */}
-                {cogsChanged(item) && (
-                  <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-2 text-xs text-amber-700 dark:text-amber-400">
-                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    <span>
-                      Price change will update this phone's purchase cost (COGS)
-                      from ₹
-                      {
-                        order.items.find((i) => i.id === item.id)
-                          ?.purchasePrice
-                      }{" "}
-                      → ₹{item.purchasePriceStr}
-                    </span>
-                  </div>
-                )}
+            {items.length === 0 && (
+              <div className="p-12 flex flex-col items-center gap-3 text-slate-400">
+                <Plus className="w-6 h-6" />
+                <p className="text-sm font-semibold">No items — tap Add above</p>
+              </div>
+            )}
 
-                {/* Brand + Model */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-500 dark:text-slate-400">
-                      Brand
-                    </label>
-                    <CatalogAutocomplete
-                      value={item.brand}
-                      onChange={(v) => updateItem(idx, { brand: v, model: "" })}
-                      options={getBrandOptions()}
-                      placeholder="Brand"
-                      disabled={isLocked}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-500 dark:text-slate-400">
-                      Model
-                    </label>
-                    <CatalogAutocomplete
-                      value={item.model}
-                      onChange={(v) => updateItem(idx, { model: v })}
-                      options={getModelOptions(item.brand)}
-                      placeholder="Model"
-                      disabled={isLocked}
-                    />
-                  </div>
+            {!isLocked && (
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 text-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={addItem}
+                  className="group text-primary-500 dark:text-blue-400 font-black text-xs uppercase tracking-widest gap-2 py-6 w-full rounded-2xl hover:bg-white dark:hover:bg-slate-900 transition-all"
+                >
+                  <Plus size={18} className="group-hover:scale-125 transition-transform" />
+                  Add Item
+                </Button>
+              </div>
+            )}
+          </section>
+
+          {/* Section 3: Details */}
+          <section className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+            <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-4 block">
+              3. Details
+            </label>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Platform / Logistics Fee
+                  </span>
+                  <span className="text-xs text-slate-400">Included in total</span>
                 </div>
-
-                {/* Storage + Color */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-500 dark:text-slate-400">
-                      Storage
-                    </label>
-                    <CatalogAutocomplete
-                      value={item.storage}
-                      onChange={(v) => updateItem(idx, { storage: v })}
-                      options={sortBySize(getStorageOptions(item.brand, item.model))}
-                      placeholder="Storage"
-                      disabled={isLocked}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-500 dark:text-slate-400">
-                      Color
-                    </label>
-                    <CatalogAutocomplete
-                      value={item.color}
-                      onChange={(v) => updateItem(idx, { color: v })}
-                      options={getColorOptions(item.brand, item.model)}
-                      placeholder="Color"
-                      disabled={isLocked}
-                    />
-                  </div>
-                </div>
-
-                {/* Purchase Price */}
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-500 dark:text-slate-400">
-                    Purchase Price
-                  </label>
-                  <CurrencyInput
-                    value={item.purchasePriceStr}
-                    onChange={(v) => updateItem(idx, { purchasePriceStr: v })}
-                    placeholder="₹0"
+                <CurrencyInput
+                  value={platformFeeStr}
+                  onChange={setPlatformFeeStr}
+                  className="h-12 text-base! py-0! rounded-xl font-bold"
+                  disabled={isLocked}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-2">Due Date</label>
+                  <Input
+                    type="date"
+                    value={dueDateStr}
+                    onChange={(e) => setDueDateStr(e.target.value)}
                     disabled={isLocked}
-                    className="w-full"
+                    className="h-11 font-semibold rounded-xl"
                   />
                 </div>
-
-                {/* IMEI (read-only if phone exists) */}
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-500 dark:text-slate-400">
-                    IMEI
-                    {item.hasPhone && (
-                      <span className="ml-1 text-slate-400">(locked after receipt)</span>
-                    )}
-                  </label>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-2">Notes</label>
                   <Input
-                    value={item.imei}
-                    onChange={(e) => updateItem(idx, { imei: e.target.value })}
-                    placeholder="IMEI (optional)"
-                    disabled={isLocked || item.hasPhone}
-                    className="text-sm"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Optional…"
+                    disabled={isLocked}
+                    className="h-11 font-semibold rounded-xl"
                   />
                 </div>
               </div>
-            ))}
-
-            {items.length === 0 && (
-              <button
-                type="button"
-                onClick={addItem}
-                className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 text-sm flex flex-col items-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                Add first item
-              </button>
-            )}
-          </div>
-
-          {/* Platform Fee */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Platform Fee
-            </label>
-            <CurrencyInput
-              value={platformFeeStr}
-              onChange={setPlatformFeeStr}
-              placeholder="₹0 (optional)"
-              disabled={isLocked}
-              className="w-full"
-            />
-          </div>
-
-          {/* Due Date + Notes */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Due Date
-              </label>
-              <Input
-                type="date"
-                value={dueDateStr}
-                onChange={(e) => setDueDateStr(e.target.value)}
-                disabled={isLocked}
-              />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Notes
-              </label>
-              <Input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Optional…"
-                disabled={isLocked}
-              />
-            </div>
-          </div>
+          </section>
 
-          {/* New total preview */}
-          {!isLocked && (
-            <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 flex items-center justify-between">
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                New Total
-              </span>
-              <span className="text-lg font-black text-slate-900 dark:text-slate-100">
-                ₹{newTotal.toLocaleString("en-IN")}
-              </span>
-            </div>
-          )}
-
-          {/* Soft delete section */}
+          {/* Archive */}
           {canDelete && !showDeleteConfirm && (
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
-              className="w-full py-3 rounded-2xl border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              className="w-full py-4 rounded-3xl border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors bg-white dark:bg-slate-900"
             >
               <Archive className="w-4 h-4" /> Archive Order
             </button>
           )}
 
           {showDeleteConfirm && (
-            <div className="rounded-2xl border border-red-200 dark:border-red-800 p-4 space-y-3">
-              <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400">
-                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                <p>
+            <div className="rounded-3xl border border-red-200 dark:border-red-800 p-6 space-y-4 bg-white dark:bg-slate-900">
+              <div className="flex items-start gap-3 text-sm text-red-600 dark:text-red-400">
+                <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
+                <p className="font-semibold leading-relaxed">
                   This will archive the order. Phones linked to it will remain
-                  in inventory. This action cannot be undone.
+                  in inventory. This cannot be undone.
                 </p>
               </div>
               <div className="flex gap-3">
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="flex-1"
+                  className="flex-1 rounded-2xl"
                   onClick={() => setShowDeleteConfirm(false)}
                 >
                   Cancel
                 </Button>
                 <Button
-                  size="sm"
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black"
                   onClick={handleDelete}
                   disabled={isSubmitting}
                 >
@@ -557,22 +566,40 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
 
         {/* Footer */}
         {!isLocked && (
-          <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 flex gap-3">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-semibold"
-              onClick={handleSave}
-              disabled={isSubmitting || items.length === 0 || !vendor}
-            >
-              {isSubmitting ? "Saving…" : "Save Changes"}
-            </Button>
+          <div className="px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <div className="size-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-primary-500">
+                <Pencil size={20} />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-400 block uppercase tracking-tight">
+                  Updated Total
+                </span>
+                <span className="text-lg font-black text-slate-900 dark:text-slate-100 italic">
+                  ₹{newTotal.toLocaleString("en-IN")}{" "}
+                  <span className="text-sm font-medium text-slate-400 not-italic">
+                    ({items.length} item{items.length !== 1 ? "s" : ""})
+                  </span>
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-3 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                className="flex-1 sm:flex-none h-14 px-6 rounded-2xl font-black"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 sm:flex-none px-10 h-14 rounded-2xl text-base font-black tracking-wide bg-primary-500 hover:bg-primary-600 text-white shadow-xl shadow-primary-500/20 transition-all active:scale-[0.98]"
+                onClick={handleSave}
+                disabled={isSubmitting || items.length === 0 || !vendor}
+              >
+                {isSubmitting ? "Saving…" : "Save Changes"}
+              </Button>
+            </div>
           </div>
         )}
       </SheetContent>

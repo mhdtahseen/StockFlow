@@ -436,15 +436,15 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
           <div className="flex justify-between items-center">
             <div>
               <SheetTitle className="text-2xl font-black">
-                Stock Manifest
+                Purchase Order
               </SheetTitle>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                Batch Purchase
+                Add to Stock
               </p>
             </div>
             <div className="text-right">
               <span className="text-[10px] font-black text-primary-500 dark:text-blue-400">
-                MANIFEST VALUE
+                TOTAL VALUE
               </span>
               <p className="text-xl font-black text-slate-900 dark:text-slate-100 italic">
                 ₹{totalAmount.toLocaleString()}
@@ -463,7 +463,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
             <section className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-6">
               <div className="flex-1">
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-3 block">
-                  1. {channel === "DIRECT" ? "Vendor Source" : "Platform Name"}
+                  1. {channel === "DIRECT" ? "Supplier" : "Platform"}
                 </label>
                 {channel === "DIRECT" ? (
                   <CustomerPicker
@@ -509,10 +509,10 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
               <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                    Itemized Units
+                    Items
                   </h3>
                   <p className="text-xs text-slate-400 font-medium">
-                    {rows.length} devices defined
+                    {rows.length} device{rows.length !== 1 ? "s" : ""}
                   </p>
                 </div>
 
@@ -538,7 +538,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                   <div className="flex items-center gap-2 pl-2">
                     <span className="flex-shrink-0 w-1 h-1 rounded-full bg-primary-500 animate-pulse" />
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                      Last item fills residual balance
+                      Last item fills the remaining amount
                     </p>
                   </div>
                 </div>
@@ -557,7 +557,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                           {index + 1}
                         </span>
                         <span className="text-xs font-black text-slate-500 uppercase tracking-tight">
-                          Phone Spec
+                          Device
                         </span>
                         {row.isAutoPopulated && (
                           <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50 flex items-center gap-1 py-0.5 px-2 rounded-full text-[10px] font-black uppercase tracking-widest animate-in zoom-in-50 duration-500">
@@ -693,7 +693,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                     size={18}
                     className="group-hover:scale-125 transition-transform"
                   />
-                  Define Extra Model Item
+                  Add Item
                 </Button>
               </div>
             </section>
@@ -702,16 +702,16 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
             <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-4 block">
-                  3. Transaction Details
+                  3. Fees
                 </label>
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Platform/Logistics Fee
+                        Platform / Logistics Fee
                       </span>
                       <span className="text-xs text-slate-400">
-                        Added to total capital
+                        Included in order total
                       </span>
                     </div>
                     <CurrencyInput
@@ -726,7 +726,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
               <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1 bg-primary-500 h-full" />
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-4 block">
-                  4. Capital Layout
+                  4. Payment
                 </label>
                 <div className="space-y-6">
                   {/* Mode Tabs */}
@@ -792,7 +792,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                   <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-tighter">
-                        Initial Payment Sum
+                          Amount Paid
                       </span>
                       <span className="text-sm font-black text-slate-900 dark:text-slate-100">
                         ₹{amountPaid.toLocaleString()}
@@ -833,8 +833,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                         </div>
                       </div>
                       <p className="text-[10px] text-slate-400 italic font-medium">
-                        * A due date is required safely capture credit/partial
-                        payments.
+                        * A due date is required for credit or partial payments.
                       </p>
                     </div>
                   )}
@@ -845,7 +844,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                         <Info size={16} />
                       </div>
                       <p className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tight">
-                        Full Payment Reconciled - No Debt
+                        Fully Paid — No Balance Due
                       </p>
                     </div>
                   )}
@@ -862,7 +861,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
             </div>
             <div>
               <span className="text-xs font-bold text-slate-400 block uppercase tracking-tight">
-                Purchase Manifest
+                Order Total
               </span>
               <span className="text-lg font-black text-slate-900 dark:text-slate-100 italic">
                 ₹{totalAmount.toLocaleString()}{" "}
@@ -878,7 +877,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
             form="batch-po-form"
             className="w-full sm:w-auto px-10 h-16 rounded-2xl text-lg font-black tracking-wide bg-primary-500 hover:bg-blue-800 text-white shadow-xl shadow-primary-500/20 transition-all active:scale-[0.98]"
           >
-            Drop Ledger Entry
+            Confirm Order
           </Button>
         </div>
       </SheetContent>
