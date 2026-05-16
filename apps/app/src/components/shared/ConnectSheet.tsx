@@ -28,9 +28,11 @@ import {
   Users,
   ShoppingCart,
   Store,
+  ScanLine,
 } from "lucide-react";
 import clsx from "clsx";
 import type { CustomerType } from "@/features/customers/types";
+import QrScannerModal from "@/components/shared/QrScannerModal";
 
 // ── type-inversion map: if I call them X, they should call me Y ──────────────
 const INVERSE_TYPE: Record<string, string> = {
@@ -87,6 +89,7 @@ export function ConnectSheet({ open, onOpenChange, initialCode }: Props) {
   const [lookingUp, setLookingUp] = useState(false);
   const [selectedType, setSelectedType] = useState<CustomerType | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Reset when sheet opens/closes
   useEffect(() => {
@@ -157,6 +160,7 @@ export function ConnectSheet({ open, onOpenChange, initialCode }: Props) {
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-3xl px-0 pb-safe-area-inset-bottom max-h-[90vh] overflow-y-auto">
         {/* Drag handle */}
@@ -203,6 +207,16 @@ export function ConnectSheet({ open, onOpenChange, initialCode }: Props) {
                 autoCorrect="off"
                 spellCheck={false}
               />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-14 w-14 shrink-0"
+                onClick={() => setScannerOpen(true)}
+                title="Scan QR code"
+              >
+                <ScanLine size={18} />
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -283,5 +297,17 @@ export function ConnectSheet({ open, onOpenChange, initialCode }: Props) {
         </div>
       </SheetContent>
     </Sheet>
+
+    <QrScannerModal
+      isOpen={scannerOpen}
+      onClose={() => setScannerOpen(false)}
+      onScan={(scanned) => {
+        setScannerOpen(false);
+        setCode(scanned);
+        handleLookup(scanned);
+      }}
+      onManualEntry={() => setScannerOpen(false)}
+    />
+    </>
   );
 }

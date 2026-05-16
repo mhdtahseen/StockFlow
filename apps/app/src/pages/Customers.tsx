@@ -8,6 +8,7 @@ import { selectCustomers } from "@/features/customers/selectors";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import { ConnectSheet } from "@/components/shared/ConnectSheet";
+import QrScannerModal from "@/components/shared/QrScannerModal";
 import { usePlan } from "@/hooks/usePlan";
 import { CustomerType } from "@/features/customers/types";
 import {
@@ -45,6 +46,7 @@ export default function Customers() {
 
   const [connectOpen, setConnectOpen] = useState(false);
   const [connectCode, setConnectCode] = useState<string | undefined>(undefined);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Handle deep link: /customers?connect=CODE
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function Customers() {
         <React.Fragment>
           {canUse("trade_network") && (
             <button
-              onClick={() => { setConnectCode(undefined); setConnectOpen(true); }}
+              onClick={() => setScannerOpen(true)}
               className="size-10 rounded-full bg-violet-500 text-white flex items-center justify-center transition-all shadow-lg shadow-violet-500/20 active:scale-95"
               title="Scan to Connect"
             >
@@ -267,6 +269,21 @@ export default function Customers() {
         open={connectOpen}
         onOpenChange={setConnectOpen}
         initialCode={connectCode}
+      />
+
+      <QrScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => {
+          setScannerOpen(false);
+          setConnectCode(code);
+          setConnectOpen(true);
+        }}
+        onManualEntry={() => {
+          setScannerOpen(false);
+          setConnectCode(undefined);
+          setConnectOpen(true);
+        }}
       />
     </div>
   );
