@@ -15,7 +15,10 @@ import {
   MapPin,
   ClipboardCheck,
   LogOut,
+  Copy,
+  CheckCheck,
 } from "lucide-react";
+import { usePlan } from "@/hooks/usePlan";
 import { Loader } from "@/components/shared/Loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +60,16 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingBusiness, setIsSavingBusiness] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const { canUse } = usePlan();
+
+  const handleCopyTradeCode = () => {
+    if (!tenant?.tradeCode) return;
+    navigator.clipboard.writeText(tenant.tradeCode).then(() => {
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    });
+  };
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -454,6 +467,42 @@ export default function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
+
+        {canUse("trade_network") && (
+          <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+                  <Building2 size={18} />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Trade Network</CardTitle>
+                  <CardDescription>Share your Trade Code with partners to link accounts</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3">
+                  <span className="text-2xl font-black tracking-[0.3em] text-slate-900 dark:text-white">
+                    {tenant?.tradeCode ?? "------"}
+                  </span>
+                </div>
+                <button
+                  onClick={handleCopyTradeCode}
+                  disabled={!tenant?.tradeCode}
+                  className={`size-12 rounded-xl flex items-center justify-center transition-all shrink-0 ${
+                    codeCopied
+                      ? "bg-emerald-500 text-white"
+                      : "bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50"
+                  }`}
+                >
+                  {codeCopied ? <CheckCheck size={18} /> : <Copy size={18} />}
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900 overflow-hidden border-t-[3px] mb-30">
           <CardHeader>

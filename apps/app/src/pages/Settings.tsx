@@ -11,17 +11,12 @@ import {
   Download,
   Activity,
   Smartphone,
-  Building2,
-  Copy,
-  CheckCheck,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ExportModal from "@/components/shared/ExportModal";
 import clsx from "clsx";
-import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { usePlan } from "@/hooks/usePlan";
+import { toast } from "sonner";
 
 export default function Settings() {
   const { mode, setMode } = useTheme();
@@ -31,20 +26,7 @@ export default function Settings() {
   );
   const [offlineSyncEnabled, setOfflineSyncEnabled] = useState(true);
   const [hapticFeedback, setHapticFeedback] = useState(true);
-  const [codeCopied, setCodeCopied] = useState(false);
-
-  const { tenant } = useAuth();
-  const { canUse } = usePlan();
   const { togglePushNotifications } = usePushNotifications();
-
-  const handleCopyTradeCode = () => {
-    if (!tenant?.tradeCode) return;
-    navigator.clipboard.writeText(tenant.tradeCode).then(() => {
-      setCodeCopied(true);
-      toast.success("Trade Code copied!");
-      setTimeout(() => setCodeCopied(false), 2000);
-    });
-  };
 
   const handleTogglePush = async (checked: boolean) => {
     setNotifsEnabled(checked);
@@ -173,49 +155,6 @@ export default function Settings() {
             </div>
           </div>
         </section>
-
-        {/* Trade Network */}
-        {canUse("trade_network") && (
-          <section>
-            <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 px-1">
-              Trade Network
-            </h3>
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden">
-              <div className="p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
-                    <Building2 size={18} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">Your Trade Code</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Share this with your trading partners to link accounts
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3">
-                    <span className="text-2xl font-black tracking-[0.3em] text-slate-900 dark:text-white">
-                      {tenant?.tradeCode ?? "------"}
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleCopyTradeCode}
-                    disabled={!tenant?.tradeCode}
-                    className={clsx(
-                      "size-12 rounded-xl flex items-center justify-center transition-all shrink-0",
-                      codeCopied
-                        ? "bg-emerald-500 text-white"
-                        : "bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50",
-                    )}
-                  >
-                    {codeCopied ? <CheckCheck size={18} /> : <Copy size={18} />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* Data & Export */}
         <section>
