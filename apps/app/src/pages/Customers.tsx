@@ -51,11 +51,11 @@ export default function Customers() {
   // Handle deep link: /customers?connect=CODE
   useEffect(() => {
     const code = searchParams.get("connect");
-    if (code && code.length === 6) {
+    if (code && code.length === 6 && canUse("trade_network")) {
       setConnectCode(code.toUpperCase());
       setConnectOpen(true);
     }
-  }, [searchParams]);
+  }, [searchParams, canUse]);
 
   // A4: precompute per-customer last activity + order count + AR balance
   const customerStats = useMemo(() => {

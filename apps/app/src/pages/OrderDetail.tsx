@@ -1006,18 +1006,20 @@ export default function OrderDetail() {
                 Record Payment
               </button>
             )}
-            <button
-              onClick={generateInvoice}
-              disabled={isGenerating}
-              className="px-6 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold h-12 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
-            >
-              {isGenerating ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <FileText size={18} />
-              )}
-              {isGenerating ? "Generating..." : "Document"}
-            </button>
+            <FeatureGate feature="pdf_invoice">
+              <button
+                onClick={generateInvoice}
+                disabled={isGenerating}
+                className="px-6 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold h-12 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+              >
+                {isGenerating ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <FileText size={18} />
+                )}
+                {isGenerating ? "Generating..." : "Document"}
+              </button>
+            </FeatureGate>
           </div>
         </div>
 

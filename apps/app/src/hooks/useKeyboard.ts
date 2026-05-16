@@ -24,10 +24,13 @@ export function useKeyboard() {
       }, 100);
     };
 
-    Keyboard.addListener("keyboardWillShow", scrollFocusedIntoView);
+    let handle: { remove: () => Promise<void> } | undefined;
+    Keyboard.addListener("keyboardWillShow", scrollFocusedIntoView).then(
+      (h) => { handle = h; },
+    );
 
     return () => {
-      Keyboard.removeAllListeners();
+      handle?.remove();
     };
   }, []);
 }

@@ -128,3 +128,39 @@ All `bg-[#064a98]`, `text-[#064a98]`, `border-[#064a98]`, `shadow-[#064a98]`, `f
 - [x] Tailwind: 0 color token lint warnings
 
 _Next: Verify build, deploy, and execute P7 test scenarios from StockFlow_MVP2_Cursor_Prompt_v4.md_
+
+---
+
+## Pending — 2026-05-16
+
+### Fix Bottom Safe-Area Gap (Android black strip + iOS inconsistency)
+
+**Symptoms**
+- Android simulator: black gap below bottom nav — system navigation bar not covered
+- iOS simulator: extra white space at bottom — inconsistent with Android
+
+**Root cause**: `env(safe-area-inset-bottom)` returns 0 on Android WebView < v140 (Chromium bug). Also `StatusBar.overlaysWebView: false` is deprecated/ignored on Android 15+.
+
+**Fix**: Use Capacitor 8 `SystemBars` API (`insetsHandling: 'css'`) to inject `--safe-area-inset-*` CSS variables, then use `var(--safe-area-inset-bottom, env(...))` as CSS triple fallback in BottomNav.
+
+Files to change:
+- `apps/app/capacitor.config.ts` — add `SystemBars: { insetsHandling: 'css', style: 'LIGHT' }`, remove deprecated `StatusBar.overlaysWebView` + `StatusBar.backgroundColor`
+- `apps/app/src/context/ThemeContext.tsx` — replace `StatusBar.setBackgroundColor` + `StatusBar.setStyle` with `SystemBars.setStyle({ style: isDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light })`; imports from `@capacitor/core` (already bundled, no install)
+- `apps/app/src/components/layout/AppHeader.tsx` — change `py-3` → `pb-3 pt-[calc(0.75rem+var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]`
+- `apps/app/src/components/layout/AppDrawer.tsx` — same top safe-area on drawer header `pt-3` → `pt-[calc(0.75rem+var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]`
+- `apps/app/src/components/layout/BottomNav.tsx` — change `pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]` → `pb-[calc(0.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]`
+- `apps/app/android/app/src/main/res/values/styles.xml` — add `android:navigationBarColor=#FFFFFF` + `android:windowLightNavigationBar=true` to `AppTheme.NoActionBar`
+- Create `apps/app/android/app/src/main/res/values-night/styles.xml` — same style with `#0F172A` + `windowLightNavigationBar=false`
+
+### iOS Simulator RTI Console Noise (not a real bug)
+
+```
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]
+  Can only perform input operation for an active session.
+WebContent[91565] WebProcess::updateFreezerStatus: isFreezable=1, error=-1
+[C:3] Error received: Connection interrupted.
+```
+
+Harmless WKWebView/simulator warnings from the Remote Text Input system. Do not appear in production. Cannot be fixed in app code.
+
+**Mitigation applied**: `useKeyboard.ts` was calling `Keyboard.removeAllListeners()` in cleanup, nuking Capacitor's internal keyboard listeners. Fixed to only remove the specific listener added by the hook.

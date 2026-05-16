@@ -1,5 +1,6 @@
 import React from "react";
-import { AlertCircle, MessageSquare, ArrowUpRight } from "lucide-react";
+import { AlertCircle, MessageSquare, ArrowUpRight, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";

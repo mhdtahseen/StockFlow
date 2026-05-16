@@ -29,7 +29,7 @@ export function initPostHog() {
       maskAllInputs: true,
       // Sample 10% of sessions — enough for UX review without burning quota.
       // At 100 beta users × 30 days that's ~300 recordings/month.
-      sample_rate: 0.1,
+      sampleRate: 0.1,
     },
     loaded: () => {
       initialized = true;

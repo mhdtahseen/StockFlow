@@ -200,7 +200,7 @@ export function ConnectSheet({ open, onOpenChange, initialCode }: Props) {
                     setResolvedTenantId(null);
                   }
                 }}
-                placeholder="e.g. AB3K7Z"
+                placeholder="AB3K7Z"
                 className="font-mono text-xl tracking-[0.3em] text-center uppercase h-14 text-slate-900 dark:text-slate-100"
                 maxLength={6}
                 autoCapitalize="characters"

@@ -132,7 +132,7 @@ export function LinkTenantSheet({ open, onOpenChange, customer }: Props) {
                   What is a Trade Code?
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Every StockFlow business has a unique 6-character Trade Code visible in their Settings. Ask your contact to share it with you.
+                  Every FinvenTree business has a unique 6-character Trade Code visible in their Profile. Ask your contact to share it with you.
                 </p>
               </div>
 
@@ -143,7 +143,7 @@ export function LinkTenantSheet({ open, onOpenChange, customer }: Props) {
                 <Input
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                  placeholder="E.G. AB3X7K"
+                  placeholder="AB3X7K"
                   maxLength={6}
                   autoCapitalize="characters"
                   className={clsx(
