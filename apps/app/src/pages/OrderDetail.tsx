@@ -66,6 +66,8 @@ import { FeatureGate } from "@/components/shared/FeatureGate";
 import { RecordPaymentSheet } from "@/components/shared/RecordPaymentSheet";
 import { POConfirmSheet } from "@/components/shared/POConfirmSheet";
 import { CreateOrderSheet } from "@/components/shared/CreateOrderSheet";
+import { EditPurchaseOrderSheet } from "@/components/shared/EditPurchaseOrderSheet";
+import { EditSaleOrderSheet } from "@/components/shared/EditSaleOrderSheet";
 import {
   Sheet,
   SheetContent,
@@ -74,6 +76,30 @@ import {
 } from "@/components/ui/sheet";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { DeviceListItem } from "@/components/shared/DeviceListItem";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Turns an order_edits diff JSONB into a human-readable one-liner for the timeline. */
+function buildEditDescription(diff: Record<string, any>): string {
+  const parts: string[] = [];
+  if (diff.counterparty_id) parts.push("Supplier changed");
+  if (diff.platform_fee)
+    parts.push(`Platform fee: ₹${diff.platform_fee.old} → ₹${diff.platform_fee.new}`);
+  if (diff.notes) parts.push("Notes updated");
+  if (diff.due_date) parts.push("Due date changed");
+  if (diff.acquisition_channel) parts.push("Channel changed");
+  if (diff.items_added?.length)
+    parts.push(`${diff.items_added.length} item(s) added`);
+  if (diff.items_removed?.length)
+    parts.push(`${diff.items_removed.length} item(s) removed`);
+  if (diff.items_changed?.length) {
+    const priceEdits = diff.items_changed
+      .map((c: any) => `${c.brand} ${c.model} ₹${c.old_price}→₹${c.new_price}`)
+      .join(", ");
+    parts.push(`Price updated: ${priceEdits}`);
+  }
+  return parts.length ? parts.join(" · ") : "Order details updated";
+}
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -155,6 +181,7 @@ export default function OrderDetail() {
   const [showPayment, setShowPayment] = useState(false);
   const [showConfirmSheet, setShowConfirmSheet] = useState(false);
   const [showEditSheet, setShowEditSheet] = useState(false);
+  const [showFullEditSheet, setShowFullEditSheet] = useState(false);
   const [poEditNotes, setPoEditNotes] = useState("");
   const [poEditDueDate, setPoEditDueDate] = useState("");
   const [showPOEditSheet, setShowPOEditSheet] = useState(false);
@@ -162,6 +189,11 @@ export default function OrderDetail() {
   const [isSharing, setIsSharing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [fetchFailed, setFetchFailed] = useState(false);
+
+  // Order edits for timeline
+  const orderEditHistory = useAppSelector((state) =>
+    (state as any).orderEdits?.edits?.filter((e: any) => e.orderId === id) ?? [],
+  );
 
   // Lazy-fetch settled/historical orders not in Redux state (A-004 / QA-011)
   useEffect(() => {
@@ -523,7 +555,16 @@ export default function OrderDetail() {
     .reverse();
 
   // --- REVERSE CHRONOLOGICAL TIMELINE ---
-  const timelineEvents = [
+  const timelineEvents: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    timestamp: string;
+    note?: string;
+    color: string;
+    diff?: Record<string, any>;
+  }> = [
     {
       id: "creation",
       type: "CREATION",
@@ -541,6 +582,17 @@ export default function OrderDetail() {
       note: p.note,
       timestamp: p.receivedAt,
       color: "bg-emerald-500",
+    })),
+    // Audit trail: each edit shows as an EDIT event (amber dot)
+    ...orderEditHistory.map((e: any) => ({
+      id: e.id,
+      type: "EDIT",
+      title: "Order Edited",
+      description: buildEditDescription(e.diff),
+      timestamp: e.createdAt,
+      note: e.editedByName ? `by ${e.editedByName}` : undefined,
+      color: "bg-amber-500",
+      diff: e.diff,
     })),
   ];
 
@@ -575,6 +627,7 @@ export default function OrderDetail() {
     VOID: 4,
     SETTLEMENT: 3,
     PAYMENT: 2,
+    EDIT: 2,
     CREATION: 1,
   };
 
@@ -769,9 +822,9 @@ export default function OrderDetail() {
           </FeatureGate>
 
           {!isPurchaseOrder &&
-            (order.status === "OPEN" || order.status === "PARTIAL") && (
+            order.status !== "RETURNED" && (
               <button
-                onClick={() => setShowEditSheet(true)}
+                onClick={() => setShowFullEditSheet(true)}
                 className="size-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 title="Edit Order"
               >
@@ -780,13 +833,9 @@ export default function OrderDetail() {
             )}
 
           {isPurchaseOrder &&
-            (order.status === "OPEN" || order.status === "PARTIAL") && (
+            order.status !== "CANCELLED" && (
               <button
-                onClick={() => {
-                  setPoEditNotes((order as any).notes || "");
-                  setPoEditDueDate((order as any).dueDate || "");
-                  setShowPOEditSheet(true);
-                }}
+                onClick={() => setShowFullEditSheet(true)}
                 className="size-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 title="Edit Purchase Order"
               >
@@ -1181,6 +1230,7 @@ export default function OrderDetail() {
                           ev.type === "PAYMENT" && "shadow-emerald-500/20",
                           ev.type === "SETTLEMENT" && "shadow-emerald-500/20",
                           ev.type === "VOID" && "shadow-rose-500/20",
+                          ev.type === "EDIT" && "shadow-amber-500/20",
                         )}
                       />
                       <div>
@@ -1195,7 +1245,9 @@ export default function OrderDetail() {
                                   ? "text-emerald-600"
                                   : ev.type === "VOID"
                                     ? "text-rose-500"
-                                    : "text-slate-500",
+                                    : ev.type === "EDIT"
+                                      ? "text-amber-500"
+                                      : "text-slate-500",
                           )}
                         >
                           {ev.title}
@@ -1255,6 +1307,22 @@ export default function OrderDetail() {
           open={showEditSheet}
           onOpenChange={setShowEditSheet}
           existingOrder={order as any}
+        />
+      )}
+
+      {/* Full Edit Sheets (new — items, prices, supplier/customer) */}
+      {isPurchaseOrder && order && (
+        <EditPurchaseOrderSheet
+          open={showFullEditSheet}
+          onOpenChange={setShowFullEditSheet}
+          order={order as any}
+        />
+      )}
+      {!isPurchaseOrder && order && (
+        <EditSaleOrderSheet
+          open={showFullEditSheet}
+          onOpenChange={setShowFullEditSheet}
+          order={order as any}
         />
       )}
 

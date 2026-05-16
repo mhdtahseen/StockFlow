@@ -398,6 +398,62 @@ export const syncActionToSupabase = async (
         if (error) throw error;
         break;
       }
+      case "purchasing/editPurchaseOrder": {
+        const { data, error } = await supabase.rpc("edit_purchase_order", {
+          p_order_id: payload.id,
+          p_counterparty_id: payload.counterpartyId,
+          p_channel: payload.acquisitionChannel,
+          p_platform_fee: payload.platformFee,
+          p_due_date: payload.dueDate ?? null,
+          p_notes: payload.notes ?? null,
+          p_items: payload.items.map((i: any) => ({
+            id: i.id ?? null,
+            purchase_price: i.purchasePrice,
+            brand: i.brand,
+            model: i.model,
+            storage: i.storage,
+            color: i.color,
+            ram: i.ram ?? null,
+            imei: i.imei ?? null,
+            issue_tags: i.issueTags || [],
+          })),
+        });
+        if (error) throw error;
+        posthog.capture("order.edited", { type: "purchase", order_id: payload.id });
+        break;
+      }
+      case "purchasing/softDeletePurchaseOrder": {
+        const { error } = await supabase.rpc("soft_delete_purchase_order", {
+          p_order_id: payload,
+        });
+        if (error) throw error;
+        posthog.capture("order.deleted", { type: "purchase", order_id: payload });
+        break;
+      }
+      case "billing/editSaleOrder": {
+        const { data, error } = await supabase.rpc("edit_sale_order", {
+          p_order_id: payload.id,
+          p_counterparty_id: payload.counterpartyId,
+          p_due_date: payload.dueDate ?? null,
+          p_notes: payload.notes ?? null,
+          p_items: payload.items.map((i: any) => ({
+            id: i.id,
+            sale_price: i.salePrice,
+            discount_amount: i.discountAmount ?? 0,
+          })),
+        });
+        if (error) throw error;
+        posthog.capture("order.edited", { type: "sale", order_id: payload.id });
+        break;
+      }
+      case "billing/softDeleteSaleOrder": {
+        const { error } = await supabase.rpc("soft_delete_sale_order", {
+          p_order_id: payload,
+        });
+        if (error) throw error;
+        posthog.capture("order.deleted", { type: "sale", order_id: payload });
+        break;
+      }
       case "customers/addCustomer": {
         // Get tenant_id from current user's profile
         const {

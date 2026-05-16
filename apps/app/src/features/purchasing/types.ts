@@ -41,6 +41,7 @@ export interface PurchaseOrder {
   paymentNote?: string;
   recordedBy?: string;
   createdAt: string;
+  deletedAt?: string | null;
   items: PurchaseOrderItem[];
 }
 
@@ -64,4 +65,25 @@ export interface SupplierPayment {
 export interface PurchasingState {
   orders: PurchaseOrder[];
   payments: SupplierPayment[];
+}
+
+export interface OrderEditDiff {
+  counterparty_id?:    { old: string; new: string };
+  platform_fee?:       { old: number; new: number };
+  notes?:              { old: string | null; new: string | null };
+  due_date?:           { old: string | null; new: string | null };
+  acquisition_channel?: { old: string; new: string };
+  items_added?:        Array<{ brand: string; model: string; price: number }>;
+  items_removed?:      Array<{ brand: string; model: string; price: number }>;
+  items_changed?:      Array<{ brand: string; model: string; old_price: number; new_price: number }>;
+}
+
+export interface OrderEdit {
+  id: string;
+  orderId: string;
+  orderType: 'PO' | 'SO';
+  editedBy: string;
+  editedByName?: string;
+  diff: OrderEditDiff | Record<string, any>;
+  createdAt: string;
 }

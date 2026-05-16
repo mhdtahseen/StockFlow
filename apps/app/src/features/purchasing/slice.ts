@@ -5,6 +5,7 @@ import {
   PurchaseOrderItem,
   SupplierPayment,
 } from "./types";
+import { addOrderEdit } from "../orderEdits/slice";
 
 const initialState: PurchasingState = { orders: [], payments: [] };
 
@@ -140,6 +141,41 @@ const purchasingSlice = createSlice({
       if (a.payload.notes !== undefined) (o as any).notes = a.payload.notes;
       if (a.payload.dueDate !== undefined) o.dueDate = a.payload.dueDate;
     },
+    editPurchaseOrder: (
+      s,
+      a: PayloadAction<{
+        id: string;
+        counterpartyId: string;
+        acquisitionChannel: PurchaseOrder["acquisitionChannel"];
+        platformFee: number;
+        dueDate?: string;
+        notes?: string;
+        items: PurchaseOrderItem[];
+        newTotalAmount: number;
+        newStatus: PurchaseOrder["status"];
+      }>,
+    ) => {
+      const o = s.orders.find((o) => o.id === a.payload.id);
+      if (!o) return;
+      o.counterpartyId    = a.payload.counterpartyId;
+      o.acquisitionChannel = a.payload.acquisitionChannel;
+      o.platformFee       = a.payload.platformFee;
+      o.dueDate           = a.payload.dueDate;
+      o.notes             = a.payload.notes;
+      o.items             = a.payload.items;
+      o.phonesOrdered     = a.payload.items.length;
+      o.totalAmount       = a.payload.newTotalAmount;
+      o.status            = a.payload.newStatus;
+    },
+    softDeletePurchaseOrder: (s, a: PayloadAction<string>) => {
+      s.orders = s.orders.filter((o) => o.id !== a.payload);
+    },
+  },
+  extraReducers: (builder) => {
+    // Append audit record when an edit is confirmed from server
+    builder.addCase(addOrderEdit, () => {
+      // orderEdits slice handles storage; no PO state change needed
+    });
   },
 });
 export const {
@@ -153,5 +189,7 @@ export const {
   markPOItemAccepted,
   markPOItemRejected,
   updatePurchaseOrder,
+  editPurchaseOrder,
+  softDeletePurchaseOrder,
 } = purchasingSlice.actions;
 export default purchasingSlice.reducer;

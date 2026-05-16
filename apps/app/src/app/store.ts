@@ -22,6 +22,7 @@ import billingReducer from "../features/billing/slice";
 import purchasingReducer from "../features/purchasing/slice";
 import customersReducer from "../features/customers/slice";
 import tenantReducer from "../features/tenant/slice";
+import orderEditsReducer from "../features/orderEdits/slice";
 
 // ─── Native Storage Engine ────────────────────────────────────────────────────
 // On native (Android/iOS), use @capacitor/preferences for persistent storage.
@@ -51,6 +52,7 @@ const rootReducer = combineReducers({
   purchasing: purchasingReducer,
   customers: customersReducer,
   tenant: tenantReducer,
+  orderEdits: orderEditsReducer,
 });
 
 const persistConfig = {

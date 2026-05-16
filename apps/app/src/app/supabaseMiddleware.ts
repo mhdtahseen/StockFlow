@@ -43,6 +43,8 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
           "purchasing/setPurchaseOrders",
           "customers/setAll",
           "customers/setPayments",
+          "purchasing/setPayments",
+          "orderEdits/setOrderEdits",
         ];
 
         const isTrackable = trackablePrefixes.some((prefix) =>

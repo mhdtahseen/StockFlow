@@ -284,6 +284,7 @@ export function useOfflineSyncManager() {
             .from("sale_orders")
             .select("*, sale_order_items(*)")
             .eq("tenant_id", tenantId)
+            .is("deleted_at", null)
             .gte("created_at", ninetyDaysAgo)
             .order("created_at", { ascending: false });
           if (soData && mounted && store.getState().sync.outbox.length === 0) {
@@ -306,6 +307,7 @@ export function useOfflineSyncManager() {
             .from("purchase_orders")
             .select("*, purchase_order_items(*)")
             .eq("tenant_id", tenantId)
+            .is("deleted_at", null)
             .in("status", ["AWAITING_RECEIPT", "RECEIVED", "PARTIAL", "SETTLED", "CANCELLED"])
             .order("created_at", { ascending: false });
           if (poData && mounted && store.getState().sync.outbox.length === 0) {
@@ -379,6 +381,28 @@ export function useOfflineSyncManager() {
                 allocations: p.supplier_allocations.map((a: any) => ({
                   purchaseOrderId: a.purchase_order_id, amountAllocated: a.amount_allocated, note: a.note
                 }))
+              })),
+            });
+          }
+
+          // Order edits audit log (last 90 days — drives timeline EDIT entries)
+          const { data: editsData } = await supabase
+            .from("order_edits")
+            .select("*")
+            .eq("tenant_id", tenantId)
+            .gte("created_at", ninetyDaysAgo)
+            .order("created_at", { ascending: false });
+          if (editsData && mounted && store.getState().sync.outbox.length === 0) {
+            dispatch({
+              type: "orderEdits/setOrderEdits",
+              payload: editsData.map((e: any) => ({
+                id: e.id,
+                orderId: e.order_id,
+                orderType: e.order_type,
+                editedBy: e.edited_by,
+                editedByName: e.edited_by_name,
+                diff: e.diff,
+                createdAt: e.created_at,
               })),
             });
           }

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { BillingState, SaleOrder } from "./types";
+import { BillingState, OrderItem, SaleOrder } from "./types";
 
 const initialState: BillingState = { orders: [] };
 
@@ -48,8 +48,32 @@ const billingSlice = createSlice({
       if (a.payload.dueDate !== undefined) o.dueDate = a.payload.dueDate;
       if (a.payload.paymentMode !== undefined) o.paymentMode = a.payload.paymentMode;
     },
+    editSaleOrder: (
+      s,
+      a: PayloadAction<{
+        id: string;
+        counterpartyId: string;
+        dueDate?: string;
+        notes?: string;
+        items: OrderItem[];
+        newTotalAmount: number;
+        newStatus: SaleOrder["status"];
+      }>,
+    ) => {
+      const o = s.orders.find((o) => o.id === a.payload.id);
+      if (!o) return;
+      o.counterpartyId  = a.payload.counterpartyId;
+      o.dueDate         = a.payload.dueDate;
+      o.notes           = a.payload.notes;
+      o.items           = a.payload.items;
+      o.totalAmount     = a.payload.newTotalAmount;
+      o.status          = a.payload.newStatus;
+    },
+    softDeleteSaleOrder: (s, a: PayloadAction<string>) => {
+      s.orders = s.orders.filter((o) => o.id !== a.payload);
+    },
   },
 });
-export const { setOrders, addOrder, updateOrderPayment, returnOrder, updateOrder } =
+export const { setOrders, addOrder, updateOrderPayment, returnOrder, updateOrder, editSaleOrder, softDeleteSaleOrder } =
   billingSlice.actions;
 export default billingSlice.reducer;

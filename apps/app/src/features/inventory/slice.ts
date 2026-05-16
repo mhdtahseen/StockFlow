@@ -1,5 +1,7 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { InventoryState, Phone } from "./types";
+import { editPurchaseOrder, softDeletePurchaseOrder } from "../purchasing/slice";
+import { softDeleteSaleOrder } from "../billing/slice";
 
 const initialState: InventoryState = {
   phones: [],
@@ -86,6 +88,33 @@ const inventorySlice = createSlice({
       const phone = state.phones.find((p) => p.id === action.payload.phoneId);
       if (phone) (phone as any).saleOrderId = action.payload.saleOrderId;
     },
+  },
+  extraReducers: (builder) => {
+    // When a PO is edited, propagate price changes to existing phones
+    builder.addCase(editPurchaseOrder, (state, action) => {
+      const { items } = action.payload;
+      for (const item of items) {
+        if (item.phoneId) {
+          const phone = state.phones.find((p) => p.id === item.phoneId);
+          if (phone && phone.purchasePrice !== item.purchasePrice) {
+            phone.purchasePrice = item.purchasePrice;
+          }
+        }
+      }
+    });
+    // When a PO is soft-deleted, no inventory change needed (phones stay)
+
+    // When an SO is soft-deleted, restock phones back to IN_STOCK
+    builder.addCase(softDeleteSaleOrder, (state, action) => {
+      const orderId = action.payload;
+      for (const phone of state.phones) {
+        if ((phone as any).saleOrderId === orderId) {
+          phone.status = "IN_STOCK";
+          phone.salePrice = undefined;
+          (phone as any).saleOrderId = undefined;
+        }
+      }
+    });
   },
 });
 

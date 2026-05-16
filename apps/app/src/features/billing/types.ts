@@ -29,6 +29,7 @@ export interface SaleOrder {
   paymentNote?: string;
   recordedBy?: string;
   createdAt: string;
+  deletedAt?: string | null;
   items: OrderItem[];
 }
 
