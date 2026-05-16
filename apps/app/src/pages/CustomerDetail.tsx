@@ -34,6 +34,9 @@ import {
   Trash2,
   AlertCircle,
   Sparkles,
+  Building2,
+  Link2,
+  Link2Off,
 } from "lucide-react";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { format, parseISO, compareDesc, formatDistanceToNowStrict } from "date-fns";
@@ -43,6 +46,7 @@ import { SaleOrder } from "@/features/billing/types";
 import { CustomerPayment } from "@/features/customers/types";
 import { PaymentAllocationSheet } from "@/components/shared/PaymentAllocationSheet";
 import { CustomerEditSheet } from "@/components/shared/CustomerEditSheet";
+import { LinkTenantSheet } from "@/components/shared/LinkTenantSheet";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 import { createShareLink } from "@/services/shareService";
 import { useAuth } from "@/context/AuthContext";
@@ -82,6 +86,7 @@ export default function CustomerDetail() {
   const [apOpen, setApOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [linkTenantOpen, setLinkTenantOpen] = useState(false);
   const [timelineFilter, setTimelineFilter] = useState<"ALL" | "ORDERS" | "PAYMENTS">("ALL");
   const [orderTypeFilter, setOrderTypeFilter] = useState<"ALL" | "SALE" | "PURCHASE">("ALL");
   const [orderStatusFilter, setOrderStatusFilter] = useState<"ALL" | "ACTIVE" | "SETTLED">("ALL");
@@ -285,6 +290,31 @@ export default function CustomerDetail() {
                 {customer.address}
               </span>
             )}
+            {/* Trade Network link status */}
+            {canUse("trade_network") && (
+              <button
+                onClick={() => setLinkTenantOpen(true)}
+                className={clsx(
+                  "flex items-center gap-1.5 mt-2 text-[11px] font-bold rounded-lg px-2 py-1 self-start transition-colors",
+                  customer.linkedTenantId
+                    ? "text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20"
+                    : "text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 hover:text-violet-600 dark:hover:text-violet-400"
+                )}
+              >
+                {customer.linkedTenantId ? (
+                  <>
+                    <Building2 size={11} />
+                    {customer.linkedTenantName ?? "StockFlow Business"}
+                    <Link2 size={10} className="ml-0.5" />
+                  </>
+                ) : (
+                  <>
+                    <Link2 size={11} />
+                    Link StockFlow Business
+                  </>
+                )}
+              </button>
+            )}
           </div>
           <div className="flex flex-col items-end gap-2 shrink-0">
             <span className="text-[10px] uppercase tracking-wider font-extrabold text-primary-600 bg-primary-50 dark:text-primary-400 dark:bg-primary-900/20 px-2 py-1 rounded border border-primary-100 dark:border-primary-900/30">
@@ -300,24 +330,6 @@ export default function CustomerDetail() {
             )}
           </div>
         </div>
-
-        {/* D2: Lifetime Value Stats */}
-        {lifetimeStats.count > 0 && (
-          <div className="grid grid-cols-3 gap-4 justify-center px-3">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orders</span>
-              <span className="text-lg font-black text-slate-900 dark:text-slate-100">{lifetimeStats.count}</span>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lifetime</span>
-              <span className="text-lg font-black text-slate-900 dark:text-slate-100">₹{lifetimeStats.lifetime >= 100000 ? `${(lifetimeStats.lifetime / 100000).toFixed(1)}L` : lifetimeStats.lifetime.toLocaleString()}</span>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Avg Order</span>
-              <span className="text-lg font-black text-slate-900 dark:text-slate-100">₹{lifetimeStats.avg >= 1000 ? `${(lifetimeStats.avg / 1000).toFixed(1)}K` : lifetimeStats.avg}</span>
-            </div>
-          </div>
-        )}
 
         {/* D3: Overdue Banner */}
         {overdueOrders.length > 0 && (
@@ -416,7 +428,7 @@ export default function CustomerDetail() {
       </div>
 
       {/* Content */}
-      <div className="p-4 flex-1 overflow-y-auto pb-2">
+      <div className="p-4 flex-1 overflow-y-auto pb-24">
         {activeTab === "orders" && (
           <div className="space-y-3">
             <div className="flex justify-between items-center px-1 mb-2">
@@ -941,6 +953,11 @@ export default function CustomerDetail() {
       <CustomerEditSheet
         open={editOpen}
         onOpenChange={setEditOpen}
+        customer={customer}
+      />
+      <LinkTenantSheet
+        open={linkTenantOpen}
+        onOpenChange={setLinkTenantOpen}
         customer={customer}
       />
 
