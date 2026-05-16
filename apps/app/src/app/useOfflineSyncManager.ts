@@ -253,16 +253,16 @@ export function useOfflineSyncManager() {
         if (session?.user?.user_metadata?.tenant_id) {
           const tenantId = session.user.user_metadata.tenant_id;
           
-          // Customers (counterparties)
+          // Customers (counterparties) — join tenants to get linked tenant name
           const { data: cpData } = await supabase
             .from("counterparties")
-            .select("*")
+            .select("*, linked_tenant:tenants!counterparties_linked_tenant_id_fkey(name)")
             .eq("tenant_id", tenantId)
             .order("name");
           if (cpData && mounted && store.getState().sync.outbox.length === 0) {
             dispatch({
               type: "customers/setAll",
-              payload: cpData.map((c) => ({
+              payload: cpData.map((c: any) => ({
                 id: c.id,
                 name: c.name,
                 type: c.type,
@@ -270,6 +270,7 @@ export function useOfflineSyncManager() {
                 email: c.email,
                 platformName: c.platform_name,
                 linkedTenantId: c.linked_tenant_id,
+                linkedTenantName: c.linked_tenant?.name ?? undefined,
                 notes: c.notes,
                 createdAt: c.created_at,
               })),

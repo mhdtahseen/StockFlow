@@ -630,3 +630,66 @@ export const getUnitHistory = async (imeis: string[]) => {
 
   return data;
 };
+
+// ─── Trade Network RPCs ───────────────────────────────────────────────────────
+
+/**
+ * Look up a tenant by its 6-char Trade Code.
+ * Returns `{ found: true, tenant_id, name, trade_code }` or `{ found: false }`.
+ */
+export const lookupTenantByTradeCode = async (code: string) => {
+  const { data, error } = await supabase.rpc("lookup_tenant_by_trade_code", {
+    p_code: code.trim().toUpperCase(),
+  });
+  if (error) throw new Error(error.message);
+  return data as { found: boolean; tenant_id?: string; name?: string; trade_code?: string };
+};
+
+/**
+ * Link a counterparty to a verified StockFlow tenant via Trade Code.
+ * Returns `{ linked: true, tenant_id, tenant_name }`.
+ */
+export const linkCounterpartyToTenant = async (
+  counterpartyId: string,
+  tradeCode: string,
+) => {
+  const { data, error } = await supabase.rpc("link_counterparty_to_tenant", {
+    p_counterparty_id: counterpartyId,
+    p_trade_code: tradeCode.trim().toUpperCase(),
+  });
+  if (error) throw new Error(error.message);
+  return data as { linked: boolean; tenant_id: string; tenant_name: string };
+};
+
+/**
+ * Remove the StockFlow business link from a counterparty.
+ */
+export const unlinkCounterparty = async (counterpartyId: string) => {
+  const { error } = await supabase.rpc("unlink_counterparty", {
+    p_counterparty_id: counterpartyId,
+  });
+  if (error) throw new Error(error.message);
+};
+
+/**
+ * Initiate a transfer: creates a mirror PO on the receiver's tenant.
+ * Must be called immediately after a TRANSFER SO is committed.
+ */
+export const createTransfer = async (saleOrderId: string) => {
+  const { data, error } = await supabase.rpc("create_transfer", {
+    p_sale_order_id: saleOrderId,
+  });
+  if (error) throw new Error(error.message);
+  return data as { po_id: string; receiver_tenant_id: string };
+};
+
+/**
+ * Sync transfer status back to the sender's SO.
+ * Called after certify_po_receipt on a transfer PO.
+ */
+export const syncTransferStatus = async (poId: string) => {
+  const { error } = await supabase.rpc("sync_transfer_status", {
+    p_po_id: poId,
+  });
+  if (error) throw new Error(error.message);
+};

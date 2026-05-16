@@ -50,11 +50,12 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: PurchaseOrder;
+  onComplete?: () => void;
 }
 
 type RejectionReason = "SCRATCHED" | "DEAD" | "WRONG_MODEL" | "OTHER";
 
-export function POConfirmSheet({ open, onOpenChange, order }: Props) {
+export function POConfirmSheet({ open, onOpenChange, order, onComplete }: Props) {
   const dispatch = useAppDispatch();
   const inventoryPhones = useAppSelector((state) => state.inventory.phones);
   const {
@@ -278,6 +279,7 @@ export function POConfirmSheet({ open, onOpenChange, order }: Props) {
         setTimeout(() => {
           onOpenChange(false);
           setIsSubmitting(false);
+          onComplete?.();
         }, 300);
       } catch (err: any) {
         setIsSubmitting(false);

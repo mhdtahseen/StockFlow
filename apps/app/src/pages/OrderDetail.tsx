@@ -32,6 +32,8 @@ import {
   DollarSign,
   Plus,
   Pencil,
+  Building2,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   SiApple,
@@ -58,6 +60,7 @@ import { addEntry } from "@/features/ledger/slice";
 import { addPurchaseOrder } from "@/features/purchasing/slice";
 import { printDocument } from "@/utils/printDocument";
 import { createShareLink, copyToClipboard } from "@/services/shareService";
+import { syncTransferStatus } from "@/app/supabaseApi";
 import posthog from "@/lib/posthog";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -842,8 +845,23 @@ export default function OrderDetail() {
                 #{order.id.slice(0, 8).toUpperCase()}
               </span>
               <span className="text-[10px] font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 rounded-md border border-primary-100 dark:border-primary-800/50">
-                {isPurchaseOrder ? "PO" : (order as any).orderType}
+                {isPurchaseOrder
+                  ? (order as any).acquisitionChannel === "INTER_TENANT" ? "Transfer" : "PO"
+                  : (order as any).orderType}
               </span>
+              {/* Trade Network badges */}
+              {isPurchaseOrder && (order as any).acquisitionChannel === "INTER_TENANT" && (
+                <span className="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-md border border-violet-200 dark:border-violet-800/50 flex items-center gap-1">
+                  <Building2 size={10} />
+                  Trade Network
+                </span>
+              )}
+              {!isPurchaseOrder && (order as any).orderType === "TRANSFER" && (
+                <span className="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-md border border-violet-200 dark:border-violet-800/50 flex items-center gap-1">
+                  <ArrowRightLeft size={10} />
+                  Transfer
+                </span>
+              )}
             </div>
             <div className="font-bold text-sm text-slate-600 dark:text-slate-400 mb-1.5">
               {customer?.name || "Unknown Customer"}
@@ -905,6 +923,39 @@ export default function OrderDetail() {
       </div>
 
       <div className="shrink-0 flex flex-col bg-slate-50 dark:bg-slate-950">
+        {/* Transfer status banner */}
+        {!isPurchaseOrder && (order as any).orderType === "TRANSFER" && (order as any).transferStatus && (
+          <div className={clsx(
+            "mx-4 mt-4 px-4 py-3 rounded-2xl border flex items-center gap-3",
+            (order as any).transferStatus === "ACCEPTED"
+              ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400"
+              : (order as any).transferStatus === "REJECTED"
+              ? "bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400"
+              : (order as any).transferStatus === "PARTIAL"
+              ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400"
+              : "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-400",
+          )}>
+            <ArrowRightLeft size={16} className="shrink-0" />
+            <span className="text-xs font-bold">
+              Transfer {(order as any).transferStatus === "PENDING"
+                ? "— Awaiting inspection by receiving business"
+                : (order as any).transferStatus === "ACCEPTED"
+                ? "— All devices accepted ✓"
+                : (order as any).transferStatus === "REJECTED"
+                ? "— All devices rejected and returned to stock"
+                : "— Partially accepted by receiving business"}
+            </span>
+          </div>
+        )}
+        {isPurchaseOrder && (order as any).acquisitionChannel === "INTER_TENANT" && (
+          <div className="mx-4 mt-4 px-4 py-3 rounded-2xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20 flex items-center gap-3 text-violet-700 dark:text-violet-400">
+            <Building2 size={16} className="shrink-0" />
+            <span className="text-xs font-bold">
+              Inbound Transfer — stock sent by {customer?.name ?? "another business"} via Trade Network
+            </span>
+          </div>
+        )}
+
         {/* Master Summary Card - Reverted Structure */}
         <div className="px-5 py-4 space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-5 grid grid-cols-3 gap-4 shadow-sm relative overflow-hidden">
@@ -1288,6 +1339,14 @@ export default function OrderDetail() {
           open={showConfirmSheet}
           onOpenChange={setShowConfirmSheet}
           order={order as any}
+          onComplete={() => {
+            // If this is an INTER_TENANT PO, sync status back to sender's SO
+            if ((order as any).acquisitionChannel === "INTER_TENANT") {
+              syncTransferStatus(order.id).catch((err) =>
+                console.error("Transfer status sync failed:", err)
+              );
+            }
+          }}
         />
       )}
 

@@ -16,6 +16,8 @@ export interface OrderItem {
   colorSnapshot: string;
 }
 
+export type TransferStatus = "PENDING" | "ACCEPTED" | "PARTIAL" | "REJECTED";
+
 export interface SaleOrder {
   id: string;
   counterpartyId: string;
@@ -23,6 +25,8 @@ export interface SaleOrder {
   totalAmount: number;
   amountPaid: number;
   status: OrderStatus;
+  transferStatus?: TransferStatus;
+  linkedTransferId?: string; // UUID of mirror PO on receiver's side
   paymentMode?: PayMode;
   dueDate?: string;
   notes?: string;

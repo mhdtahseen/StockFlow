@@ -16,6 +16,7 @@ export interface TenantInfo {
   name: string;
   plan: string;
   planExpiresAt: string | null;
+  tradeCode?: string;
   address?: string;
   gstin?: string;
   phone?: string;
@@ -96,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const { data: tenantData } = await supabase
         .from("tenants")
-        .select("id, name, plan, plan_expires_at, address, gstin, phone, is_active, suspended_until")
+        .select("id, name, plan, plan_expires_at, address, gstin, phone, is_active, suspended_until, trade_code")
         .eq("id", tenantId)
         .single();
       if (tenantData) {
@@ -105,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           name: tenantData.name,
           plan: tenantData.plan,
           planExpiresAt: tenantData.plan_expires_at,
+          tradeCode: tenantData.trade_code ?? undefined,
           address: tenantData.address,
           gstin: tenantData.gstin,
           phone: tenantData.phone,

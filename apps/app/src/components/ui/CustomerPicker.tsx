@@ -24,6 +24,7 @@ import {
   BadgeCheck,
   AlertTriangle,
   ChevronDown,
+  Building2,
 } from "lucide-react";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
@@ -214,14 +215,21 @@ export function CustomerPicker({
                   {selectedCustomer.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight flex items-center gap-1.5">
                     {selectedCustomer.name}
+                    {selectedCustomer.linkedTenantId && (
+                      <Building2 size={11} className="text-violet-500 shrink-0" />
+                    )}
                   </span>
-                  {selectedCustomer.phone && (
+                  {selectedCustomer.linkedTenantId ? (
+                    <span className="text-[10px] text-violet-500 font-bold">
+                      {selectedCustomer.linkedTenantName ?? "StockFlow Business"}
+                    </span>
+                  ) : selectedCustomer.phone ? (
                     <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">
                       {selectedCustomer.phone}
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <span
                   className={clsx(
@@ -288,11 +296,16 @@ export function CustomerPicker({
                       {c.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                      <div className="font-bold text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
                         {c.name}
+                        {c.linkedTenantId && (
+                          <Building2 size={11} className="text-violet-500 shrink-0" />
+                        )}
                       </div>
                       <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
-                        {c.phone || "No phone"}
+                        {c.linkedTenantId
+                          ? <span className="text-violet-500 font-bold">{c.linkedTenantName ?? "StockFlow Business"}</span>
+                          : (c.phone || "No phone")}
                         {c.aadhaarLast4 && (
                           <span className="flex items-center gap-0.5 text-emerald-500 font-bold">
                             <BadgeCheck size={11} />

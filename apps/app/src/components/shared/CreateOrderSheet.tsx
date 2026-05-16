@@ -38,8 +38,8 @@ import { useUpgradeGate } from "@/context/UpgradeGateContext";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { toast } from "sonner";
-import ComingSoonModal from "./ComingSoonModal";
 import { useAppSelector } from "@/app/hooks";
+import { createTransfer } from "@/app/supabaseApi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,7 +74,6 @@ export function CreateOrderSheet({
   const [items, setItems] = useState<OrderItemDraft[]>([]);
   const [showDiscounts, setShowDiscounts] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
-  const [comingSoonOpen, setComingSoonOpen] = useState(false);
 
   // ── Hybrid payment state (same pattern as AddPhoneUpdate) ─────────────────
   const [activePayTab, setActivePayTab] = useState<PayChannel>("CASH");
@@ -94,6 +93,16 @@ export function CreateOrderSheet({
   const { arAdvance } = useAppSelector(
     selectCounterpartyAdvance(customer?.id ?? ""),
   );
+
+  // Auto-switch to TRANSFER when a linked counterparty is selected
+  const handleCustomerSelect = (c: Customer) => {
+    setCustomer(c);
+    if (c.linkedTenantId && canUse("trade_network")) {
+      setOrderType("TRANSFER");
+    } else if (orderType === "TRANSFER" && !c.linkedTenantId) {
+      setOrderType("RETAIL"); // reset if switching to a non-linked customer
+    }
+  };
 
   // ── Reset when sheet opens ─────────────────────────────────────────────────
   const prevOpen = React.useRef(open);
@@ -260,6 +269,14 @@ export function CreateOrderSheet({
     // 2. Create the trade order (sale_order_items reference phone IDs that now exist)
     dispatch(addOrder(order));
 
+    // 3. If this is a TRANSFER, create mirror PO on receiver's tenant
+    if (orderType === "TRANSFER" && customer.linkedTenantId) {
+      createTransfer(orderId).catch((err) => {
+        console.error("Transfer sync failed:", err);
+        toast.error("Order created but transfer sync failed — contact support");
+      });
+    }
+
     // 3. Link phones to the SO (both sides now exist in DB)
     order.items.forEach(
       (item) =>
@@ -304,7 +321,9 @@ export function CreateOrderSheet({
 
     navigate(`/orders/${order.id}`);
     toast.success(
-      `Sales order committed — ${items.length} device${items.length > 1 ? "s" : ""} sold`,
+      orderType === "TRANSFER"
+        ? `Transfer initiated — ${items.length} device${items.length > 1 ? "s" : ""} dispatched`
+        : `Sales order committed — ${items.length} device${items.length > 1 ? "s" : ""} sold`,
     );
   };
 
@@ -420,10 +439,6 @@ export function CreateOrderSheet({
                             showUpgrade("trade_network");
                             return;
                           }
-                          if (type === "TRANSFER") {
-                            setComingSoonOpen(true);
-                            return;
-                          }
                           setOrderType(type);
                         }}
                         className={clsx(
@@ -447,8 +462,25 @@ export function CreateOrderSheet({
                   </label>
                   <CustomerPicker
                     selectedId={customer?.id}
-                    onSelect={setCustomer}
+                    onSelect={handleCustomerSelect}
                   />
+                  {/* Transfer info banner — shown when TRANSFER type is active */}
+                  {orderType === "TRANSFER" && customer?.linkedTenantId && (
+                    <div className="flex items-start gap-2 mt-2 px-3 py-2 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-900/40 rounded-lg">
+                      <span className="text-violet-500 shrink-0 mt-0.5">🔗</span>
+                      <p className="text-[11px] font-bold text-violet-700 dark:text-violet-400">
+                        A Purchase Order will be automatically created on <strong>{customer.linkedTenantName ?? "their"}</strong> account
+                      </p>
+                    </div>
+                  )}
+                  {orderType === "TRANSFER" && !customer?.linkedTenantId && customer && (
+                    <div className="flex items-start gap-2 mt-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 rounded-lg">
+                      <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
+                      <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                        {customer.name} is not linked to a StockFlow business. Link them via Trade Code first.
+                      </p>
+                    </div>
+                  )}
                   {/* Advance credit banner */}
                   {arAdvance > 0 && (
                     <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-900/40 rounded-lg">
@@ -881,12 +913,6 @@ export function CreateOrderSheet({
           const retained = items.filter((it) => confirmIds.has(it.phone.id));
           setItems([...retained, ...newItems]);
         }}
-      />
-      <ComingSoonModal
-        isOpen={comingSoonOpen}
-        onClose={() => setComingSoonOpen(false)}
-        title="Inter-Tenant Transfer"
-        description="We are building a seamless way to transfer stock between business locations. Keep an eye out for Milestone 3.0!"
       />
     </>
   );

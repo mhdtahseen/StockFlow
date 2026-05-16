@@ -28,6 +28,7 @@ export interface PurchaseOrder {
   id: string;
   counterpartyId: string;
   acquisitionChannel: AcquisitionChannel;
+  linkedTransferId?: string; // UUID of originating SO on sender's side (INTER_TENANT only)
   platformName?: string;
   platformFee: number;
   phonesOrdered: number;

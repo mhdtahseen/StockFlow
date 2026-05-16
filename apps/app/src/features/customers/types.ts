@@ -10,6 +10,7 @@ export interface Customer {
   address?: string;
   platformName?: string;
   linkedTenantId?: string;
+  linkedTenantName?: string; // denormalised display name of the linked StockFlow business
   notes?: string;
   createdAt: string;
 }

@@ -19,6 +19,14 @@ const customersSlice = createSlice({
       if (idx !== -1) s.customers[idx] = a.payload;
       s.customers.sort((x, y) => x.name.localeCompare(y.name));
     },
+    /** Link or unlink a counterparty to a StockFlow tenant */
+    updateCustomerLink: (s, a: PayloadAction<{ id: string; linkedTenantId: string | undefined; linkedTenantName: string | undefined }>) => {
+      const c = s.customers.find((c) => c.id === a.payload.id);
+      if (c) {
+        c.linkedTenantId   = a.payload.linkedTenantId;
+        c.linkedTenantName = a.payload.linkedTenantName;
+      }
+    },
     removeCustomer: (s, a: PayloadAction<string>) => {
       s.customers = s.customers.filter((c) => c.id !== a.payload);
     },
@@ -60,6 +68,6 @@ const customersSlice = createSlice({
     },
   },
 });
-export const { setAll, addCustomer, updateCustomer, removeCustomer, setPayments, addCustomerPayment, addCustomerSettlement } =
+export const { setAll, addCustomer, updateCustomer, updateCustomerLink, removeCustomer, setPayments, addCustomerPayment, addCustomerSettlement } =
   customersSlice.actions;
 export default customersSlice.reducer;
