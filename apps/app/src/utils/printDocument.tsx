@@ -6,8 +6,6 @@ import type { PurchaseOrder } from "@/features/purchasing/types";
 import type { Customer } from "@/features/customers/types";
 import type { TenantInfo } from "@/context/AuthContext";
 import { PrintableInvoice } from "@/components/shared/PrintableInvoice";
-import { generateInvoicePDF } from "@/utils/generateInvoice";
-import { generatePurchaseOrderPDF } from "@/utils/generatePurchaseOrderPDF";
 
 /**
  * Opens a new browser window with the PrintableInvoice component rendered,
@@ -22,12 +20,77 @@ export async function printDocument(
   tenant: TenantInfo | null,
   isPurchaseOrder: boolean,
 ): Promise<void> {
-  // ─── Native Fallback ───
+  // ─── Native: render PrintableInvoice → html2canvas → jsPDF → Share sheet ───
   if (Capacitor.isNativePlatform()) {
-    if (isPurchaseOrder) {
-      await generatePurchaseOrderPDF(order as PurchaseOrder, counterparty, tenant);
-    } else {
-      await generateInvoicePDF(order as SaleOrder, counterparty, tenant);
+    const { jsPDF } = await import("jspdf");
+    const html2canvas = (await import("html2canvas")).default;
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    const { Share } = await import("@capacitor/share");
+
+    const container = document.createElement("div");
+    container.style.cssText = "position:fixed;left:-9999px;top:0;width:210mm;background:#fff;";
+    document.body.appendChild(container);
+
+    const reactRoot = createRoot(container);
+    try {
+      await new Promise<void>((resolve) => {
+        reactRoot.render(
+          <React.StrictMode>
+            <PrintableInvoice
+              order={order}
+              counterparty={counterparty}
+              tenant={tenant}
+              type={isPurchaseOrder ? "PURCHASE" : "SALE"}
+            />
+          </React.StrictMode>,
+        );
+        setTimeout(resolve, 1200);
+      });
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        onclone: (clonedDoc) => {
+          clonedDoc.documentElement.style.colorScheme = "light";
+          // Remove oklch-using app styles; keep Google Fonts
+          clonedDoc.querySelectorAll("style, link:not([href*='fonts.googleapis.com'])").forEach((el) => el.remove());
+          const el = clonedDoc.querySelector("[style*='-9999px']") as HTMLElement | null;
+          if (el) { el.style.left = "0"; el.style.position = "static"; }
+        },
+      });
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW;
+      const ratio = canvas.width / imgW;
+      const fullImgH = canvas.height / ratio;
+
+      let yOffset = 0;
+      let page = 0;
+      while (yOffset < fullImgH) {
+        if (page > 0) pdf.addPage();
+        const sliceH = Math.min(pageH, fullImgH - yOffset);
+        const slicePx = Math.round(sliceH * ratio);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = slicePx;
+        const ctx = sliceCanvas.getContext("2d")!;
+        ctx.drawImage(canvas, 0, Math.round(yOffset * ratio), canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+        pdf.addImage(sliceCanvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, imgW, sliceH, undefined, "FAST");
+        yOffset += sliceH;
+        page++;
+      }
+
+      const docLabel = isPurchaseOrder ? "PO" : "Invoice";
+      const filename = `${docLabel}_${order.id.slice(0, 8).toUpperCase()}.pdf`;
+      const base64 = pdf.output("datauristring").split(",")[1];
+      const result = await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
+      await Share.share({ title: filename, url: result.uri, dialogTitle: `Share ${docLabel} PDF` });
+    } finally {
+      reactRoot.unmount();
+      if (container.parentNode) document.body.removeChild(container);
     }
     return;
   }
