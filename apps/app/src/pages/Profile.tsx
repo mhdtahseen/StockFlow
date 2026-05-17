@@ -115,10 +115,13 @@ export default function ProfilePage() {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [modalAvatars, setModalAvatars] = useState<string[]>([]);
 
+  // Load profile data only when session changes (not on every tenant update)
   useEffect(() => {
     async function loadProfileData() {
-      if (!session?.user.id) return;
-      
+      if (!session?.user.id) {
+        setIsLoading(false); // always release the loader on early exit
+        return;
+      }
       setIsLoading(true);
       try {
         const { data, error } = await supabase
@@ -140,7 +143,7 @@ export default function ProfilePage() {
           setFullName(session.user.user_metadata?.full_name || "");
           setAvatarUrl(session.user.user_metadata?.avatar_url || "");
         }
-        
+
         setPhone(session.user.user_metadata?.phone || "");
       } catch (err: any) {
         console.error("Profile load catch:", err);
@@ -149,15 +152,17 @@ export default function ProfilePage() {
       }
     }
 
-    // Proactive sync for business details from tenant source-of-truth
+    loadProfileData();
+  }, [session]); // tenant excluded — tenant changes must NOT reset the loader
+
+  // Sync business fields whenever tenant updates (no loading state needed)
+  useEffect(() => {
     if (tenant) {
       setStoreName(tenant.name || session?.user.user_metadata?.org_name || "");
       setStoreAddress(tenant.address || "");
       setStoreGSTIN(tenant.gstin || "");
     }
-
-    loadProfileData();
-  }, [session, tenant]);
+  }, [tenant]);
 
   const handleUpdateProfile = async () => {
     if (!session?.user.id) return;

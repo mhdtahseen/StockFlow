@@ -10,6 +10,7 @@ import {
   incrementRetry,
   setOnlineStatus,
 } from "@/features/sync/slice";
+import { addCustomer } from "@/features/customers/slice";
 import { syncActionToSupabase } from "./supabaseApi";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
@@ -440,6 +441,69 @@ export function useOfflineSyncManager() {
     isOnline,
     dispatch,
   ]);
+
+  // 4. REALTIME: counterparty INSERTs — receiving side of a trade connection
+  // When another tenant runs connect_by_trade_code, a row is inserted into THIS
+  // tenant's counterparties table. Subscribe to that event so it appears
+  // immediately without needing an app restart.
+  useEffect(() => {
+    const tenantId = session?.user?.user_metadata?.tenant_id;
+    if (!tenantId || !hasFetchedInitial) return;
+
+    const channel = supabase
+      .channel(`counterparties:tenant:${tenantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "counterparties",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        async (payload) => {
+          const c = payload.new as any;
+
+          // Avoid duplicating a row the local device just optimistically added
+          const existing = (store.getState() as RootState).customers.customers;
+          if (existing.some((x) => x.id === c.id)) return;
+
+          // Resolve the linked tenant name if present
+          let linkedTenantName: string | undefined;
+          if (c.linked_tenant_id) {
+            const { data } = await supabase
+              .from("tenants")
+              .select("name")
+              .eq("id", c.linked_tenant_id)
+              .single();
+            linkedTenantName = data?.name ?? undefined;
+          }
+
+          dispatch(
+            addCustomer({
+              id: c.id,
+              name: c.name,
+              type: c.type,
+              phone: c.phone ?? undefined,
+              email: c.email ?? undefined,
+              platformName: c.platform_name ?? undefined,
+              linkedTenantId: c.linked_tenant_id ?? undefined,
+              linkedTenantName,
+              notes: c.notes ?? undefined,
+              createdAt: c.created_at,
+            }),
+          );
+
+          toast.success(`"${c.name}" connected to your Trade Network!`, {
+            description: "They can now appear in your contacts.",
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session, hasFetchedInitial, dispatch]);
 
   return { isSyncing };
 }
