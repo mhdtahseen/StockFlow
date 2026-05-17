@@ -74,7 +74,7 @@ export default function PublicView() {
   const isPO = data.order.type === 'PURCHASE';
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-slate-100">
       {/* Print CSS: hide everything except the invoice when printing */}
       <style>{`
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
@@ -117,7 +117,7 @@ export default function PublicView() {
         </button>
       </nav>
 
-      <main className="print-wrapper flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center">
+      <main className="print-wrapper p-4 sm:p-8 flex justify-center">
         <div className="w-full max-w-[210mm] shadow-2xl shadow-black/50 overflow-hidden rounded-sm bg-white">
           <PrintableInvoice
             order={data.order as any}
