@@ -1,10 +1,13 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import posthog from "@/lib/posthog";
 
 // Capacitor serves files via capacitor:// — BrowserRouter needs a server to
-// resolve paths, so we use HashRouter in native builds (/#/route style URLs)
-const Router = (import.meta.env.VITE_CAPACITOR === "true" || typeof (window as any).Capacitor !== "undefined")
+// resolve paths, so we use HashRouter in native builds only.
+// NOTE: typeof window.Capacitor is always defined on web too (the package sets it),
+// so we must use isNativePlatform() — the only reliable runtime check.
+const Router = Capacitor.isNativePlatform()
   ? HashRouter
   : BrowserRouter;
 import { Loader2 } from "lucide-react";
