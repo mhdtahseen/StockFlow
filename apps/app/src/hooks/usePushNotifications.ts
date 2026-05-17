@@ -153,6 +153,14 @@ export function usePushNotifications() {
       },
     );
 
+    // Auto-register on every app open if permission is already granted.
+    // This refreshes the FCM token (tokens can rotate) without prompting the user.
+    PushNotifications.checkPermissions().then((status) => {
+      if (status.receive === 'granted') {
+        PushNotifications.register();
+      }
+    });
+
     return () => {
       registrationListener.then((l) => l.remove());
       errorListener.then((l) => l.remove());
