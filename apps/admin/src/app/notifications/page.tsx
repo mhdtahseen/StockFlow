@@ -69,7 +69,9 @@ function NotificationsContent() {
   const [pushMessage, setPushMessage] = useState("");
   const [pushTarget, setPushTarget] =
     useState<Announcement["target_role"]>("all");
+  const [pushPlatform, setPushPlatform] = useState<"all" | "mobile" | "web">("all");
   const [isSendingPush, setIsSendingPush] = useState(false);
+  const [pushBreakdown, setPushBreakdown] = useState<{ web: { success: number; failed: number }; native: { success: number; failed: number } } | null>(null);
 
   useEffect(() => {
     fetchAnnouncements();
@@ -147,6 +149,7 @@ function NotificationsContent() {
             title: pushTitle,
             message: pushMessage,
             target_role: pushTarget,
+            platform: pushPlatform,
             url: "/",
           },
         }
@@ -157,7 +160,11 @@ function NotificationsContent() {
       if (data?.error) {
         toast.error(`Push failed: ${data.error}`);
       } else {
-        toast.success(`Sent to ${data.successCount} users!`);
+        setPushBreakdown(data.breakdown ?? null);
+        toast.success(
+          `Sent to ${data.successCount} device${data.successCount !== 1 ? 's' : ''} ` +
+          (data.breakdown ? `(web: ${data.breakdown.web.success}, native: ${data.breakdown.native.success})` : ''),
+        );
         setPushTitle("");
         setPushMessage("");
       }
@@ -222,7 +229,7 @@ function NotificationsContent() {
             className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
           >
             <Smartphone className="size-4 mr-2" />
-            Android Push
+            Push Notifications
           </TabsTrigger>
         </TabsList>
 
@@ -421,8 +428,7 @@ function NotificationsContent() {
                 Push Broadcaster
               </h3>
               <p className="text-slate-500 text-sm">
-                Send a system-level notification to all subscribed Android/PWA
-                devices.
+                Send a push notification to Android, iOS, and/or web subscribers.
               </p>
             </div>
 
@@ -451,24 +457,57 @@ function NotificationsContent() {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Target Segment
-                </label>
-                <select
-                  className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm font-medium"
-                  value={pushTarget}
-                  onChange={(e) =>
-                    setPushTarget(
-                      e.target.value as Announcement["target_role"]
-                    )
-                  }
-                >
-                  <option value="all">Everyone subscribed</option>
-                  <option value="admin">Admins Only</option>
-                  <option value="super-admin">Super Admins</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Target Segment
+                  </label>
+                  <select
+                    className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm font-medium"
+                    value={pushTarget}
+                    onChange={(e) =>
+                      setPushTarget(e.target.value as Announcement["target_role"])
+                    }
+                  >
+                    <option value="all">Everyone subscribed</option>
+                    <option value="admin">Admins Only</option>
+                    <option value="super-admin">Super Admins</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Platform
+                  </label>
+                  <select
+                    className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm font-medium"
+                    value={pushPlatform}
+                    onChange={(e) => setPushPlatform(e.target.value as "all" | "mobile" | "web")}
+                  >
+                    <option value="all">All Platforms</option>
+                    <option value="mobile">Mobile Only (Android + iOS)</option>
+                    <option value="web">Web Only (PWA)</option>
+                  </select>
+                </div>
               </div>
+
+              {pushBreakdown && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Web</p>
+                    <p className="text-lg font-black text-slate-900 dark:text-slate-100">{pushBreakdown.web.success}</p>
+                    {pushBreakdown.web.failed > 0 && (
+                      <p className="text-[10px] text-rose-400">{pushBreakdown.web.failed} failed</p>
+                    )}
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Native</p>
+                    <p className="text-lg font-black text-slate-900 dark:text-slate-100">{pushBreakdown.native.success}</p>
+                    {pushBreakdown.native.failed > 0 && (
+                      <p className="text-[10px] text-rose-400">{pushBreakdown.native.failed} failed</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
                 <div className="flex gap-3 text-blue-700 dark:text-blue-400">
