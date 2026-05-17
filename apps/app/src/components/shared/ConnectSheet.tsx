@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useAppDispatch } from "@/app/hooks";
-import { addCustomer } from "@/features/customers/slice";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import { addCustomer, updateCustomerLink } from "@/features/customers/slice";
 import { lookupTenantByTradeCode, connectByTradeCode } from "@/app/supabaseApi";
 import { toast } from "sonner";
 import {
@@ -82,6 +82,7 @@ interface Props {
 
 export function ConnectSheet({ open, onOpenChange, initialCode }: Props) {
   const dispatch = useAppDispatch();
+  const existingCustomers = useAppSelector((s) => s.customers.customers);
 
   const [code, setCode] = useState(initialCode ?? "");
   const [resolvedName, setResolvedName] = useState<string | null>(null);
@@ -140,15 +141,26 @@ export function ConnectSheet({ open, onOpenChange, initialCode }: Props) {
         return;
       }
 
-      // Add the new counterparty to Redux so it appears immediately
-      dispatch(addCustomer({
-        id: result.counterpartyId,
-        name: result.theirName,
-        type: selectedType,
-        linkedTenantId: resolvedTenantId ?? undefined,
-        linkedTenantName: result.theirName,
-        createdAt: new Date().toISOString(),
-      }));
+      // Check if this counterparty is already in Redux (was unlinked and just re-linked)
+      const existing = existingCustomers.find((c) => c.id === result.counterpartyId);
+      
+      if (existing) {
+        dispatch(updateCustomerLink({
+          id: result.counterpartyId,
+          linkedTenantId: resolvedTenantId ?? undefined,
+          linkedTenantName: result.theirName
+        }));
+      } else {
+        // Add the new counterparty to Redux so it appears immediately
+        dispatch(addCustomer({
+          id: result.counterpartyId,
+          name: result.theirName,
+          type: selectedType,
+          linkedTenantId: resolvedTenantId ?? undefined,
+          linkedTenantName: result.theirName,
+          createdAt: new Date().toISOString(),
+        }));
+      }
 
       toast.success(`Connected with "${result.theirName}"! They now appear in your contacts.`);
       onOpenChange(false);
