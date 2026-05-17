@@ -115,13 +115,19 @@ export default function ProfilePage() {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [modalAvatars, setModalAvatars] = useState<string[]>([]);
 
-  // Load profile data only when session changes (not on every tenant update)
+  // Track which user ID we've already loaded for — prevents re-fetching on
+  // token refreshes (which produce a new session object but the same user.id)
+  const loadedForUserRef = useRef<string | null>(null);
+
+  // Load profile data only when the user ID changes (not on token refreshes)
   useEffect(() => {
     async function loadProfileData() {
       if (!session?.user.id) {
         setIsLoading(false); // always release the loader on early exit
         return;
       }
+      // Skip if we've already fetched for this user in this session
+      if (loadedForUserRef.current === session.user.id) return;
       setIsLoading(true);
       try {
         const { data, error } = await supabase
@@ -145,6 +151,7 @@ export default function ProfilePage() {
         }
 
         setPhone(session.user.user_metadata?.phone || "");
+        loadedForUserRef.current = session.user.id;
       } catch (err: any) {
         console.error("Profile load catch:", err);
       } finally {
@@ -153,7 +160,7 @@ export default function ProfilePage() {
     }
 
     loadProfileData();
-  }, [session]); // tenant excluded — tenant changes must NOT reset the loader
+  }, [session?.user?.id]); // stable ID dep — token refreshes won't re-trigger this
 
   // Sync business fields whenever tenant updates (no loading state needed)
   useEffect(() => {
