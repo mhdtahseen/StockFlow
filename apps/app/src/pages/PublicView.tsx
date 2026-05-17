@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Loader2, AlertCircle, Calendar, ShieldCheck, Printer } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Loader2, AlertCircle, Calendar, ShieldCheck, Printer, ArrowLeft } from 'lucide-react';
 import { fetchPublicOrder, PublicOrderData } from '@/services/shareService';
 import { PrintableInvoice } from '@/components/shared/PrintableInvoice';
 import { format, isAfter, parseISO } from 'date-fns';
 
 export default function PublicView() {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [data, setData] = useState<PublicOrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +89,13 @@ export default function PublicView() {
       {/* Top Bar */}
       <nav className="no-print sticky top-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+            aria-label="Close document"
+            className="p-1.5 -ml-1.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft size={20} strokeWidth={2.5} />
+          </button>
           <div className="size-8 bg-primary-500 rounded-lg flex items-center justify-center">
             <ShieldCheck className="text-white" size={18} />
           </div>

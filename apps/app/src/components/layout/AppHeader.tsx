@@ -1,6 +1,6 @@
 import React from "react";
-import { useLocation } from "react-router-dom";
-import { Menu } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Menu, ArrowLeft } from "lucide-react";
 import NotificationsPopover from "@/components/shared/NotificationsPopover";
 
 interface Props {
@@ -26,6 +26,10 @@ const PAGE_TITLES: Record<string, string> = {
 
 export default function AppHeader({ onMenuOpen }: Props) {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Any path with more than one segment (e.g. /orders/abc-123) is a detail/sub-page
+  const isSubPage = location.pathname.split('/').filter(Boolean).length > 1;
 
   const getTitle = () => {
     const path = location.pathname;
@@ -44,13 +48,23 @@ export default function AppHeader({ onMenuOpen }: Props) {
   return (
     <header className="shrink-0 z-30 flex items-center bg-white dark:bg-slate-900 px-4 py-3 justify-between border-b border-slate-100 dark:border-slate-800">
       <div className="flex items-center gap-2">
-        <button
-          onClick={onMenuOpen}
-          aria-label="Open navigation menu"
-          className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
-        >
-          <Menu size={24} strokeWidth={2.5} />
-        </button>
+        {isSubPage ? (
+          <button
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
+            className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+          >
+            <ArrowLeft size={24} strokeWidth={2.5} />
+          </button>
+        ) : (
+          <button
+            onClick={onMenuOpen}
+            aria-label="Open navigation menu"
+            className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+          >
+            <Menu size={24} strokeWidth={2.5} />
+          </button>
+        )}
         <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
           {getTitle()}
         </h1>

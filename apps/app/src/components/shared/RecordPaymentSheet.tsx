@@ -67,9 +67,6 @@ export function RecordPaymentSheet({
     const structuredNote = undefined;
 
     if (type === "AR") {
-      // Map to DB-compatible types
-      const dbType = displayType === "SETTLEMENT" ? "DEBT_SETTLEMENT" : "CUSTOMER_PAYMENT";
-
       if (orderId) {
         dispatch(
           updateOrderPayment({ id: orderId, amountPaid: totalNow, status }),
@@ -102,9 +99,6 @@ export function RecordPaymentSheet({
         toast.success("Collection Dispatched (AR)");
       }
     } else {
-      // Map to DB-compatible types for AP
-      const dbType = displayType === "SETTLEMENT" ? "SUPPLIER_SETTLEMENT" : "SUPPLIER_PAYMENT";
-
       if (orderId) {
         dispatch(
           updatePOPayment({ id: orderId, amountPaid: totalNow, status }),
