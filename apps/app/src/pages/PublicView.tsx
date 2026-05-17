@@ -1,14 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, Calendar, ShieldCheck, Printer, ArrowLeft } from 'lucide-react';
 import { fetchPublicOrder, PublicOrderData } from '@/services/shareService';
 import { PrintableInvoice } from '@/components/shared/PrintableInvoice';
 import { format, isAfter, parseISO } from 'date-fns';
 
+// A4 width in px at 96dpi: 210mm = 793.7px
+const A4_WIDTH_PX = 794;
+
 export default function PublicView() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [data, setData] = useState<PublicOrderData | null>(null);
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const updateScale = useCallback(() => {
+    if (containerRef.current) {
+      const containerWidth = containerRef.current.offsetWidth;
+      setScale(Math.min(1, containerWidth / A4_WIDTH_PX));
+    }
+  }, []);
+
+  useEffect(() => {
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, [updateScale]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,14 +135,27 @@ export default function PublicView() {
         </button>
       </nav>
 
-      <main className="print-wrapper p-4 sm:p-8 flex justify-center">
-        <div className="w-full max-w-[210mm] shadow-2xl shadow-black/50 overflow-hidden rounded-sm bg-white">
-          <PrintableInvoice
-            order={data.order as any}
-            counterparty={data.counterparty as any}
-            tenant={data.tenant as any}
-            type={isPO ? 'PURCHASE' : 'SALE'}
-          />
+      <main className="print-wrapper p-4 sm:p-8">
+        {/* Outer container measures available width */}
+        <div ref={containerRef} className="w-full max-w-[210mm] mx-auto">
+          {/* Scale wrapper: shrinks the A4 to fit mobile, 1:1 on desktop */}
+          <div
+            style={{
+              width: A4_WIDTH_PX,
+              transformOrigin: 'top left',
+              transform: `scale(${scale})`,
+              // Collapse the extra space created by scaling down
+              marginBottom: scale < 1 ? `calc((${scale} - 1) * 297mm)` : undefined,
+            }}
+            className="shadow-2xl shadow-black/50 rounded-sm bg-white overflow-hidden"
+          >
+            <PrintableInvoice
+              order={data.order as any}
+              counterparty={data.counterparty as any}
+              tenant={data.tenant as any}
+              type={isPO ? 'PURCHASE' : 'SALE'}
+            />
+          </div>
         </div>
       </main>
 
