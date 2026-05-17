@@ -314,7 +314,6 @@ export const syncActionToSupabase = async (
             note: a.note,
           })),
           p_note: payload.note ?? null,
-          p_type: payload.type ?? "CUSTOMER_PAYMENT",
         });
         if (error) throw error;
         posthog.capture("payment.logged", { direction: "inbound", mode: payload.mode, amount: payload.totalReceived });

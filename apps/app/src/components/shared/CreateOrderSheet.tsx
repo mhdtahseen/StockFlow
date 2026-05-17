@@ -209,9 +209,7 @@ export function CreateOrderSheet({
     // Apply any existing advance credit against the new order total
     const effectivePaid = Math.min(totalPaid + appliedAdvance, totalAmount);
 
-    const paymentNote = totalPaid > 0 
-      ? `[ADVANCE] [#${orderId.slice(0, 8).toUpperCase()}] [${dominantPayMode}][${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] [₹${totalPaid.toLocaleString()}]`
-      : undefined;
+    const paymentNote = undefined;
 
     const order: SaleOrder = {
       id: orderId,

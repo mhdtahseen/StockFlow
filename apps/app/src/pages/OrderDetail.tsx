@@ -167,6 +167,24 @@ export default function OrderDetail() {
     (state) => state.purchasing.payments || [],
   );
 
+  // Payments fetched directly from DB for this order — stored locally to avoid
+  // dispatching addCustomerPayment/addSupplierPayment (which would hit the outbox)
+  const [fetchedCustomerPayments, setFetchedCustomerPayments] = React.useState<any[]>([]);
+  const [fetchedSupplierPayments, setFetchedSupplierPayments] = React.useState<any[]>([]);
+
+  // Merge Redux payments with locally-fetched ones, deduped by id
+  const mergedCustomerPayments = React.useMemo(() => {
+    const map = new Map<string, any>();
+    [...customerPayments, ...fetchedCustomerPayments].forEach((p) => map.set(p.id, p));
+    return Array.from(map.values());
+  }, [customerPayments, fetchedCustomerPayments]);
+
+  const mergedSupplierPayments = React.useMemo(() => {
+    const map = new Map<string, any>();
+    [...purchasingPayments, ...fetchedSupplierPayments].forEach((p) => map.set(p.id, p));
+    return Array.from(map.values());
+  }, [purchasingPayments, fetchedSupplierPayments]);
+
   const isPurchaseOrder = useAppSelector((state) =>
     state.purchasing.orders.some((o) => o.id === id),
   );
@@ -183,9 +201,121 @@ export default function OrderDetail() {
   const [fetchFailed, setFetchFailed] = useState(false);
 
   // Order edits for timeline
-  const orderEditHistory = useAppSelector((state) =>
-    (state as any).orderEdits?.edits?.filter((e: any) => e.orderId === id) ?? [],
+  const orderEditHistory = useAppSelector(
+    React.useCallback(
+      (state: any) => state.orderEdits?.edits?.filter((e: any) => e.orderId === id) ?? [],
+      [id],
+    ),
   );
+
+  // Always fetch financial data (ledger + payments) for this order from Supabase.
+  // This runs on every id change so we never show stale/empty finance tabs,
+  // even when the order is already in Redux from local creation.
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    async function fetchOrderFinancials() {
+      try {
+        // 1. Ledger entries for this order
+        const { data: ledgerData } = await supabase
+          .from("ledger")
+          .select("*")
+          .or(`sale_order_id.eq.${id},purchase_order_id.eq.${id},reference_id.eq.${id}`);
+        if (ledgerData && mounted) {
+          ledgerData.forEach((entry: any) => {
+            dispatch(
+              addEntry({
+                id: entry.id,
+                type: entry.type,
+                amount: Number(entry.amount),
+                paymentMode: entry.payment_mode ?? undefined,
+                note: entry.note ?? undefined,
+                saleOrderId: entry.sale_order_id ?? undefined,
+                purchaseOrderId: entry.purchase_order_id ?? undefined,
+                referenceId: entry.reference_id ?? undefined,
+                customerPaymentId: entry.customer_payment_id ?? undefined,
+                supplierPaymentId: entry.supplier_payment_id ?? undefined,
+                settlementCount: entry.settlement_count ?? undefined,
+                createdAt: entry.created_at,
+              } as any),
+            );
+          });
+        }
+
+        // 2. Customer payments with allocations for this order — stored in local state,
+        // NOT dispatched to Redux (avoids outbox/sync side effects)
+        const { data: allocData } = await supabase
+          .from("payment_allocations")
+          .select("customer_payment_id")
+          .eq("sale_order_id", id);
+        if (allocData && allocData.length > 0 && mounted) {
+          const paymentIds = allocData.map((a: any) => a.customer_payment_id).filter(Boolean);
+          if (paymentIds.length > 0) {
+            const { data: cpData } = await supabase
+              .from("customer_payments")
+              .select("*, payment_allocations(*)")
+              .in("id", paymentIds);
+            if (cpData && mounted) {
+              setFetchedCustomerPayments(
+                cpData.map((p: any) => ({
+                  id: p.id,
+                  counterpartyId: p.counterparty_id,
+                  totalReceived: Number(p.total_received),
+                  mode: p.mode,
+                  receivedAt: p.received_at,
+                  note: p.note ?? undefined,
+                  recordedBy: p.recorded_by,
+                  allocations: (p.payment_allocations || []).map((a: any) => ({
+                    saleOrderId: a.sale_order_id,
+                    amountAllocated: Number(a.amount_allocated),
+                    note: a.note ?? undefined,
+                  })),
+                }))
+              );
+            }
+          }
+        }
+
+        // 3. Supplier payment allocations for PO — same pattern
+        const { data: spAllocData } = await supabase
+          .from("supplier_allocations")
+          .select("supplier_payment_id")
+          .eq("purchase_order_id", id);
+        if (spAllocData && spAllocData.length > 0 && mounted) {
+          const spIds = spAllocData.map((a: any) => a.supplier_payment_id).filter(Boolean);
+          if (spIds.length > 0) {
+            const { data: spData } = await supabase
+              .from("supplier_payments")
+              .select("*, supplier_allocations(*)")
+              .in("id", spIds);
+            if (spData && mounted) {
+              setFetchedSupplierPayments(
+                spData.map((p: any) => ({
+                  id: p.id,
+                  counterpartyId: p.counterparty_id,
+                  totalPaid: Number(p.total_paid),
+                  mode: p.mode,
+                  paidAt: p.paid_at,
+                  note: p.note ?? undefined,
+                  recordedBy: p.recorded_by,
+                  allocations: (p.supplier_allocations || []).map((a: any) => ({
+                    purchaseOrderId: a.purchase_order_id,
+                    amountAllocated: Number(a.amount_allocated),
+                    note: a.note ?? undefined,
+                  })),
+                }))
+              );
+            }
+          }
+        }
+      } catch (e) {
+        // Non-fatal — finance data will show from Redux if available
+        console.warn("[OrderDetail] Financial data fetch failed:", e);
+      }
+    }
+    fetchOrderFinancials();
+    return () => { mounted = false; };
+  }, [id, dispatch]);
 
   // Lazy-fetch settled/historical orders not in Redux state (A-004 / QA-011)
   useEffect(() => {
@@ -199,7 +329,7 @@ export default function OrderDetail() {
           .from("sale_orders")
           .select("*, sale_order_items(*)")
           .eq("id", id)
-          .single();
+          .maybeSingle();
 
         // If not found in Sales, try Purchases
         if (error || !data) {
@@ -207,7 +337,7 @@ export default function OrderDetail() {
             .from("purchase_orders")
             .select("*, purchase_order_items(*)")
             .eq("id", id)
-            .single();
+            .maybeSingle();
 
           if (poError || !poData) {
             if (mounted) setFetchFailed(true);
@@ -430,8 +560,24 @@ export default function OrderDetail() {
       }, 0)
     : 0;
 
-  // ── Unified Payment Logic (Chronological sequence — first = Advance, rest = Settlement) ──
-  // 1. Get Direct Ledger Entries (Advances or single payments recorded directly against the order)
+  // ── Unified Payment Logic ──
+  // Build a set of "covered" fingerprints: official entries that have customerPaymentId/
+  // supplierPaymentId — these represent the authoritative DB record for a given payment.
+  // Any entry without a payment ID that matches the same order+type+amount+timeWindow
+  // is a pre-RPC optimistic local entry and should be excluded to avoid doubling.
+  const coveredFingerprints = new Set(
+    ledgerEntries
+      .filter((e: any) =>
+        (e.customerPaymentId || (e as any).customer_payment_id ||
+         e.supplierPaymentId || (e as any).supplier_payment_id) &&
+        (e.saleOrderId === order.id || e.purchaseOrderId === order.id ||
+         e.referenceId === order.id || (e as any).sale_order_id === order.id ||
+         (e as any).purchase_order_id === order.id)
+      )
+      .map((e: any) => `${e.type}:${Math.abs(e.amount)}:${Math.floor(new Date(e.createdAt).getTime() / 30000)}`),
+  );
+
+  // 1. Direct ledger entries — payments recorded individually against this order
   const directLedgerPayments = ledgerEntries
     .filter((e: any) => {
       const matchesOrder =
@@ -440,8 +586,7 @@ export default function OrderDetail() {
         e.referenceId === order.id;
       if (!matchesOrder) return false;
 
-      // Exclude ledger entries that belong to a bulk payment record to prevent duplicates.
-      // The bulk payment record will be caught by `allocatedPayments` below.
+      // Exclude entries that belong to a bulk payment — they're captured via allocatedPayments below
       if (
         e.supplierPaymentId ||
         e.customerPaymentId ||
@@ -451,7 +596,13 @@ export default function OrderDetail() {
         return false;
       }
 
-      // Exclude DEBT_SETTLEMENT and ADVANCE_RECEIVED entries - these are bulk allocations handled by allocation logic
+      // Exclude optimistic local entries that have already been confirmed by a
+      // DB-fetched entry with a customerPaymentId/supplierPaymentId (same type+amount+timeWindow)
+      const fingerprint = `${e.type}:${Math.abs(e.amount)}:${Math.floor(new Date(e.createdAt).getTime() / 30000)}`;
+      if (coveredFingerprints.has(fingerprint)) {
+        return false;
+      }
+
       if (e.type === "DEBT_SETTLEMENT" || e.type === "ADVANCE_RECEIVED") {
         return false;
       }
@@ -475,75 +626,92 @@ export default function OrderDetail() {
       amount: Math.abs(e.amount),
       createdAt: e.createdAt,
       paymentMode: e.paymentMode || "UNKNOWN",
-      note: e.note,
+      source: "direct" as const,
     }));
 
-  // 2. Get Settlement Allocations from Bulk Payments (which aren't linked directly in ledger)
+  // 2. Bulk payment allocations — FIFO/manual settlements from the payment allocation sheet
   const allocatedPayments = isPurchaseOrder
-    ? purchasingPayments.flatMap((p) => {
+    ? mergedSupplierPayments.flatMap((p) => {
         const alloc = p.allocations?.find(
-          (a) => a.purchaseOrderId === order.id,
+          (a: any) => a.purchaseOrderId === order.id,
         );
         if (!alloc) return [];
         return [
           {
             id: p.id,
             amount: alloc.amountAllocated,
-            createdAt: p.paidAt, // paidAt is the correct field on SupplierPayment
+            createdAt: p.paidAt,
             paymentMode: p.mode || "UNKNOWN",
-            note: alloc.note || p.note || "Settlement Allocation",
+            source: "allocated" as const,
           },
         ];
       })
-    : customerPayments.flatMap((p) => {
-        const alloc = p.allocations?.find((a) => a.saleOrderId === order.id);
+    : mergedCustomerPayments.flatMap((p) => {
+        const alloc = p.allocations?.find((a: any) => a.saleOrderId === order.id);
         if (!alloc) return [];
         return [
           {
             id: p.id,
             amount: alloc.amountAllocated,
-            createdAt: p.receivedAt, // receivedAt is the correct field on CustomerPayment
+            createdAt: p.receivedAt,
             paymentMode: p.mode || "UNKNOWN",
-            note: alloc.note || p.note || "Settlement Allocation",
+            source: "allocated" as const,
           },
         ];
       });
 
-  // 2. Merge and Sort oldest-first
+  // 3. Merge, deduplicate (same real payment can appear in both paths), sort oldest-first
+  const allocatedIds = new Set(allocatedPayments.map((p) => p.id));
+  // Also deduplicate by amount+timestamp within a 5-second window to catch PO ledger duplicates
+  const allocatedFingerprints = new Set(
+    allocatedPayments.map(
+      (p) =>
+        `${p.amount}:${Math.floor(new Date(p.createdAt).getTime() / 5000)}`,
+    ),
+  );
+  const dedupedDirectPayments = directLedgerPayments.filter(
+    (p) =>
+      !allocatedIds.has(p.id) &&
+      !allocatedFingerprints.has(
+        `${p.amount}:${Math.floor(new Date(p.createdAt).getTime() / 5000)}`,
+      ),
+  );
+
   const allOrderPaymentEntries = [
-    ...directLedgerPayments,
+    ...dedupedDirectPayments,
     ...allocatedPayments,
   ].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
 
-  // Tag all entries consistently - first entry (at order creation) is Advance, rest are Settlements
+  // 4. Tag each entry — first is Advance, subsequent direct entries are Direct Payment,
+  //    bulk allocation entries are Bulk Settlement
   let runningTotal = 0;
   const unifiedPayments = allOrderPaymentEntries
-    .map((e: any, idx: number) => {
+    .map((e, idx) => {
       const amt = Math.abs(e.amount);
       runningTotal += amt;
-      const isFirstEntry = idx === 0; // First entry is the Advance/Opening
+      const isFirstEntry = idx === 0;
+
+      let entryType: "ADVANCE" | "DIRECT" | "BULK_SETTLEMENT";
+      if (isFirstEntry) {
+        entryType = "ADVANCE";
+      } else if (e.source === "allocated") {
+        entryType = "BULK_SETTLEMENT";
+      } else {
+        entryType = "DIRECT";
+      }
+
       return {
         id: e.id,
         amount: amt,
         runningTotal,
         receivedAt: e.createdAt,
         paymentMode: e.paymentMode || "UNKNOWN",
-        type: isFirstEntry ? "ADVANCE" : "SETTLEMENT", // All entries after first are Settlements
-        settlementNum: isFirstEntry ? undefined : idx, // Only settlement entries get numbers
-        note:
-          e.note ||
-          (isFirstEntry
-            ? isPurchaseOrder
-              ? "Opening Advance"
-              : "Opening Payment"
-            : isPurchaseOrder
-              ? "Settlement Payment"
-              : "Payment Received"),
+        source: e.source,
+        entryType,
       };
     })
-    // Display newest-first so the most recent payment is at the top
     .reverse();
 
   // --- REVERSE CHRONOLOGICAL TIMELINE ---
@@ -571,7 +739,7 @@ export default function OrderDetail() {
       type: "PAYMENT",
       title: isPurchaseOrder ? "Payment Sent" : "Payment Received",
       description: `₹${p.amount.toLocaleString()} via ${p.paymentMode}`,
-      note: p.note,
+      note: undefined,
       timestamp: p.receivedAt,
       color: "bg-emerald-500",
     })),
@@ -623,7 +791,10 @@ export default function OrderDetail() {
     CREATION: 1,
   };
 
-  const sortedTimeline = [...timelineEvents].sort((a, b) => {
+  const sortedTimeline = [...timelineEvents]
+    // Dedupe by id (in case the same payment appears from both local + DB fetch)
+    .filter((ev, idx, arr) => arr.findIndex((x) => x.id === ev.id) === idx)
+    .sort((a, b) => {
     const timeA = new Date(a.timestamp).getTime();
     const timeB = new Date(b.timestamp).getTime();
     if (Math.abs(timeA - timeB) > 1000) return timeB - timeA;
@@ -1110,9 +1281,11 @@ export default function OrderDetail() {
                         : (item as any).imei
                           ? [(item as any).imei]
                           : []
-                      : (item as any).imei
-                        ? [(item as any).imei]
-                        : [],
+                      : (item as any).imeiSnapshot?.length > 0
+                        ? (item as any).imeiSnapshot
+                        : (item as any).imei
+                          ? [(item as any).imei]
+                          : [],
                     status: (item as any).status,
                   };
 
@@ -1202,51 +1375,76 @@ export default function OrderDetail() {
                       </p>
                     </div>
                   ) : (
-                    unifiedPayments.map((p) => (
-                      <div
-                        key={p.id}
-                        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 flex justify-between items-center shadow-sm"
-                      >
-                        <div className="flex gap-4">
-                          <div
-                            className={clsx(
-                              "size-10 rounded-xl flex items-center justify-center shrink-0",
-                              p.type === "ADVANCE"
-                                ? "bg-primary-50 text-primary-500"
-                                : "bg-emerald-50 text-emerald-500",
-                            )}
-                          >
-                            <CreditCard size={18} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-                                {p.type === "ADVANCE"
-                                  ? "Advance"
-                                  : `Settlement #${p.settlementNum}`}
+                    unifiedPayments.map((p) => {
+                      const typeConfig = {
+                        ADVANCE: {
+                          label: "Advance",
+                          subtitle: "Paid at order creation",
+                          iconBg: "bg-primary-50 text-primary-500",
+                        },
+                        DIRECT: {
+                          label: "Direct Payment",
+                          subtitle: "Recorded manually",
+                          iconBg: "bg-emerald-50 text-emerald-500",
+                        },
+                        BULK_SETTLEMENT: {
+                          label: "Bulk Settlement",
+                          subtitle: "FIFO allocation from bulk payment",
+                          iconBg: "bg-violet-50 text-violet-500",
+                        },
+                      }[p.entryType] ?? {
+                        label: "Payment",
+                        subtitle: "",
+                        iconBg: "bg-slate-50 text-slate-400",
+                      };
+
+                      const modeLabel =
+                        p.paymentMode === "BANK_TRANSFER"
+                          ? "Bank Transfer"
+                          : p.paymentMode === "UPI"
+                            ? "UPI"
+                            : p.paymentMode === "CASH"
+                              ? "Cash"
+                              : p.paymentMode;
+
+                      return (
+                        <div
+                          key={p.id}
+                          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 flex justify-between items-center shadow-sm"
+                        >
+                          <div className="flex gap-3">
+                            <div
+                              className={clsx(
+                                "size-10 rounded-xl flex items-center justify-center shrink-0",
+                                typeConfig.iconBg,
+                              )}
+                            >
+                              <CreditCard size={18} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                                {typeConfig.label}
+                              </p>
+                              <p className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                                {typeConfig.subtitle}
+                              </p>
+                              <p className="text-[10px] font-semibold text-slate-400 mt-1">
+                                {modeLabel} •{" "}
+                                {format(parseISO(p.receivedAt), "MMM d, yyyy")}
                               </p>
                             </div>
-                            <CollapsibleNote
-                              id={`fin-${p.id}`}
-                              text={p.note}
-                              className="font-black text-sm text-slate-800 dark:text-slate-100 leading-tight"
-                            />
-                            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
-                              {p.paymentMode} •{" "}
-                              {format(parseISO(p.receivedAt), "MMM d, yyyy")}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-black text-slate-900 dark:text-slate-100 text-base">
+                              ₹{p.amount.toLocaleString()}
+                            </p>
+                            <p className="text-[10px] font-semibold text-slate-400">
+                              Total: ₹{p.runningTotal.toLocaleString()}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-black text-slate-900 dark:text-slate-100 text-base">
-                            ₹{p.amount.toLocaleString()}
-                          </p>
-                          <p className="text-[10px] font-semibold text-slate-400">
-                            Total: ₹{p.runningTotal.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

@@ -8,13 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import {
   Search,
   Plus,
@@ -371,7 +365,7 @@ export function CustomerPicker({
         {isCreating && (
           <form
             onSubmit={handleCreate}
-            className="flex flex-col flex-1 overflow-y-auto px-4 pt-4 gap-5 pb-8"
+            className="flex flex-col flex-1 overflow-y-auto px-5 pt-5 gap-5 pb-10"
           >
             {/* Full Name */}
             <div>
@@ -464,28 +458,26 @@ export function CustomerPicker({
               <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
                 Customer Type
               </label>
-              <Select
-                value={newType}
-                onValueChange={(v) => setNewType(v as CustomerType)}
-              >
-                <SelectTrigger className="w-full h-12 px-4 text-left rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 font-semibold">
-                  <SelectValue placeholder="Select type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      <div className="flex flex-col py-2">
-                        <span className="font-bold text-slate-900 dark:text-slate-100">
-                          {t.label}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {t.description}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-2 gap-2">
+                {CUSTOMER_TYPES.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setNewType(t.value)}
+                    className={clsx(
+                      "flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all",
+                      newType === t.value
+                        ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:border-slate-300"
+                    )}
+                  >
+                    <span className={clsx("text-xs font-black leading-tight", newType === t.value ? "text-primary-600 dark:text-primary-400" : "text-slate-800 dark:text-slate-200")}>
+                      {t.label}
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">{t.description}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* B2: Advanced — Aadhaar + Address in collapsible section */}

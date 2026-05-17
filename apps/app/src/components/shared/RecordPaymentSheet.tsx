@@ -22,7 +22,6 @@ import type { PayMode } from "@/features/billing/types";
 import CurrencyInput from "@/components/ui/CurrencyInput";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthContext";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { Banknote, QrCode, Landmark, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
@@ -65,21 +64,7 @@ export function RecordPaymentSheet({
     const totalNow = currentAmountPaid + amount;
     const status = totalNow >= totalAmount ? "SETTLED" : "PARTIAL";
 
-    const timestamp = format(new Date(), "h:mm a");
-    const ref = orderId ? `#${orderId.slice(0, 8).toUpperCase()}` : "BULK";
-    
-    // Determine Type (Simplified for UI/UX)
-    let displayType = "SETTLEMENT";
-    if (orderId) {
-      if (currentAmountPaid === 0) displayType = "ADVANCE";
-      else if (totalNow < totalAmount) displayType = "MID PAYMENT";
-      else displayType = "SETTLEMENT";
-    } else {
-      displayType = type === "AR" ? "SETTLEMENT" : "SUPPLIER PAYMENT";
-    }
-
-    // Simplified Structured Note as requested by user
-    const structuredNote = `[${displayType}] [${ref}] [${mode}][${timestamp}] [₹${amount.toLocaleString()}]`;
+    const structuredNote = undefined;
 
     if (type === "AR") {
       // Map to DB-compatible types
