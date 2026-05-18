@@ -2,25 +2,39 @@ import React, { useState, useMemo } from "react";
 import { useAppSelector } from "@/app/hooks";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Package, Search, ChevronRight, Plus } from "lucide-react";
+import { Package, Search, ChevronRight, Plus, CheckSquare } from "lucide-react";
 import { parseISO, format } from "date-fns";
 import clsx from "clsx";
 import { SaleOrder } from "@/features/billing/types";
 import { selectCustomers } from "@/features/customers/selectors";
 import { CreateOrderSheet } from "@/components/shared/CreateOrderSheet";
 import HeaderActions from "@/components/layout/HeaderActions";
+import { FeatureGate } from "@/components/shared/FeatureGate";
+import { BulkInvoiceSheet } from "@/components/shared/BulkInvoiceSheet";
+import { useMultiSelect } from "@/hooks/useMultiSelect";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Orders() {
   const navigate = useNavigate();
+  const { tenant } = useAuth();
   const saleOrders = useAppSelector((state) => state.billing.orders);
   const customers = useAppSelector(selectCustomers);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'OPEN' | 'PARTIAL' | 'SETTLED' | 'RETURNED'>('ALL');
   const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [showBulkSheet, setShowBulkSheet] = useState(false);
+
+  const multi = useMultiSelect(saleOrders);
 
   const customerMap = useMemo(() => {
     const map: Record<string, string> = {};
     customers.forEach((c) => (map[c.id] = c.name));
+    return map;
+  }, [customers]);
+
+  const customerObjMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    customers.forEach((c) => (map[c.id] = c));
     return map;
   }, [customers]);
 
@@ -102,7 +116,7 @@ export default function Orders() {
             />
           </div>
 
-          {/* Filter Chips */}
+          {/* Filter Chips + Select toggle */}
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-0.5">
             {(['ALL', 'OPEN', 'PARTIAL', 'SETTLED', 'RETURNED'] as const).map((filter) => (
               <button
@@ -118,6 +132,20 @@ export default function Orders() {
                 {filter === 'ALL' ? 'All Orders' : filter.replace('_', ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
               </button>
             ))}
+            <FeatureGate feature="bulk_invoice" badge>
+              <button
+                onClick={() => multi.isMultiSelect ? multi.exitMultiSelect() : multi.enterMultiSelect()}
+                className={clsx(
+                  "px-4 py-2.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all border shrink-0 flex items-center gap-1.5",
+                  multi.isMultiSelect
+                    ? "bg-primary-500 text-white border-primary-500"
+                    : "bg-white dark:bg-slate-900 text-primary-500 border-primary-300 dark:border-primary-800"
+                )}
+              >
+                <CheckSquare size={12} />
+                {multi.isMultiSelect ? "Cancel" : "Select"}
+              </button>
+            </FeatureGate>
           </div>
         </div>
       </div>
@@ -147,9 +175,42 @@ export default function Orders() {
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05, duration: 0.35 }}
-                  onClick={() => navigate(`/orders/${order.id}`)}
-                  className="bg-white dark:bg-slate-900 p-5 rounded-[24px] border border-slate-100 dark:border-slate-800/80 shadow-[0_4px_12px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-2xl hover:shadow-primary-500/10 hover:border-primary-400/30 transition-all cursor-pointer group active:scale-[0.985] relative overflow-hidden"
+                  onClick={() => {
+                    if (multi.isMultiSelect) {
+                      multi.toggleSelect(order.id);
+                    } else {
+                      navigate(`/orders/${order.id}`);
+                    }
+                  }}
+                  onTouchStart={() => multi.startLongPress(order.id)}
+                  onTouchEnd={multi.cancelLongPress}
+                  onMouseDown={() => multi.startLongPress(order.id)}
+                  onMouseUp={multi.cancelLongPress}
+                  onMouseLeave={multi.cancelLongPress}
+                  className={clsx(
+                    "p-5 rounded-[24px] border shadow-[0_4px_12px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-2xl hover:shadow-primary-500/10 transition-all cursor-pointer group active:scale-[0.985] relative overflow-hidden",
+                    multi.isMultiSelect && multi.selectedIds.includes(order.id)
+                      ? "bg-primary-50 dark:bg-primary-900/20 border-primary-400 dark:border-primary-600"
+                      : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/80 hover:border-primary-400/30"
+                  )}
                 >
+                  {/* Checkbox overlay */}
+                  {multi.isMultiSelect && (
+                    <div className="absolute top-3 right-3 z-10">
+                      <div className={clsx(
+                        "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors",
+                        multi.selectedIds.includes(order.id)
+                          ? "bg-primary-500 border-primary-500"
+                          : "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                      )}>
+                        {multi.selectedIds.includes(order.id) && (
+                          <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                            <path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-start justify-between relative z-10">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2.5 mb-2.5">
@@ -216,11 +277,48 @@ export default function Orders() {
         </AnimatePresence>
       </div>
 
+      {/* Bottom multi-select action bar */}
+      {multi.isMultiSelect && (
+        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] md:bottom-0 left-0 right-0 p-4 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)] flex items-center justify-between gap-3">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-slate-500 tracking-wider uppercase">Selected</span>
+            <span className="text-lg font-black text-slate-900 dark:text-slate-100">
+              {multi.selectedIds.length} {multi.selectedIds.length === 1 ? "order" : "orders"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => multi.toggleAll(filteredOrders)}
+              className="px-3 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800"
+            >
+              {filteredOrders.every((o) => multi.selectedIds.includes(o.id)) ? "Deselect All" : "Select All"}
+            </button>
+            <button
+              onClick={() => setShowBulkSheet(true)}
+              disabled={multi.selectedIds.length === 0}
+              className="bg-primary-500 hover:bg-primary-600 disabled:opacity-40 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg text-sm transition-colors"
+            >
+              Generate Invoices
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Create Order Sheet */}
       <CreateOrderSheet
         open={showCreateOrder}
         onOpenChange={setShowCreateOrder}
         initialPhones={[]}
+      />
+
+      {/* Bulk Invoice Sheet */}
+      <BulkInvoiceSheet
+        open={showBulkSheet}
+        onOpenChange={(o) => { setShowBulkSheet(o); if (!o) multi.exitMultiSelect(); }}
+        orders={multi.selectedItems}
+        counterpartyMap={customerObjMap}
+        tenant={tenant}
+        isPurchaseOrder={false}
       />
     </div>
   );
