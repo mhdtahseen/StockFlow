@@ -53,8 +53,8 @@ export async function printDocument(
         backgroundColor: "#ffffff",
         onclone: (clonedDoc) => {
           clonedDoc.documentElement.style.colorScheme = "light";
-          // Remove oklch-using app styles; keep Google Fonts
-          clonedDoc.querySelectorAll("style, link:not([href*='fonts.googleapis.com'])").forEach((el) => el.remove());
+          // Remove oklch-using app styles from <head> only; preserve component's inline <style> (box-sizing)
+          clonedDoc.head.querySelectorAll("style, link:not([href*='fonts.googleapis.com'])").forEach((el) => el.remove());
           const el = clonedDoc.querySelector("[style*='-9999px']") as HTMLElement | null;
           if (el) { el.style.left = "0"; el.style.position = "static"; }
         },

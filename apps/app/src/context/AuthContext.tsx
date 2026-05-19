@@ -199,6 +199,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setAvatarUrl(null);
           posthog.reset();
         } else if (newSession) {
+          // Only show the full-page loading spinner for a fresh sign-in.
+          // TOKEN_REFRESHED / USER_UPDATED events carry a session but should
+          // not block the UI — the profile is already loaded.
+          if (event === 'SIGNED_IN') setIsLoading(true);
           setSession(newSession);
           setUser(newSession.user);
           localStorage.setItem("finventree_auth", "true");
@@ -270,13 +274,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const signOut = async () => {
     // Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
-    import('@/app/supabaseApi').then(m => m.clearTenantCache?.());
+    const supabaseApi = await import('@/app/supabaseApi');
+    supabaseApi.clearTenantCache?.();
     // 1. Reset in-memory Redux state immediately (prevents old tenant data showing)
     store.dispatch({ type: RESET_STORE });
     // 2. Purge the persisted store (covers web/localforage + native/@capacitor/preferences)
     await persistor.purge();
     localStorage.removeItem("finventree_auth");
     localStorage.removeItem("persist:finventree-root");
+    // Clear the React Query persisted cache so the next user doesn't see
+    // stale data from a previous session (default key used by createSyncStoragePersister).
+    localStorage.removeItem("REACT_QUERY_OFFLINE_CACHE");
     await supabase.auth.signOut();
   };
 

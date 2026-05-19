@@ -26,6 +26,18 @@ export function useOfflineSyncManager() {
   const [isSyncing, setIsSyncing] = useState(true);
   const [hasFetchedInitial, setHasFetchedInitial] = useState(false);
 
+  // Reset the fetch flag whenever the logged-in user changes so the new
+  // user's tenant data is fetched fresh rather than showing the previous
+  // user's persisted Redux state (fixes stale data on account switch).
+  const prevUserIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const currentUserId = session?.user?.id;
+    if (prevUserIdRef.current !== currentUserId) {
+      prevUserIdRef.current = currentUserId;
+      setHasFetchedInitial(false);
+    }
+  }, [session?.user?.id]);
+
   const isProcessingOutboxRef = useRef(false);
 
   // 1. ONLINE / OFFLINE LISTENERS
