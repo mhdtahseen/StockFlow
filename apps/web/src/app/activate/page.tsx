@@ -13,12 +13,43 @@ export default function ActivatePage() {
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const [handoffToken, setHandoffToken] = useState<string | null>(null);
 
-  // Supabase automatically exchanges the invite token in the URL hash for a session.
-  // We just need to wait for it to resolve.
+  // Supabase usually automatically exchanges the invite token in the URL for a session.
+  // However, since we use flowType: "pkce", it ignores `#access_token` in the hash.
+  // The admin invite API defaults to implicit flow (hash), so we manually parse it here.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setHasSession(!!data.session);
-    });
+    const hash = window.location.hash.substring(1);
+    const hashParams = new URLSearchParams(hash);
+    const errorDescription = hashParams.get("error_description") || hashParams.get("error");
+    
+    if (errorDescription) {
+      console.error("Auth error from URL:", errorDescription);
+      setHasSession(false);
+      return;
+    }
+
+    const accessToken = hashParams.get("access_token");
+    const refreshToken = hashParams.get("refresh_token");
+
+    if (accessToken && refreshToken) {
+      // Manually set session since our client uses flowType: "pkce"
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }).then(({ data, error }) => {
+        if (!error && data.session) {
+          setHasSession(true);
+          // Clean up the URL hash
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        } else {
+          setHasSession(false);
+        }
+      });
+    } else {
+      // Fallback for PKCE (if code exists in search params) or existing session
+      supabase.auth.getSession().then(({ data }) => {
+        setHasSession(!!data.session);
+      });
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setHasSession(!!session);

@@ -4,7 +4,7 @@ import AdminShell from "@/components/AdminShell";
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
+import { CheckCircle, Clock, Loader2, XCircle, RefreshCw } from "lucide-react";
 
 type TenantRequest = {
   id: string;
@@ -49,8 +49,21 @@ function ApprovalsContent() {
   const handleApprove = async (id: string, email: string) => {
     setIsProcessing(id);
     try {
+      let redirectTo = "https://finventree.com/activate";
+      if (typeof window !== "undefined") {
+        const { hostname, protocol } = window.location;
+        if (hostname === "localhost" || hostname === "127.0.0.1") {
+          redirectTo = "http://localhost:5175/activate";
+        } else if (hostname.includes("admin.finventree.com")) {
+          redirectTo = "https://finventree.com/activate";
+        } else if (hostname.includes("finventree-admin")) {
+          const webHost = hostname.replace("finventree-admin", "finventree-web");
+          redirectTo = `${protocol}//${webHost}/activate`;
+        }
+      }
+
       const { error } = await supabase.functions.invoke("approve-tenant", {
-        body: { requestId: id },
+        body: { requestId: id, redirectTo },
       });
 
       if (error) {
@@ -82,6 +95,22 @@ function ApprovalsContent() {
       return;
     }
     toast.success("Rejected request");
+    fetchRequests();
+  };
+
+  const handleReset = async (id: string) => {
+    setIsProcessing(id);
+    const { error } = await supabase
+      .from("tenant_requests")
+      .update({ status: "pending" })
+      .eq("id", id);
+    setIsProcessing(null);
+
+    if (error) {
+      toast.error("Failed to reset");
+      return;
+    }
+    toast.success("Reset to pending");
     fetchRequests();
   };
 
@@ -162,17 +191,33 @@ function ApprovalsContent() {
                       </button>
                     </>
                   ) : req.status === "approved" ? (
-                    <span className="flex items-center justify-center sm:justify-end w-full sm:w-auto">
+                    <div className="flex items-center justify-center sm:justify-end w-full sm:w-auto gap-2">
                       <span className="px-3 py-1.5 flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-bold ring-1 ring-inset ring-emerald-600/20">
                         <CheckCircle size={12} /> Approved
                       </span>
-                    </span>
+                      <button
+                        onClick={() => handleReset(req.id)}
+                        disabled={isProcessing === req.id}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-colors disabled:opacity-50"
+                        title="Reset to Pending"
+                      >
+                        {isProcessing === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw size={16} />}
+                      </button>
+                    </div>
                   ) : (
-                    <span className="flex items-center justify-center sm:justify-end w-full sm:w-auto">
+                    <div className="flex items-center justify-center sm:justify-end w-full sm:w-auto gap-2">
                       <span className="px-3 py-1.5 flex items-center gap-1.5 bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 rounded-full text-xs font-bold ring-1 ring-inset ring-rose-600/20">
                         <XCircle size={12} /> Rejected
                       </span>
-                    </span>
+                      <button
+                        onClick={() => handleReset(req.id)}
+                        disabled={isProcessing === req.id}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-colors disabled:opacity-50"
+                        title="Reset to Pending"
+                      >
+                        {isProcessing === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw size={16} />}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
