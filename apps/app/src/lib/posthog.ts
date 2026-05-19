@@ -3,11 +3,18 @@ import posthog, { type PostHog } from "posthog-js";
 const key  = (import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN || import.meta.env.VITE_POSTHOG_KEY) as string | undefined;
 const host = (import.meta.env.VITE_PUBLIC_POSTHOG_HOST || import.meta.env.VITE_POSTHOG_HOST) as string | undefined;
 
+// "native" when built with .env.capacitor (iOS/Android), "web" otherwise
+const platform = import.meta.env.VITE_CAPACITOR === "true" ? "native" : "web";
+
 let initialized = false;
 
 export function initPostHog() {
-  // Disable in development to save ingestion quota
+  // Disable in development / local environment to save ingestion quota
   if (!key || import.meta.env.DEV) return;
+
+  // Belt-and-suspenders: block any preview / non-Vite-DEV localhost run
+  const hostname = window.location.hostname;
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0") return;
 
   // Clear any stale opt-out flag that may have been set by a previous version of this code
   // which called ph.opt_out_capturing() in dev mode. Without this, PostHog silently drops
@@ -35,6 +42,9 @@ export function initPostHog() {
       initialized = true;
     },
   });
+
+  // Tag every event with the platform so native vs web can be split in PostHog dashboards
+  posthog.register({ platform });
 
   // Mark initialized synchronously so proxy starts forwarding immediately
   initialized = true;
