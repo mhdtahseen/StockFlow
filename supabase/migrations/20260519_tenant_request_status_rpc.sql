@@ -9,7 +9,7 @@ BEGIN
   RETURN QUERY
   SELECT tr.status::text, tr.org_name, tr.created_at
   FROM public.tenant_requests tr
-  WHERE tr.email = lower(trim(input_email))
+  WHERE lower(tr.email) = lower(trim(input_email))
   ORDER BY tr.created_at DESC
   LIMIT 1;
 END;
