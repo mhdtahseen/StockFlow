@@ -1,5 +1,5 @@
-import React from "react";
-import { AlertCircle, MessageSquare, ArrowUpRight, Mail } from "lucide-react";
+import React, { useState } from "react";
+import { AlertCircle, MessageSquare, ArrowUpRight, Mail, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Browser } from "@capacitor/browser";
@@ -8,6 +8,12 @@ import { Capacitor } from "@capacitor/core";
 export default function TrialExpiredPaywall() {
   const { signOut, tenant } = useAuth();
   const isEnterprise = tenant?.plan === "enterprise";
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await signOut();
+  };
   
   return (
     <div className="fixed inset-0 z-100 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
@@ -52,9 +58,11 @@ export default function TrialExpiredPaywall() {
         )}
         
         <button 
-          onClick={signOut}
-          className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-bold py-2 text-sm transition-colors"
+          onClick={handleSignOut}
+          disabled={isSigningOut}
+          className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-bold py-2 text-sm transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
         >
+          {isSigningOut && <Loader2 size={14} className="animate-spin" />}
           Sign Out of Account
         </button>
       </div>

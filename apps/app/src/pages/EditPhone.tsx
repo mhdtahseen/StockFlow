@@ -42,6 +42,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Loader2,
 } from "lucide-react";
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -177,6 +178,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
   const [isIssuesExpanded, setIsIssuesExpanded] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ── IMEI state (populated from Supabase) ───────────
   const [imeis, setImeis] = useState<ImeiEntry[]>(
@@ -313,6 +315,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
     toast.success("Device Updated", {
       description: `Changes to ${brand} ${model} saved successfully.`,
     });
+    setIsSubmitting(true);
     navigate(`/inventory/${phone.id}`);
   };
 
@@ -677,10 +680,11 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="w-full bg-primary-500 hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+                disabled={isSubmitting}
+                className="w-full bg-primary-500 hover:bg-blue-800 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-70"
               >
-                <Smartphone size={20} />
-                Update Device
+                {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Smartphone size={20} />}
+                {isSubmitting ? "Saving…" : "Update Device"}
               </button>
             </div>
           </div>

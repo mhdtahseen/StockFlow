@@ -1,10 +1,16 @@
-import React from "react";
-import { AlertTriangle, Clock, HelpCircle, LogOut } from "lucide-react";
+import React, { useState } from "react";
+import { AlertTriangle, Clock, HelpCircle, LogOut, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 
 export default function SuspendedScreen() {
   const { tenant, signOut } = useAuth();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await signOut();
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-dvh bg-slate-50 dark:bg-slate-950 p-6 text-center">
@@ -38,8 +44,8 @@ export default function SuspendedScreen() {
         <Button variant="outline" className="rounded-xl h-12 font-bold gap-2 border-slate-200 dark:border-slate-800 shadow-sm">
           <HelpCircle size={18} /> Support Desk
         </Button>
-        <Button onClick={signOut} variant="ghost" className="rounded-xl h-12 font-bold gap-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50">
-          <LogOut size={18} /> Exit Organization
+        <Button onClick={handleSignOut} disabled={isSigningOut} variant="ghost" className="rounded-xl h-12 font-bold gap-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50">
+          {isSigningOut ? <Loader2 size={18} className="animate-spin" /> : <LogOut size={18} />} Exit Organization
         </Button>
       </div>
 

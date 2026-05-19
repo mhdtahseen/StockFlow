@@ -14,7 +14,7 @@ import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
 import {
   Plus, Trash2, Camera, Info, Wrench, X, MonitorSmartphone, 
   Search, HardDrive, Palette, History, Fingerprint, 
-  ChevronDown, Check, Smartphone, ChevronLeft, ScanBarcode, DollarSign, Package, Building, ArrowRight, Receipt
+  ChevronDown, Check, Smartphone, ChevronLeft, ScanBarcode, DollarSign, Package, Building, ArrowRight, Receipt, Loader2
 } from "lucide-react";
 import IssueSelector from "../components/IssueSelector";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
@@ -110,7 +110,7 @@ export default function AddPhoneUpdate() {
   const [upiStr, setUpiStr] = useState("");
   const [bankStr, setBankStr] = useState("");
   const [dueDateStr, setDueDateStr] = useState("");
-  // ── GST (purchase input tax) ───────────────────────────────────────────────────────
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [gstEnabled, setGstEnabled] = useState(false);
   const [sellerGstin, setSellerGstin] = useState("");
 
@@ -172,6 +172,7 @@ export default function AddPhoneUpdate() {
   const customers = useAppSelector((state) => state.customers.customers);
 
   const handleSubmit = () => {
+    if (isSubmitting) return;
     // Enforce 100-device cap for Starter plan
     if (!canUse("unlimited_phones") && phones.length + rows.length > DEVICE_LIMIT) {
       showUpgrade("unlimited_phones");
@@ -316,6 +317,7 @@ export default function AddPhoneUpdate() {
 
     // Resulting wallet impact will be handled by the create_purchase_order RPC (Cash Basis).
 
+    setIsSubmitting(true);
     toast.success(
       `${rows.length} device${rows.length > 1 ? "s" : ""} ingested successfully`,
     );
@@ -639,10 +641,11 @@ export default function AddPhoneUpdate() {
         {/* ─── Submit ─────────────────────────────────────────────────────── */}
         <button
           onClick={handleSubmit}
-          className="w-full bg-primary-500 hover:bg-blue-800 text-white py-4 rounded-2xl font-black text-base shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
+          disabled={isSubmitting}
+          className="w-full bg-primary-500 hover:bg-blue-800 text-white py-4 rounded-2xl font-black text-base shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-70"
         >
-          <Package size={20} strokeWidth={2.5} />
-          Commit Bulk Ingest
+          {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Package size={20} strokeWidth={2.5} />}
+          {isSubmitting ? "Processing…" : "Commit Bulk Ingest"}
         </button>
       </div>
     </div>

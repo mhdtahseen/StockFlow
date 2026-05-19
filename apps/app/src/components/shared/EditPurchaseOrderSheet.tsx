@@ -32,6 +32,7 @@ import {
   Archive,
   Pencil,
   Info,
+  Loader2,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -630,7 +631,7 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
                   onClick={handleDelete}
                   disabled={isSubmitting}
                 >
-                  Archive
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Archive"}
                 </Button>
               </div>
             </div>
@@ -670,7 +671,7 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
                 onClick={handleSave}
                 disabled={isSubmitting || items.length === 0 || !vendor}
               >
-                {isSubmitting ? "Saving…" : "Save Changes"}
+                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</> : "Save Changes"}
               </Button>
             </div>
           </div>

@@ -10,7 +10,7 @@ import { useAppDispatch } from "@/app/hooks";
 import { updateCustomerLink } from "@/features/customers/slice";
 import { linkCounterpartyToTenant, unlinkCounterparty } from "@/app/supabaseApi";
 import { toast } from "sonner";
-import { Building2, Link2, Link2Off, CheckCircle2, Search } from "lucide-react";
+import { Building2, Link2, Link2Off, CheckCircle2, Search, Loader2 } from "lucide-react";
 import clsx from "clsx";
 import type { Customer } from "@/features/customers/types";
 
@@ -120,7 +120,7 @@ export function LinkTenantSheet({ open, onOpenChange, customer }: Props) {
                 disabled={busy}
                 className="w-full h-12 rounded-2xl border-rose-200 dark:border-rose-800 text-rose-500 dark:text-rose-400 font-black text-sm gap-2"
               >
-                <Link2Off size={16} />
+                {busy ? <Loader2 size={16} className="animate-spin" /> : <Link2Off size={16} />}
                 {busy ? "Removing…" : "Remove Link"}
               </Button>
             </div>

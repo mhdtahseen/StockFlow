@@ -199,6 +199,7 @@ export default function OrderDetail() {
   const [isFetching, setIsFetching] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isReturning, setIsReturning] = useState(false);
   const [fetchFailed, setFetchFailed] = useState(false);
 
   // Order edits for timeline
@@ -848,6 +849,7 @@ export default function OrderDetail() {
   };
 
   const handleReturn = () => {
+    if (isReturning) return;
     if (
       window.confirm(
         "Are you sure you want to process a full return for this order? This will restock all devices and record a negative sale entry.",
@@ -875,6 +877,7 @@ export default function OrderDetail() {
             );
           }
         });
+        setIsReturning(true);
         toast.success("Order Returned", {
           description: "Devices restocked and refund initiated.",
         });
@@ -1407,9 +1410,10 @@ export default function OrderDetail() {
               {order.status === "SETTLED" && !isPurchaseOrder && (
                 <button
                   onClick={handleReturn}
-                  className="w-full py-4 border-2 border-dashed border-rose-100 dark:border-rose-900/30 text-rose-500 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                  disabled={isReturning}
+                  className="w-full py-4 border-2 border-dashed border-rose-100 dark:border-rose-900/30 text-rose-500 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors disabled:opacity-60"
                 >
-                  <RotateCcw size={14} /> Full Order Return
+                  <RotateCcw size={14} /> {isReturning ? "Processing…" : "Full Order Return"}
                 </button>
               )}
             </div>

@@ -14,7 +14,7 @@ import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import { Customer } from "@/features/customers/types";
 import CurrencyInput from "@/components/ui/CurrencyInput";
 import { toast } from "sonner";
-import { AlertTriangle, Archive, Percent } from "lucide-react";
+import { AlertTriangle, Archive, Percent, Loader2 } from "lucide-react";
 import clsx from "clsx";
 
 interface Props {
@@ -348,7 +348,7 @@ export function EditSaleOrderSheet({ open, onOpenChange, order }: Props) {
                   onClick={handleDelete}
                   disabled={isSubmitting}
                 >
-                  Archive
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Archive"}
                 </Button>
               </div>
             </div>
@@ -370,7 +370,7 @@ export function EditSaleOrderSheet({ open, onOpenChange, order }: Props) {
               onClick={handleSave}
               disabled={isSubmitting || !customer}
             >
-              {isSubmitting ? "Saving…" : "Save Changes"}
+              {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</> : "Save Changes"}
             </Button>
           </div>
         )}

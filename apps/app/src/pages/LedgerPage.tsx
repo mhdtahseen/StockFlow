@@ -42,6 +42,7 @@ import {
   User,
   Building2,
   Clock,
+  Loader2,
 } from "lucide-react";
 import clsx from "clsx";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -61,6 +62,7 @@ export default function LedgerPage() {
   const initialFilter =
     (searchParams.get("filter") as "All" | "Sales" | "Purchases") || "All";
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isSubmittingEntry, setIsSubmittingEntry] = useState(false);
   const [addAmount, setAddAmount] = useState("");
   const [actionType, setActionType] = useState<"ADD" | "WITHDRAW">("ADD");
   const [isEodExpanded, setIsEodExpanded] = useState(false);
@@ -195,6 +197,7 @@ export default function LedgerPage() {
   const handleManualTransaction = (e: React.FormEvent) => {
     e.preventDefault();
     if (!addAmount || Number(addAmount) <= 0) return;
+    setIsSubmittingEntry(true);
     dispatch(
       addEntry({
         id: crypto.randomUUID(),
@@ -221,6 +224,7 @@ export default function LedgerPage() {
 
     setAddAmount("");
     setShowAddModal(false);
+    setIsSubmittingEntry(false);
   };
 
   const getTransactionDetails = (entry: (typeof ledgerEntries)[0]) => {
@@ -1125,14 +1129,17 @@ export default function LedgerPage() {
               </button>
               <button
                 onClick={handleManualTransaction}
+                disabled={isSubmittingEntry}
                 className={clsx(
-                  "flex-1 py-3.5 font-semibold text-white rounded-xl shadow-lg transition-all active:scale-[0.98]",
+                  "flex-1 py-3.5 font-semibold text-white rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-70",
                   actionType === "ADD"
                     ? "bg-primary-500 hover:bg-blue-800 shadow-blue-600/20"
                     : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20",
                 )}
               >
-                {actionType === "ADD" ? "Confirm Deposit" : "Withdraw"}
+                {isSubmittingEntry ? (
+                  <Loader2 size={16} className="animate-spin mx-auto" />
+                ) : actionType === "ADD" ? "Confirm Deposit" : "Withdraw"}
               </button>
             </div>
           </div>
