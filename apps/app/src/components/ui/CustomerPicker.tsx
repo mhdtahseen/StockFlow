@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   ChevronDown,
   Building2,
+  Receipt,
 } from "lucide-react";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
@@ -100,6 +101,7 @@ export function CustomerPicker({
   const [newAadhaar, setNewAadhaar] = useState("");
   const [aadhaarValid, setAadhaarValid] = useState(false);
   const [newAddress, setNewAddress] = useState("");
+  const [newGstin, setNewGstin] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const customers = useAppSelector(selectCustomers);
@@ -137,6 +139,7 @@ export function CustomerPicker({
     setNewAadhaar("");
     setAadhaarValid(false);
     setNewAddress("");
+    setNewGstin("");
     setShowAdvanced(false);
     setIsCreating(false);
   };
@@ -166,6 +169,7 @@ export function CustomerPicker({
         aadhaarLast4,
         aadhaarEncrypted,
         address: newAddress.trim() || undefined,
+        gstin: newGstin.trim().toUpperCase() || undefined,
         createdAt: new Date().toISOString(),
       };
 
@@ -527,6 +531,28 @@ export function CustomerPicker({
                       rows={3}
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-none"
                     />
+                  </div>
+
+                  {/* GSTIN */}
+                  <div>
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block flex items-center gap-1.5">
+                      <Receipt size={12} />
+                      GSTIN{" "}
+                      <span className="text-slate-400 font-medium normal-case tracking-normal">
+                        (Optional — for GST invoices)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newGstin}
+                      onChange={(e) => setNewGstin(e.target.value.toUpperCase())}
+                      maxLength={15}
+                      placeholder="e.g. 27AAACR5055K1ZF"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3 font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    />
+                    {newGstin.length > 0 && newGstin.length !== 15 && (
+                      <p className="text-[11px] text-amber-500 font-semibold mt-1">GSTIN must be 15 characters</p>
+                    )}
                   </div>
                 </div>
               )}

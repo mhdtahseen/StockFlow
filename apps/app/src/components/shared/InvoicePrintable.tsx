@@ -320,6 +320,12 @@ export const InvoicePrintable: React.FC<InvoicePrintableProps> = ({
             </span>{" "}
             {customer?.phone || "N/A"}
           </div>
+          {(order as any).buyerGstin && (
+            <div style={{ color: HEX.slate700, fontSize: "13px", fontWeight: "700", marginTop: "6px" }}>
+              <span style={{ color: HEX.slate400, fontWeight: "normal" }}>GSTIN:</span>{" "}
+              {(order as any).buyerGstin}
+            </div>
+          )}
         </div>
 
         <div style={{ textAlign: "right" }}>
@@ -563,7 +569,7 @@ export const InvoicePrintable: React.FC<InvoicePrintableProps> = ({
                     textAlign: "center",
                   }}
                 >
-                  0%
+                  {(order as any).gstEnabled ? `${(order as any).gstRate || 18}%` : "0%"}
                 </td>
                 <td
                   style={{
@@ -639,22 +645,69 @@ export const InvoicePrintable: React.FC<InvoicePrintableProps> = ({
           >
             <span>Subtotal (Net)</span>
             <span style={{ color: HEX.slate700 }}>
-              {formatCurrency(order.totalAmount)}
+              {formatCurrency((order as any).gstEnabled ? ((order as any).subtotal ?? order.totalAmount) : order.totalAmount)}
             </span>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              width: "288px",
-              fontSize: "13px",
-              fontWeight: "700",
-              color: HEX.slate400,
-            }}
-          >
-            <span>Output Tax (0%)</span>
-            <span style={{ color: HEX.slate700 }}>₹ 0.00</span>
-          </div>
+          {(order as any).gstEnabled ? (
+            (order as any).gstType === "IGST" ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  width: "288px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  color: HEX.slate400,
+                }}
+              >
+                <span>IGST ({(order as any).gstRate || 18}%)</span>
+                <span style={{ color: HEX.slate700 }}>{formatCurrency((order as any).igstAmount || 0)}</span>
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    width: "288px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    color: HEX.slate400,
+                  }}
+                >
+                  <span>CGST ({((order as any).gstRate || 18) / 2}%)</span>
+                  <span style={{ color: HEX.slate700 }}>{formatCurrency((order as any).cgstAmount || 0)}</span>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    width: "288px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    color: HEX.slate400,
+                  }}
+                >
+                  <span>SGST ({((order as any).gstRate || 18) / 2}%)</span>
+                  <span style={{ color: HEX.slate700 }}>{formatCurrency((order as any).sgstAmount || 0)}</span>
+                </div>
+              </>
+            )
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                width: "288px",
+                fontSize: "13px",
+                fontWeight: "700",
+                color: HEX.slate400,
+              }}
+            >
+              <span>Output Tax (0%)</span>
+              <span style={{ color: HEX.slate700 }}>₹ 0.00</span>
+            </div>
+          )}
 
           <div
             style={{
