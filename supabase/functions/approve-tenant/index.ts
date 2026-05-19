@@ -17,7 +17,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { requestId } = await req.json()
+    const { requestId, redirectTo: customRedirect } = await req.json()
 
     // 1. Get the request details
     const { data: tenantReq, error: fetchError } = await supabaseClient
@@ -54,10 +54,40 @@ serve(async (req) => {
       tenantId = newTenant.id
     }
 
-    // Always redirect to the web activation page so users set their password
-    // on finventree.com regardless of where the admin approved from.
-    const redirectTo = "https://finventree.com/activate"
+    const redirectTo = customRedirect || "https://finventree.com/activate"
     console.log(`Sending invitation. Redirect Target: ${redirectTo}`)
+
+    // 2b. Clean up any existing user to ensure a fresh token is generated
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('id')
+      .eq('email', tenantReq.email)
+      .maybeSingle()
+
+    let userIdToDelete = profile?.id
+
+    if (!userIdToDelete) {
+      const { data: { users }, error: listError } = await supabaseClient.auth.admin.listUsers()
+      if (!listError && users) {
+        const found = users.find((u: any) => u.email?.toLowerCase() === tenantReq.email.toLowerCase())
+        if (found) {
+          userIdToDelete = found.id
+        }
+      }
+    }
+
+    if (userIdToDelete) {
+      console.log(`Deleting existing user: ${userIdToDelete} for email: ${tenantReq.email} to issue fresh invitation.`)
+      await supabaseClient
+        .from('profiles')
+        .delete()
+        .eq('id', userIdToDelete)
+
+      const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userIdToDelete)
+      if (deleteError) {
+        console.error(`Failed to delete existing auth user: ${deleteError.message}`)
+      }
+    }
 
     // 3. Invite the user
     const { data: authUser, error: inviteError } = await supabaseClient.auth.admin.inviteUserByEmail(
