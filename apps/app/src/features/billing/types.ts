@@ -14,6 +14,13 @@ export interface OrderItem {
   modelSnapshot: string;
   storageSnapshot: string;
   colorSnapshot: string;
+  // ── GST (optional) ──────────────────────────────────────────────
+  hsnCode?: string;
+  gstRate?: number;
+  taxableValue?: number;  // effectivePrice / (1 + rate/100) when inclusive
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
 }
 
 export type TransferStatus = "PENDING" | "ACCEPTED" | "PARTIAL" | "REJECTED";
@@ -35,6 +42,15 @@ export interface SaleOrder {
   createdAt: string;
   deletedAt?: string | null;
   items: OrderItem[];
+  // ── GST (optional — populated when gstEnabled is true) ──────────
+  gstEnabled?: boolean;
+  gstType?: "CGST_SGST" | "IGST";  // intra-state vs inter-state
+  gstRate?: number;                // e.g. 18
+  subtotal?: number;               // taxable value (pre-tax sum)
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  buyerGstin?: string;             // customer GSTIN for B2B invoices
 }
 
 export interface BillingState {

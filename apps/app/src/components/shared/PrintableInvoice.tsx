@@ -222,6 +222,11 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
                         <span style={{ fontWeight: "600" }}>Phone:</span>{" "}
                         {counterparty?.phone || "N/A"}
                       </p>
+                      {(order as any).buyerGstin && (
+                        <p style={{ fontSize: "12px", margin: "4px 0 0 0", fontWeight: "600", color: C.gray700 }}>
+                          GSTIN: {(order as any).buyerGstin}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
@@ -287,11 +292,13 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
                     </span>
                   )}
                 </td>
-                <td style={{ padding: "7px 6px", textAlign: "center", color: C.gray600, fontSize: "12px" }}>8517</td>
+                <td style={{ padding: "7px 6px", textAlign: "center", color: C.gray600, fontSize: "12px" }}>{(item as any).hsnCode || "8517"}</td>
                 <td style={{ padding: "7px 6px", textAlign: "right", fontWeight: "500", fontSize: "12px" }}>
                   {formatCurrency(item.unitPrice)}
                 </td>
-                <td style={{ padding: "7px 6px", textAlign: "center", color: C.gray600, fontSize: "12px" }}>0%</td>
+                <td style={{ padding: "7px 6px", textAlign: "center", color: C.gray600, fontSize: "12px" }}>
+                  {(order as any).gstEnabled ? `${(order as any).gstRate || 18}%` : "0%"}
+                </td>
                 <td style={{ padding: "7px 6px", textAlign: "right", fontWeight: "600", fontSize: "12px" }}>
                   {formatCurrency(item.effectivePrice)}
                 </td>
@@ -305,16 +312,27 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
                   <div style={{ width: "46%" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, marginBottom: "6px" }}>
                       <span>Subtotal (Before Tax)</span>
-                      <span>{formatCurrency(order.totalAmount)}</span>
+                      <span>{formatCurrency((order as any).gstEnabled ? ((order as any).subtotal ?? order.totalAmount) : order.totalAmount)}</span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, marginBottom: "6px" }}>
-                      <span>CGST (0%)</span>
-                      <span>₹0.00</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, borderBottom: `1px solid ${C.gray100}`, paddingBottom: "6px", marginBottom: "6px" }}>
-                      <span>SGST (0%)</span>
-                      <span>₹0.00</span>
-                    </div>
+                    {(order as any).gstEnabled ? (
+                      (order as any).gstType === "IGST" ? (
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, borderBottom: `1px solid ${C.gray100}`, paddingBottom: "6px", marginBottom: "6px" }}>
+                          <span>IGST ({(order as any).gstRate || 18}%)</span>
+                          <span>{formatCurrency((order as any).igstAmount || 0)}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, marginBottom: "6px" }}>
+                            <span>CGST ({((order as any).gstRate || 18) / 2}%)</span>
+                            <span>{formatCurrency((order as any).cgstAmount || 0)}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, borderBottom: `1px solid ${C.gray100}`, paddingBottom: "6px", marginBottom: "6px" }}>
+                            <span>SGST ({((order as any).gstRate || 18) / 2}%)</span>
+                            <span>{formatCurrency((order as any).sgstAmount || 0)}</span>
+                          </div>
+                        </>
+                      )
+                    ) : null}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "500", color: C.gray700, marginBottom: "4px" }}>
                       <span>Amount Paid</span>
                       <span style={{ color: C.green600 }}>

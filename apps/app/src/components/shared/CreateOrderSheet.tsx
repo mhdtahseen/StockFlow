@@ -15,6 +15,7 @@ import {
   Check,
   Smartphone,
   Sparkles,
+  Receipt,
 } from "lucide-react";
 import { useAppDispatch } from "@/app/hooks";
 import { addOrder, updateOrder } from "@/features/billing/slice";
@@ -40,6 +41,14 @@ import clsx from "clsx";
 import { toast } from "sonner";
 import { useAppSelector } from "@/app/hooks";
 import { createTransfer } from "@/app/supabaseApi";
+import {
+  determineGstType,
+  calculateOrderGst,
+  DEFAULT_GST_RATE,
+  DEFAULT_HSN_CODE,
+  calculateGst,
+  isValidGstin,
+} from "@/utils/gstCalc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,6 +84,10 @@ export function CreateOrderSheet({
   const [showDiscounts, setShowDiscounts] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
 
+  // ── GST state ──────────────────────────────────────────────────────────────
+  const [gstEnabled, setGstEnabled] = useState(false);
+  const [buyerGstin, setBuyerGstin] = useState("");
+
   // ── Hybrid payment state (same pattern as AddPhoneUpdate) ─────────────────
   const [activePayTab, setActivePayTab] = useState<PayChannel>("CASH");
   const [cashStr, setCashStr] = useState("");
@@ -85,7 +98,7 @@ export function CreateOrderSheet({
 
   const { canUse, isExpired } = usePlan();
   const { showUpgrade } = useUpgradeGate();
-  const { user } = useAuth();
+  const { user, tenant } = useAuth();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const ledgerEntries = useAppSelector((state) => state.ledger.entries);
@@ -136,6 +149,8 @@ export function CreateOrderSheet({
         setDueDateStr("");
         setNotes("");
         setShowDiscounts(false);
+        setGstEnabled(false);
+        setBuyerGstin("");
       }
     }
     prevOpen.current = open;
@@ -153,6 +168,24 @@ export function CreateOrderSheet({
       return sum + Math.max(0, price - discount);
     }, 0);
   }, [items]);
+
+  // ── GST breakdown (computed only when gstEnabled) ──────────────────────────
+  const gstType = useMemo(
+    () => determineGstType(tenant?.gstin, buyerGstin || customer?.gstin),
+    [tenant?.gstin, buyerGstin, customer?.gstin],
+  );
+
+  const gstBreakdown = useMemo(() => {
+    if (!gstEnabled || items.length === 0) return null;
+    const effectivePrices = items.map((item) => {
+      const price = parseFloat(item.salePrice) || 0;
+      const discountVal = parseFloat(item.discountAmount) || 0;
+      const discount =
+        item.discountType === "PERCENT" ? price * (discountVal / 100) : discountVal;
+      return Math.max(0, price - discount);
+    });
+    return calculateOrderGst(effectivePrices, DEFAULT_GST_RATE, gstType, true);
+  }, [gstEnabled, items, gstType]);
 
   const cashPaid = parseFloat(cashStr) || 0;
   const upiPaid = parseFloat(upiStr) || 0;
@@ -229,6 +262,19 @@ export function CreateOrderSheet({
       notes: notes || undefined,
       paymentNote, // Pass the generated note
       createdAt: ts,
+      // ── GST fields ──────────────────────────────────────────────────────
+      ...(gstEnabled && gstBreakdown
+        ? {
+            gstEnabled: true,
+            gstType,
+            gstRate: DEFAULT_GST_RATE,
+            subtotal: gstBreakdown.subtotal,
+            cgstAmount: gstBreakdown.cgstTotal,
+            sgstAmount: gstBreakdown.sgstTotal,
+            igstAmount: gstBreakdown.igstTotal,
+            buyerGstin: buyerGstin.trim().toUpperCase() || customer.gstin || undefined,
+          }
+        : {}),
       items: items.map((draft) => {
         const price = parseFloat(draft.salePrice) || 0;
         const discountVal = parseFloat(draft.discountAmount) || 0;
@@ -237,6 +283,9 @@ export function CreateOrderSheet({
             ? price * (discountVal / 100)
             : discountVal;
         const effectivePrice = Math.max(0, price - discountAmt);
+        const itemGst = gstEnabled
+          ? calculateGst(effectivePrice, DEFAULT_GST_RATE, gstType, true)
+          : null;
 
         return {
           id: crypto.randomUUID(),
@@ -250,6 +299,16 @@ export function CreateOrderSheet({
           modelSnapshot: draft.phone.model,
           storageSnapshot: draft.phone.storage,
           colorSnapshot: draft.phone.color,
+          ...(itemGst
+            ? {
+                hsnCode: DEFAULT_HSN_CODE,
+                gstRate: DEFAULT_GST_RATE,
+                taxableValue: itemGst.taxableValue,
+                cgstAmount: itemGst.cgstAmount,
+                sgstAmount: itemGst.sgstAmount,
+                igstAmount: itemGst.igstAmount,
+              }
+            : {}),
         };
       }),
     };
@@ -699,6 +758,129 @@ export function CreateOrderSheet({
                   </div>
                 )}
               </div>
+
+              {/* ─── GST Toggle (only if tenant has GSTIN) ────────────── */}
+              {tenant?.gstin && !isEditMode && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] overflow-hidden">
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="size-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <Receipt size={16} className="text-emerald-600" strokeWidth={2.5} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-slate-900 dark:text-slate-100 leading-tight">
+                          Apply GST
+                        </p>
+                        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 leading-none mt-0.5">
+                          {gstEnabled
+                            ? `18% inclusive · HSN 8517 · ${gstType === "IGST" ? "IGST" : "CGST + SGST"}`
+                            : "Issue a GST tax invoice"}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Toggle switch */}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={gstEnabled}
+                      onClick={() => setGstEnabled((v) => !v)}
+                      className={clsx(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2",
+                        gstEnabled ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700",
+                      )}
+                    >
+                      <span
+                        className={clsx(
+                          "inline-block h-4 w-4 rounded-full bg-white shadow transition-transform",
+                          gstEnabled ? "translate-x-6" : "translate-x-1",
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Expanded GST details */}
+                  {gstEnabled && (
+                    <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3 space-y-3">
+                      {/* Seller GSTIN info */}
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-500">Your GSTIN</span>
+                        <span className="font-black text-slate-700 dark:text-slate-300 font-mono">
+                          {tenant.gstin}
+                        </span>
+                      </div>
+
+                      {/* Buyer GSTIN input */}
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                          Customer GSTIN <span className="font-normal normal-case text-slate-400">(optional — for B2B)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={buyerGstin}
+                          onChange={(e) => setBuyerGstin(e.target.value.toUpperCase())}
+                          maxLength={15}
+                          placeholder={customer?.gstin || "e.g. 27AAACR5055K1ZF"}
+                          className={clsx(
+                            "w-full h-10 px-3 rounded-xl border-2 font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none transition-all bg-slate-50 dark:bg-slate-800",
+                            buyerGstin.length === 15
+                              ? isValidGstin(buyerGstin)
+                                ? "border-emerald-400 focus:border-emerald-500"
+                                : "border-rose-400 focus:border-rose-500"
+                              : "border-slate-100 dark:border-slate-700 focus:border-emerald-400",
+                          )}
+                        />
+                        {buyerGstin.length === 15 && !isValidGstin(buyerGstin) && (
+                          <p className="text-[10px] text-rose-500 font-semibold mt-1">
+                            Invalid GSTIN format
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Tax type badge */}
+                      <div className={clsx(
+                        "flex items-center justify-between px-3 py-2 rounded-xl text-[11px] font-bold",
+                        gstType === "IGST"
+                          ? "bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400"
+                          : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400",
+                      )}>
+                        <span>{gstType === "IGST" ? "Inter-state supply → IGST" : "Intra-state supply → CGST + SGST"}</span>
+                        <span>{DEFAULT_GST_RATE}%</span>
+                      </div>
+
+                      {/* Live breakdown */}
+                      {gstBreakdown && items.length > 0 && (
+                        <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+                          <div className="flex justify-between text-[11px] text-slate-500">
+                            <span>Taxable Value</span>
+                            <span className="font-bold">₹{gstBreakdown.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          {gstType === "CGST_SGST" ? (
+                            <>
+                              <div className="flex justify-between text-[11px] text-slate-500">
+                                <span>CGST (9%)</span>
+                                <span className="font-bold">₹{gstBreakdown.cgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <div className="flex justify-between text-[11px] text-slate-500">
+                                <span>SGST (9%)</span>
+                                <span className="font-bold">₹{gstBreakdown.sgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex justify-between text-[11px] text-slate-500">
+                              <span>IGST (18%)</span>
+                              <span className="font-bold">₹{gstBreakdown.igstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-[11px] font-black text-slate-700 dark:text-slate-300 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1">
+                            <span>Total (incl. tax)</span>
+                            <span>₹{gstBreakdown.grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* ─── Fiscal Settlement (Hybrid Multi-Channel) ─────────── */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] overflow-hidden">

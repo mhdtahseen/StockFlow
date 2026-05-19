@@ -22,6 +22,13 @@ export interface PurchaseOrderItem {
   ram?: string;
   imei?: string;
   issueTags?: string[];
+  // ── GST (optional) ──────────────────────────────────────────────
+  hsnCode?: string;
+  gstRate?: number;
+  taxableValue?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
 }
 
 export interface PurchaseOrder {
@@ -44,6 +51,15 @@ export interface PurchaseOrder {
   createdAt: string;
   deletedAt?: string | null;
   items: PurchaseOrderItem[];
+  // ── GST (optional) ──────────────────────────────────────────────
+  gstEnabled?: boolean;
+  gstType?: "CGST_SGST" | "IGST";
+  gstRate?: number;
+  subtotal?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  sellerGstin?: string;  // supplier GSTIN for input tax credit
 }
 
 export interface POAllocation {
