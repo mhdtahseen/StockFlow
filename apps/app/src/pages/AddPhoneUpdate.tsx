@@ -11,10 +11,10 @@ import {
   type ColorOption,
 } from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
-import { 
+import {
   Plus, Trash2, Camera, Info, Wrench, X, MonitorSmartphone, 
   Search, HardDrive, Palette, History, Fingerprint, 
-  ChevronDown, Check, Smartphone, ChevronLeft, ScanBarcode, DollarSign, Package, Building, ArrowRight
+  ChevronDown, Check, Smartphone, ChevronLeft, ScanBarcode, DollarSign, Package, Building, ArrowRight, Receipt
 } from "lucide-react";
 import IssueSelector from "../components/IssueSelector";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
@@ -34,6 +34,14 @@ import {
 } from "../features/purchasing/types";
 import { usePlan } from "../hooks/usePlan";
 import { useUpgradeGate } from "../context/UpgradeGateContext";
+import { useAuth } from "../context/AuthContext";
+import {
+  determineGstType,
+  calculateGst,
+  calculateOrderGst,
+  isValidGstin,
+  DEFAULT_GST_RATE,
+} from "../utils/gstCalc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +81,7 @@ export default function AddPhoneUpdate() {
   const phones = useAppSelector((s) => s.inventory.phones);
   const { canUse } = usePlan();
   const { showUpgrade } = useUpgradeGate();
+  const { tenant } = useAuth();
 
   const DEVICE_LIMIT = 100;
 
@@ -101,6 +110,9 @@ export default function AddPhoneUpdate() {
   const [upiStr, setUpiStr] = useState("");
   const [bankStr, setBankStr] = useState("");
   const [dueDateStr, setDueDateStr] = useState("");
+  // ── GST (purchase input tax) ───────────────────────────────────────────────────────
+  const [gstEnabled, setGstEnabled] = useState(false);
+  const [sellerGstin, setSellerGstin] = useState("");
 
   // ── Top issues from history ────────────────────────────────────────────────
   const topIssues = useMemo(() => {
@@ -135,6 +147,17 @@ export default function AddPhoneUpdate() {
   const bankPaid = parseFloat(bankStr) || 0;
   const totalPaid = cashPaid + upiPaid + bankPaid;
   const outstanding = Math.max(0, grandTotal - totalPaid);
+
+  const gstType = useMemo(
+    () => determineGstType(sellerGstin || vendor?.gstin, tenant?.gstin),
+    [sellerGstin, vendor?.gstin, tenant?.gstin],
+  );
+  const gstBreakdown = useMemo(() => {
+    if (!gstEnabled || rows.length === 0) return null;
+    const prices = rows.map((r) => parseFloat(r.purchasePrice) || 0).filter(Boolean);
+    if (prices.length === 0) return null;
+    return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, true);
+  }, [gstEnabled, rows, gstType]);
 
   // ── Row helpers ────────────────────────────────────────────────────────────
   const updateRow = useCallback((id: string, patch: Partial<DeviceRow>) => {
@@ -187,13 +210,21 @@ export default function AddPhoneUpdate() {
     const poId = crypto.randomUUID();
     const ts = new Date().toISOString();
 
-    const poItems: PurchaseOrderItem[] = rows.map((r) => ({
-      id: crypto.randomUUID(),
-      purchaseOrderId: poId,
-      phoneId: r.id,
-      purchasePrice: parseFloat(r.purchasePrice) || 0,
-      status: "ACCEPTED",
-    }));
+    const poItems: PurchaseOrderItem[] = rows.map((r) => {
+      const base = {
+        id: crypto.randomUUID(),
+        purchaseOrderId: poId,
+        phoneId: r.id,
+        purchasePrice: parseFloat(r.purchasePrice) || 0,
+        status: "ACCEPTED" as const,
+      };
+      if (gstEnabled) {
+        const p = parseFloat(r.purchasePrice) || 0;
+        const ig = calculateGst(p, DEFAULT_GST_RATE, gstType, true);
+        return { ...base, hsnCode: "8517", gstRate: DEFAULT_GST_RATE, taxableValue: ig.taxableValue, cgstAmount: ig.cgstAmount, sgstAmount: ig.sgstAmount, igstAmount: ig.igstAmount };
+      }
+      return base;
+    });
 
     const po: PurchaseOrder = {
       id: poId,
@@ -209,6 +240,18 @@ export default function AddPhoneUpdate() {
       dueDate: dueDateStr || undefined,
       notes: channel === "PLATFORM" ? `Source: ${selectedPlatform}` : undefined,
       createdAt: ts,
+      ...(gstEnabled && gstBreakdown
+        ? {
+            gstEnabled: true,
+            gstType,
+            gstRate: DEFAULT_GST_RATE,
+            subtotal: gstBreakdown.subtotal,
+            cgstAmount: gstBreakdown.cgstTotal,
+            sgstAmount: gstBreakdown.sgstTotal,
+            igstAmount: gstBreakdown.igstTotal,
+            sellerGstin: sellerGstin.trim().toUpperCase() || vendor?.gstin || undefined,
+          }
+        : {}),
       items: poItems,
     };
 
@@ -493,6 +536,105 @@ export default function AddPhoneUpdate() {
             )}
           </div>
         </div>
+
+        {/* ─── GST Section (optional) ─────────────────────────────────────── */}
+        {tenant?.gstin && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="size-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                  <Receipt size={15} className="text-emerald-600" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-slate-900 dark:text-slate-100 leading-tight">Apply GST</p>
+                  <p className="text-[10px] font-semibold text-slate-400 leading-none mt-0.5">
+                    {gstEnabled
+                      ? `18% inclusive · HSN 8517 · ${gstType === "IGST" ? "IGST" : "CGST + SGST"}`
+                      : "Record input tax on this purchase (optional)"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={gstEnabled}
+                onClick={() => setGstEnabled((v) => !v)}
+                className={clsx(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
+                  gstEnabled ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700",
+                )}
+              >
+                <span className={clsx("inline-block h-4 w-4 rounded-full bg-white shadow transition-transform", gstEnabled ? "translate-x-6" : "translate-x-1")} />
+              </button>
+            </div>
+
+            {gstEnabled && (
+              <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3 space-y-3">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-slate-500">Your GSTIN</span>
+                  <span className="font-black text-slate-700 dark:text-slate-300 font-mono">{tenant.gstin}</span>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                    Supplier GSTIN <span className="font-normal normal-case text-slate-400">(optional — for ITC)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={sellerGstin}
+                    onChange={(e) => setSellerGstin(e.target.value.toUpperCase())}
+                    maxLength={15}
+                    placeholder={vendor?.gstin || "e.g. 27AAACR5055K1ZF"}
+                    className={clsx(
+                      "w-full h-10 px-3 rounded-xl border-2 font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none transition-all bg-slate-50 dark:bg-slate-800",
+                      sellerGstin.length === 15
+                        ? isValidGstin(sellerGstin) ? "border-emerald-400 focus:border-emerald-500" : "border-rose-400 focus:border-rose-500"
+                        : "border-slate-100 dark:border-slate-700 focus:border-emerald-400",
+                    )}
+                  />
+                  {sellerGstin.length === 15 && !isValidGstin(sellerGstin) && (
+                    <p className="text-[10px] text-rose-500 font-semibold mt-1">Invalid GSTIN format</p>
+                  )}
+                </div>
+                <div className={clsx(
+                  "flex items-center justify-between px-3 py-2 rounded-xl text-[11px] font-bold",
+                  gstType === "IGST" ? "bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400" : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400",
+                )}>
+                  <span>{gstType === "IGST" ? "Inter-state purchase → IGST" : "Intra-state purchase → CGST + SGST"}</span>
+                  <span>{DEFAULT_GST_RATE}%</span>
+                </div>
+                {gstBreakdown && (
+                  <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex justify-between text-[11px] text-slate-500">
+                      <span>Taxable Value</span>
+                      <span className="font-bold">₹{gstBreakdown.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {gstType === "CGST_SGST" ? (
+                      <>
+                        <div className="flex justify-between text-[11px] text-slate-500">
+                          <span>CGST (9%)</span>
+                          <span className="font-bold">₹{gstBreakdown.cgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-slate-500">
+                          <span>SGST (9%)</span>
+                          <span className="font-bold">₹{gstBreakdown.sgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>IGST (18%)</span>
+                        <span className="font-bold">₹{gstBreakdown.igstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-[11px] font-black text-slate-700 dark:text-slate-300 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1">
+                      <span>Total (incl. tax)</span>
+                      <span>₹{gstBreakdown.grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ─── Submit ─────────────────────────────────────────────────────── */}
         <button

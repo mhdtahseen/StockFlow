@@ -34,6 +34,7 @@ import {
   Pencil,
   Building2,
   ArrowRightLeft,
+  Receipt,
 } from "lucide-react";
 import {
   SiApple,
@@ -1166,6 +1167,65 @@ export default function OrderDetail() {
               </p>
             </div>
           </div>
+
+          {/* GST Breakdown Card */}
+          {(order as any).gstEnabled && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="size-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Receipt size={13} className="text-emerald-600" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  GST Breakdown
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500 font-medium">Taxable Value</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">
+                    ₹{((order as any).subtotal || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                {(order as any).gstType === "IGST" ? (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500 font-medium">IGST ({(order as any).gstRate || 18}%)</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">
+                      ₹{((order as any).igstAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 font-medium">CGST ({((order as any).gstRate || 18) / 2}%)</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                        ₹{((order as any).cgstAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 font-medium">SGST ({((order as any).gstRate || 18) / 2}%)</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                        ₹{((order as any).sgstAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800 font-black">
+                  <span className="text-slate-700 dark:text-slate-300">Total (incl. GST)</span>
+                  <span className="text-slate-900 dark:text-slate-100">
+                    ₹{(order.totalAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                {(isPurchaseOrder ? (order as any).sellerGstin : (order as any).buyerGstin) && (
+                  <div className="flex justify-between text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-400 font-medium">{isPurchaseOrder ? "Supplier GSTIN" : "Buyer GSTIN"}</span>
+                    <span className="font-mono font-bold text-slate-600 dark:text-slate-400">
+                      {isPurchaseOrder ? (order as any).sellerGstin : (order as any).buyerGstin}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Core Actions - Moved Outside Tabs */}
           <div className="flex gap-3">
