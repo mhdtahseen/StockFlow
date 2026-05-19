@@ -217,6 +217,19 @@ export const syncActionToSupabase = async (
           p_payment_note: payload.paymentNote ?? null,
         });
         if (error) throw error;
+        // ── Persist GST fields (RPC doesn't accept them — direct UPDATE) ──
+        if (payload.gstEnabled) {
+          await supabase.from("sale_orders").update({
+            gst_enabled: true,
+            gst_type: payload.gstType ?? null,
+            gst_rate: payload.gstRate ?? null,
+            subtotal: payload.subtotal ?? null,
+            cgst_amount: payload.cgstAmount ?? null,
+            sgst_amount: payload.sgstAmount ?? null,
+            igst_amount: payload.igstAmount ?? null,
+            buyer_gstin: payload.buyerGstin ?? null,
+          }).eq("id", payload.id);
+        }
         posthog.capture("order.created", { type: "sale", item_count: payload.items?.length ?? 1, amount: payload.totalAmount });
         break;
       }
@@ -289,6 +302,19 @@ export const syncActionToSupabase = async (
           p_payment_note: payload.paymentNote ?? null,
         });
         if (error) throw error;
+        // ── Persist GST fields (RPC doesn't accept them — direct UPDATE) ──
+        if (payload.gstEnabled) {
+          await supabase.from("purchase_orders").update({
+            gst_enabled: true,
+            gst_type: payload.gstType ?? null,
+            gst_rate: payload.gstRate ?? null,
+            subtotal: payload.subtotal ?? null,
+            cgst_amount: payload.cgstAmount ?? null,
+            sgst_amount: payload.sgstAmount ?? null,
+            igst_amount: payload.igstAmount ?? null,
+            seller_gstin: payload.sellerGstin ?? null,
+          }).eq("id", payload.id);
+        }
         posthog.capture("order.created", { type: "purchase", item_count: payload.items?.length ?? 1, channel: payload.acquisitionChannel, amount: payload.totalAmount });
         break;
       }
@@ -485,6 +511,8 @@ export const syncActionToSupabase = async (
           platform_name: payload.platformName ?? null,
           linked_tenant_id: payload.linkedTenantId ?? null,
           notes: payload.notes ?? null,
+          gstin: payload.gstin ?? null,
+          state: payload.state ?? null,
           created_at: payload.createdAt,
         });
         if (error) throw error;
@@ -502,6 +530,8 @@ export const syncActionToSupabase = async (
             platform_name: payload.platformName ?? null,
             linked_tenant_id: payload.linkedTenantId ?? null,
             notes: payload.notes ?? null,
+            gstin: payload.gstin ?? null,
+            state: payload.state ?? null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", payload.id)

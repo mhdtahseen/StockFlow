@@ -285,6 +285,8 @@ export function useOfflineSyncManager() {
                 linkedTenantId: c.linked_tenant_id,
                 linkedTenantName: c.linked_tenant?.name ?? undefined,
                 notes: c.notes,
+                gstin: c.gstin ?? undefined,
+                state: c.state ?? undefined,
                 createdAt: c.created_at,
               })),
             });
@@ -307,11 +309,22 @@ export function useOfflineSyncManager() {
               totalAmount: o.total_amount, amountPaid: o.amount_paid,
               status: o.status, paymentMode: o.payment_mode, dueDate: o.due_date,
               notes: o.notes, createdAt: o.created_at,
+              // ── GST fields ──
+              gstEnabled: o.gst_enabled ?? false,
+              gstType: o.gst_type ?? undefined,
+              gstRate: o.gst_rate ?? undefined,
+              subtotal: o.subtotal ?? undefined,
+              cgstAmount: o.cgst_amount ?? undefined,
+              sgstAmount: o.sgst_amount ?? undefined,
+              igstAmount: o.igst_amount ?? undefined,
+              buyerGstin: o.buyer_gstin ?? undefined,
               items: o.sale_order_items.map((i: any) => ({
                 id: i.id, saleOrderId: i.sale_order_id, phoneId: i.phone_id,
                 salePrice: i.sale_price, discountAmount: i.discount_amount,
+                effectivePrice: i.sale_price - i.discount_amount,
                 imeiSnapshot: i.imei_snapshot || [], brandSnapshot: i.brand_snapshot,
-                modelSnapshot: i.model_snapshot, storageSnapshot: i.storage_snapshot, colorSnapshot: i.color_snapshot
+                modelSnapshot: i.model_snapshot, storageSnapshot: i.storage_snapshot, colorSnapshot: i.color_snapshot,
+                hsnCode: i.hsn_code ?? undefined,
               }))
             })) });
           }
@@ -341,6 +354,15 @@ export function useOfflineSyncManager() {
                 dueDate: o.due_date,
                 notes: o.notes,
                 createdAt: o.created_at,
+                // ── GST fields ──
+                gstEnabled: o.gst_enabled ?? false,
+                gstType: o.gst_type ?? undefined,
+                gstRate: o.gst_rate ?? undefined,
+                subtotal: o.subtotal ?? undefined,
+                cgstAmount: o.cgst_amount ?? undefined,
+                sgstAmount: o.sgst_amount ?? undefined,
+                igstAmount: o.igst_amount ?? undefined,
+                sellerGstin: o.seller_gstin ?? undefined,
                 items: o.purchase_order_items.map((i: any) => ({
                   id: i.id,
                   purchaseOrderId: i.purchase_order_id,
@@ -354,6 +376,7 @@ export function useOfflineSyncManager() {
                   ram: i.ram,
                   color: i.color,
                   imei: i.imei,
+                  hsnCode: i.hsn_code ?? undefined,
                 }))
               })),
             });
