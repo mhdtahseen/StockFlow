@@ -53,6 +53,7 @@ export interface PurchaseOrder {
   items: PurchaseOrderItem[];
   // ── GST (optional) ──────────────────────────────────────────────
   gstEnabled?: boolean;
+  gstInclusive?: boolean;       // true = price includes GST (default); false = pre-tax
   gstType?: "CGST_SGST" | "IGST";
   gstRate?: number;
   subtotal?: number;

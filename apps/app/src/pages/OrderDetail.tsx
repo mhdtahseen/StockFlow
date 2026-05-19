@@ -1181,6 +1181,14 @@ export default function OrderDetail() {
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                   GST Breakdown
                 </span>
+                <span className={clsx(
+                  "ml-auto text-[9px] font-black px-2 py-0.5 rounded-full",
+                  (order as any).gstInclusive !== false
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                )}>
+                  {(order as any).gstInclusive !== false ? "INCLUSIVE" : "EXCLUSIVE"}
+                </span>
               </div>
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs">
@@ -1213,7 +1221,9 @@ export default function OrderDetail() {
                   </>
                 )}
                 <div className="flex justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800 font-black">
-                  <span className="text-slate-700 dark:text-slate-300">Total (incl. GST)</span>
+                  <span className="text-slate-700 dark:text-slate-300">
+                    {(order as any).gstInclusive !== false ? "Total (incl. GST)" : "Total + GST"}
+                  </span>
                   <span className="text-slate-900 dark:text-slate-100">
                     ₹{(order.totalAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </span>

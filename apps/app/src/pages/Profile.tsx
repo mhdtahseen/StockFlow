@@ -14,7 +14,6 @@ import {
   Building2,
   MapPin,
   ClipboardCheck,
-  LogOut,
   Copy,
   CheckCheck,
   Share2,
@@ -44,6 +43,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { isValidGstin } from "@/utils/gstCalc";
 
 import { createAvatar } from "@dicebear/core";
 import { botttsNeutral } from "@dicebear/collection";
@@ -60,7 +60,7 @@ const generateRandomAvatars = () => {
 };
 
 export default function ProfilePage() {
-  const { session, tenant, refreshTenant, refreshProfile, signOut } = useAuth();
+  const { session, tenant, refreshTenant, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingBusiness, setIsSavingBusiness] = useState(false);
@@ -150,7 +150,9 @@ export default function ProfilePage() {
           setAvatarUrl(session.user.user_metadata?.avatar_url || "");
         }
 
-        setPhone(session.user.user_metadata?.phone || "");
+        // Normalize to 10-digit local number — strip +91, 0, or spaces
+        const raw = session.user.user_metadata?.phone || "";
+        setPhone(raw.replace(/^\+91|^0/, "").replace(/\D/g, "").slice(0, 10));
         loadedForUserRef.current = session.user.id;
       } catch (err: any) {
         console.error("Profile load catch:", err);
@@ -174,14 +176,21 @@ export default function ProfilePage() {
   const handleUpdateProfile = async () => {
     if (!session?.user.id) return;
     const trimmedFullName = fullName.trim();
-    const trimmedPhone = phone.trim();
+    const digits = phone.replace(/\D/g, "");
 
     if (!trimmedFullName) {
       toast.error("Full name is required");
       setIsSaving(false);
       return;
     }
+    if (digits.length > 0 && digits.length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
+      return;
+    }
 
+    const trimmedPhone = digits.length === 10 ? `+91${digits}` : "";
+
+    setIsSaving(true);
     try {
       // Use upsert to ensure the profile record exists
       const { error } = await supabase
@@ -234,13 +243,19 @@ export default function ProfilePage() {
   const handleUpdateBusiness = async () => {
     const trimmedStoreName = storeName.trim();
     const trimmedStoreAddress = storeAddress.trim();
-    const trimmedPhone = phone.trim();
+    const digits = phone.replace(/\D/g, "");
     const trimmedGSTIN = storeGSTIN.trim().toUpperCase();
 
-    if (!trimmedStoreName || !trimmedStoreAddress || !trimmedPhone) {
-      toast.error("Please fill in all mandatory fields (Name, Address, Phone)");
+    if (!trimmedStoreName || !trimmedStoreAddress) {
+      toast.error("Please fill in all mandatory fields (Name, Address)");
       return;
     }
+    if (digits.length > 0 && digits.length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
+      return;
+    }
+
+    const trimmedPhone = digits.length === 10 ? `+91${digits}` : "";
 
     if (!tenant?.id) {
       toast.error("No business account associated with your profile.");
@@ -404,18 +419,35 @@ export default function ProfilePage() {
 
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Input
+              <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-hidden focus-within:ring-2 focus-within:ring-primary-500/30 focus-within:border-primary-500 transition-all">
+                <div className="flex items-center gap-1.5 px-3 py-2.5 border-r border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0 select-none">
+                  <Phone className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="text-sm font-bold text-slate-500 dark:text-slate-400">+91</span>
+                </div>
+                <input
                   id="phone"
+                  type="tel"
+                  inputMode="numeric"
                   value={phone}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setPhone(e.target.value)
-                  }
-                  placeholder="+1 (555) 000-0000"
-                  className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setPhone(digits);
+                  }}
+                  placeholder="98765 43210"
+                  maxLength={10}
+                  className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-medium tracking-wide"
                 />
+                {phone.length > 0 && (
+                  <span className={`pr-3 text-[10px] font-bold tabular-nums ${
+                    phone.length === 10 ? "text-emerald-500" : "text-amber-500"
+                  }`}>
+                    {phone.length}/10
+                  </span>
+                )}
               </div>
+              {phone.length > 0 && phone.length !== 10 && (
+                <p className="text-[10px] font-semibold text-amber-500">Enter all 10 digits</p>
+              )}
             </div>
 
             <Button
@@ -492,6 +524,13 @@ export default function ProfilePage() {
                   className="pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 uppercase"
                 />
               </div>
+              {storeGSTIN.length > 0 && (
+                storeGSTIN.length !== 15
+                  ? <p className="text-xs text-amber-500 font-semibold mt-1">GSTIN must be 15 characters</p>
+                  : !isValidGstin(storeGSTIN)
+                    ? <p className="text-xs text-amber-500 font-semibold mt-1">Invalid GSTIN format</p>
+                    : <p className="text-xs text-emerald-500 font-semibold mt-1">Valid GSTIN</p>
+              )}
             </div>
 
             <Button
@@ -625,14 +664,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Button
-          onClick={() => signOut()}
-          variant="ghost"
-          className="w-full h-14 rounded-2xl text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-950/40 border border-rose-100 dark:border-rose-900/30 shadow-xs mt-4 transition-all active:scale-[0.98]"
-        >
-          <LogOut className="mr-3 h-5 w-5" />
-          Sign Out of Account
-        </Button>
+
       </main>
 
       <Dialog open={isAvatarModalOpen} onOpenChange={setIsAvatarModalOpen}>

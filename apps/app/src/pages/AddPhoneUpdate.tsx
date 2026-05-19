@@ -112,6 +112,7 @@ export default function AddPhoneUpdate() {
   const [dueDateStr, setDueDateStr] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gstEnabled, setGstEnabled] = useState(false);
+  const [gstInclusive, setGstInclusive] = useState(true);
   const [sellerGstin, setSellerGstin] = useState("");
 
   // ── Top issues from history ────────────────────────────────────────────────
@@ -156,8 +157,8 @@ export default function AddPhoneUpdate() {
     if (!gstEnabled || rows.length === 0) return null;
     const prices = rows.map((r) => parseFloat(r.purchasePrice) || 0).filter(Boolean);
     if (prices.length === 0) return null;
-    return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, true);
-  }, [gstEnabled, rows, gstType]);
+    return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, gstInclusive);
+  }, [gstEnabled, rows, gstType, gstInclusive]);
 
   // ── Row helpers ────────────────────────────────────────────────────────────
   const updateRow = useCallback((id: string, patch: Partial<DeviceRow>) => {
@@ -221,7 +222,7 @@ export default function AddPhoneUpdate() {
       };
       if (gstEnabled) {
         const p = parseFloat(r.purchasePrice) || 0;
-        const ig = calculateGst(p, DEFAULT_GST_RATE, gstType, true);
+        const ig = calculateGst(p, DEFAULT_GST_RATE, gstType, gstInclusive);
         return { ...base, hsnCode: "8517", gstRate: DEFAULT_GST_RATE, taxableValue: ig.taxableValue, cgstAmount: ig.cgstAmount, sgstAmount: ig.sgstAmount, igstAmount: ig.igstAmount };
       }
       return base;
@@ -244,6 +245,7 @@ export default function AddPhoneUpdate() {
       ...(gstEnabled && gstBreakdown
         ? {
             gstEnabled: true,
+            gstInclusive,
             gstType,
             gstRate: DEFAULT_GST_RATE,
             subtotal: gstBreakdown.subtotal,
@@ -551,7 +553,7 @@ export default function AddPhoneUpdate() {
                   <p className="text-sm font-black text-slate-900 dark:text-slate-100 leading-tight">Apply GST</p>
                   <p className="text-[10px] font-semibold text-slate-400 leading-none mt-0.5">
                     {gstEnabled
-                      ? `18% inclusive · HSN 8517 · ${gstType === "IGST" ? "IGST" : "CGST + SGST"}`
+                      ? `18% ${gstInclusive ? "inclusive" : "exclusive"} · HSN 8517 · ${gstType === "IGST" ? "IGST" : "CGST + SGST"}`
                       : "Record input tax on this purchase (optional)"}
                   </p>
                 </div>
@@ -604,6 +606,35 @@ export default function AddPhoneUpdate() {
                   <span>{gstType === "IGST" ? "Inter-state purchase → IGST" : "Intra-state purchase → CGST + SGST"}</span>
                   <span>{DEFAULT_GST_RATE}%</span>
                 </div>
+
+                {/* Inclusive / Exclusive pricing mode */}
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setGstInclusive(true)}
+                    className={clsx(
+                      "flex-1 text-[10px] font-bold py-1.5 rounded-md transition-colors",
+                      gstInclusive
+                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                        : "text-slate-500 dark:text-slate-400",
+                    )}
+                  >
+                    Inclusive
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGstInclusive(false)}
+                    className={clsx(
+                      "flex-1 text-[10px] font-bold py-1.5 rounded-md transition-colors",
+                      !gstInclusive
+                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                        : "text-slate-500 dark:text-slate-400",
+                    )}
+                  >
+                    Exclusive
+                  </button>
+                </div>
+
                 {gstBreakdown && (
                   <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex justify-between text-[11px] text-slate-500">
@@ -628,7 +659,7 @@ export default function AddPhoneUpdate() {
                       </div>
                     )}
                     <div className="flex justify-between text-[11px] font-black text-slate-700 dark:text-slate-300 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1">
-                      <span>Total (incl. tax)</span>
+                      <span>{gstInclusive ? "Total (incl. tax)" : "Total + Tax"}</span>
                       <span>₹{gstBreakdown.grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>

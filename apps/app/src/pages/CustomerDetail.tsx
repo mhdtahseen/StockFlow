@@ -182,8 +182,8 @@ export default function CustomerDetail() {
 
   const handleDelete = () => {
     if (!id) return;
-    dispatch(removeCustomer(id));
     setShowDeleteConfirm(false);
+    dispatch(removeCustomer(id));
     toast.success("Customer deleted", {
       description: `${customer?.name} has been removed from your directory.`,
     });

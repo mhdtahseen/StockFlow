@@ -213,23 +213,27 @@ export const syncActionToSupabase = async (
             model: i.modelSnapshot,
             storage: i.storageSnapshot,
             color: i.colorSnapshot,
+            // Item-level GST (present when gstEnabled; COALESCE→NULL in RPC if absent)
+            hsn_code: i.hsnCode ?? null,
+            gst_rate: i.gstRate ?? null,
+            taxable_value: i.taxableValue ?? null,
+            cgst_amount: i.cgstAmount ?? null,
+            sgst_amount: i.sgstAmount ?? null,
+            igst_amount: i.igstAmount ?? null,
           })),
           p_payment_note: payload.paymentNote ?? null,
+          // Order-level GST (optional params — RPC defaults to no-GST if omitted)
+          p_gst_enabled: payload.gstEnabled ?? false,
+          p_gst_inclusive: payload.gstInclusive ?? true,
+          p_gst_type: payload.gstType ?? null,
+          p_gst_rate: payload.gstRate ?? null,
+          p_subtotal: payload.subtotal ?? null,
+          p_cgst_amount: payload.cgstAmount ?? null,
+          p_sgst_amount: payload.sgstAmount ?? null,
+          p_igst_amount: payload.igstAmount ?? null,
+          p_buyer_gstin: payload.buyerGstin ?? null,
         });
         if (error) throw error;
-        // ── Persist GST fields (RPC doesn't accept them — direct UPDATE) ──
-        if (payload.gstEnabled) {
-          await supabase.from("sale_orders").update({
-            gst_enabled: true,
-            gst_type: payload.gstType ?? null,
-            gst_rate: payload.gstRate ?? null,
-            subtotal: payload.subtotal ?? null,
-            cgst_amount: payload.cgstAmount ?? null,
-            sgst_amount: payload.sgstAmount ?? null,
-            igst_amount: payload.igstAmount ?? null,
-            buyer_gstin: payload.buyerGstin ?? null,
-          }).eq("id", payload.id);
-        }
         posthog.capture("order.created", { type: "sale", item_count: payload.items?.length ?? 1, amount: payload.totalAmount });
         break;
       }
@@ -298,23 +302,27 @@ export const syncActionToSupabase = async (
             ram: i.ram,
             imei: i.imei,
             issue_tags: i.issueTags || [],
+            // Item-level GST (present when gstEnabled; COALESCE→NULL in RPC if absent)
+            hsn_code: i.hsnCode ?? null,
+            gst_rate: i.gstRate ?? null,
+            taxable_value: i.taxableValue ?? null,
+            cgst_amount: i.cgstAmount ?? null,
+            sgst_amount: i.sgstAmount ?? null,
+            igst_amount: i.igstAmount ?? null,
           })),
           p_payment_note: payload.paymentNote ?? null,
+          // Order-level GST (optional params — RPC defaults to no-GST if omitted)
+          p_gst_enabled: payload.gstEnabled ?? false,
+          p_gst_inclusive: payload.gstInclusive ?? true,
+          p_gst_type: payload.gstType ?? null,
+          p_gst_rate: payload.gstRate ?? null,
+          p_subtotal: payload.subtotal ?? null,
+          p_cgst_amount: payload.cgstAmount ?? null,
+          p_sgst_amount: payload.sgstAmount ?? null,
+          p_igst_amount: payload.igstAmount ?? null,
+          p_seller_gstin: payload.sellerGstin ?? null,
         });
         if (error) throw error;
-        // ── Persist GST fields (RPC doesn't accept them — direct UPDATE) ──
-        if (payload.gstEnabled) {
-          await supabase.from("purchase_orders").update({
-            gst_enabled: true,
-            gst_type: payload.gstType ?? null,
-            gst_rate: payload.gstRate ?? null,
-            subtotal: payload.subtotal ?? null,
-            cgst_amount: payload.cgstAmount ?? null,
-            sgst_amount: payload.sgstAmount ?? null,
-            igst_amount: payload.igstAmount ?? null,
-            seller_gstin: payload.sellerGstin ?? null,
-          }).eq("id", payload.id);
-        }
         posthog.capture("order.created", { type: "purchase", item_count: payload.items?.length ?? 1, channel: payload.acquisitionChannel, amount: payload.totalAmount });
         break;
       }

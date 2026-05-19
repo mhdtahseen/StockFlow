@@ -44,6 +44,7 @@ export interface SaleOrder {
   items: OrderItem[];
   // ── GST (optional — populated when gstEnabled is true) ──────────
   gstEnabled?: boolean;
+  gstInclusive?: boolean;          // true = price includes GST (default); false = price is pre-tax
   gstType?: "CGST_SGST" | "IGST";  // intra-state vs inter-state
   gstRate?: number;                // e.g. 18
   subtotal?: number;               // taxable value (pre-tax sum)

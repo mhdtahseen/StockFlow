@@ -93,6 +93,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
   const [dueDateStr, setDueDateStr] = useState<string>("");
   // ── GST (purchase input tax) ───────────────────────────────────────────────────────
   const [gstEnabled, setGstEnabled] = useState(false);
+  const [gstInclusive, setGstInclusive] = useState(true);
   const [sellerGstin, setSellerGstin] = useState("");
 
   // Multi-row State
@@ -378,8 +379,8 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
     if (!gstEnabled || rows.length === 0) return null;
     const prices = rows.map((r) => parseFloat(r.purchasePrice) || 0).filter(Boolean);
     if (prices.length === 0) return null;
-    return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, true);
-  }, [gstEnabled, rows, gstType]);
+    return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, gstInclusive);
+  }, [gstEnabled, rows, gstType, gstInclusive]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -419,7 +420,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       color: r.color,
       imei: r.imeis.filter(i => i.value.length > 0).map(i => i.value).join(" / "),
       ...(gstEnabled ? (() => {
-        const ig = calculateGst(parseFloat(r.purchasePrice) || 0, DEFAULT_GST_RATE, gstType, true);
+        const ig = calculateGst(parseFloat(r.purchasePrice) || 0, DEFAULT_GST_RATE, gstType, gstInclusive);
         return { hsnCode: "8517", gstRate: DEFAULT_GST_RATE, taxableValue: ig.taxableValue, cgstAmount: ig.cgstAmount, sgstAmount: ig.sgstAmount, igstAmount: ig.igstAmount };
       })() : {}),
     }));
@@ -443,6 +444,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
       ...(gstEnabled && gstBreakdown
         ? {
             gstEnabled: true,
+            gstInclusive,
             gstType,
             gstRate: DEFAULT_GST_RATE,
             subtotal: gstBreakdown.subtotal,
@@ -903,7 +905,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                         <p className="text-sm font-black text-slate-900 dark:text-slate-100 leading-tight">Apply GST</p>
                         <p className="text-[10px] font-semibold text-slate-400 leading-none mt-0.5">
                           {gstEnabled
-                            ? `18% inclusive · HSN 8517 · ${gstType === "IGST" ? "IGST" : "CGST + SGST"}`
+                            ? `18% ${gstInclusive ? "inclusive" : "exclusive"} · HSN 8517 · ${gstType === "IGST" ? "IGST" : "CGST + SGST"}`
                             : "Record input tax on this purchase (optional)"}
                         </p>
                       </div>
@@ -956,6 +958,35 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                         <span>{gstType === "IGST" ? "Inter-state purchase → IGST" : "Intra-state purchase → CGST + SGST"}</span>
                         <span>{DEFAULT_GST_RATE}%</span>
                       </div>
+
+                      {/* Inclusive / Exclusive pricing mode */}
+                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setGstInclusive(true)}
+                          className={clsx(
+                            "flex-1 text-[10px] font-bold py-1.5 rounded-md transition-colors",
+                            gstInclusive
+                              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                              : "text-slate-500 dark:text-slate-400",
+                          )}
+                        >
+                          Inclusive
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGstInclusive(false)}
+                          className={clsx(
+                            "flex-1 text-[10px] font-bold py-1.5 rounded-md transition-colors",
+                            !gstInclusive
+                              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                              : "text-slate-500 dark:text-slate-400",
+                          )}
+                        >
+                          Exclusive
+                        </button>
+                      </div>
+
                       {gstBreakdown && (
                         <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
                           <div className="flex justify-between text-[11px] text-slate-500">
@@ -980,7 +1011,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                             </div>
                           )}
                           <div className="flex justify-between text-[11px] font-black text-slate-700 dark:text-slate-300 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1">
-                            <span>Total (incl. tax)</span>
+                            <span>{gstInclusive ? "Total (incl. tax)" : "Total + Tax"}</span>
                             <span>₹{gstBreakdown.grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                           </div>
                         </div>

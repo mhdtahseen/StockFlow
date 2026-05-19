@@ -30,6 +30,7 @@ import { addCustomer } from "@/features/customers/slice";
 import { Customer, CustomerType } from "@/features/customers/types";
 import { AadhaarInput } from "@/components/ui/AadhaarInput";
 import clsx from "clsx";
+import { isValidGstin } from "@/utils/gstCalc";
 
 interface Props {
   selectedId?: string;
@@ -550,8 +551,12 @@ export function CustomerPicker({
                       placeholder="e.g. 27AAACR5055K1ZF"
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3 font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                     />
-                    {newGstin.length > 0 && newGstin.length !== 15 && (
-                      <p className="text-[11px] text-amber-500 font-semibold mt-1">GSTIN must be 15 characters</p>
+                    {newGstin.length > 0 && (
+                      newGstin.length !== 15
+                        ? <p className="text-[11px] text-amber-500 font-semibold mt-1">GSTIN must be 15 characters</p>
+                        : !isValidGstin(newGstin)
+                          ? <p className="text-[11px] text-amber-500 font-semibold mt-1">Invalid GSTIN format</p>
+                          : null
                     )}
                   </div>
                 </div>

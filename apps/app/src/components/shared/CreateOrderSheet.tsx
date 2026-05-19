@@ -86,6 +86,7 @@ export function CreateOrderSheet({
 
   // ── GST state ──────────────────────────────────────────────────────────────
   const [gstEnabled, setGstEnabled] = useState(false);
+  const [gstInclusive, setGstInclusive] = useState(true);
   const [buyerGstin, setBuyerGstin] = useState("");
 
   // ── Hybrid payment state (same pattern as AddPhoneUpdate) ─────────────────
@@ -150,6 +151,7 @@ export function CreateOrderSheet({
         setNotes("");
         setShowDiscounts(false);
         setGstEnabled(false);
+        setGstInclusive(true);
         setBuyerGstin("");
       }
     }
@@ -184,8 +186,8 @@ export function CreateOrderSheet({
         item.discountType === "PERCENT" ? price * (discountVal / 100) : discountVal;
       return Math.max(0, price - discount);
     });
-    return calculateOrderGst(effectivePrices, DEFAULT_GST_RATE, gstType, true);
-  }, [gstEnabled, items, gstType]);
+    return calculateOrderGst(effectivePrices, DEFAULT_GST_RATE, gstType, gstInclusive);
+  }, [gstEnabled, items, gstType, gstInclusive]);
 
   const cashPaid = parseFloat(cashStr) || 0;
   const upiPaid = parseFloat(upiStr) || 0;
@@ -266,6 +268,7 @@ export function CreateOrderSheet({
       ...(gstEnabled && gstBreakdown
         ? {
             gstEnabled: true,
+            gstInclusive,
             gstType,
             gstRate: DEFAULT_GST_RATE,
             subtotal: gstBreakdown.subtotal,
@@ -284,7 +287,7 @@ export function CreateOrderSheet({
             : discountVal;
         const effectivePrice = Math.max(0, price - discountAmt);
         const itemGst = gstEnabled
-          ? calculateGst(effectivePrice, DEFAULT_GST_RATE, gstType, true)
+          ? calculateGst(effectivePrice, DEFAULT_GST_RATE, gstType, gstInclusive)
           : null;
 
         return {
@@ -773,7 +776,7 @@ export function CreateOrderSheet({
                         </p>
                         <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 leading-none mt-0.5">
                           {gstEnabled
-                            ? `18% inclusive · HSN 8517 · ${gstType === "IGST" ? "IGST" : "CGST + SGST"}`
+                            ? `18% ${gstInclusive ? "inclusive" : "exclusive"} · HSN 8517 · ${gstType === "IGST" ? "IGST" : "CGST + SGST"}`
                             : "Issue a GST tax invoice"}
                         </p>
                       </div>
@@ -847,6 +850,34 @@ export function CreateOrderSheet({
                         <span>{DEFAULT_GST_RATE}%</span>
                       </div>
 
+                      {/* Inclusive / Exclusive pricing mode */}
+                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setGstInclusive(true)}
+                          className={clsx(
+                            "flex-1 text-[10px] font-bold py-1.5 rounded-md transition-colors",
+                            gstInclusive
+                              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                              : "text-slate-500 dark:text-slate-400",
+                          )}
+                        >
+                          Inclusive
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGstInclusive(false)}
+                          className={clsx(
+                            "flex-1 text-[10px] font-bold py-1.5 rounded-md transition-colors",
+                            !gstInclusive
+                              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                              : "text-slate-500 dark:text-slate-400",
+                          )}
+                        >
+                          Exclusive
+                        </button>
+                      </div>
+
                       {/* Live breakdown */}
                       {gstBreakdown && items.length > 0 && (
                         <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
@@ -872,7 +903,7 @@ export function CreateOrderSheet({
                             </div>
                           )}
                           <div className="flex justify-between text-[11px] font-black text-slate-700 dark:text-slate-300 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1">
-                            <span>Total (incl. tax)</span>
+                            <span>{gstInclusive ? "Total (incl. tax)" : "Total + Tax"}</span>
                             <span>₹{gstBreakdown.grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                           </div>
                         </div>
