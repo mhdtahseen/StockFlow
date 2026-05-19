@@ -19,7 +19,7 @@ import {
   type ColorOption,
 } from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
-import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
+import Autocomplete from "../components/ui/Autocomplete";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
@@ -610,7 +610,7 @@ function EditPhoneForm({ phone }: { phone: Phone }) {
               </label>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <ReusableAutocomplete
+                  <Autocomplete
                     data={issuesFlatList}
                     value={newTag}
                     onChange={setNewTag}

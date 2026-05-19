@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, Calendar, ShieldCheck, Printer, ArrowLeft } from 'lucide-react';
 import { fetchPublicOrder, PublicOrderData } from '@/services/shareService';
-import { PrintableInvoice } from '@/components/shared/PrintableInvoice';
+import { OrderPrintView } from '@/components/shared/OrderPrintView';
 import { format, isAfter, parseISO } from 'date-fns';
 
 // A4 width in px at 96dpi: 210mm = 793.7px
@@ -149,7 +149,7 @@ export default function PublicView() {
             }}
             className="shadow-2xl shadow-black/50 rounded-sm bg-white overflow-hidden"
           >
-            <PrintableInvoice
+            <OrderPrintView
               order={data.order as any}
               counterparty={data.counterparty as any}
               tenant={data.tenant as any}

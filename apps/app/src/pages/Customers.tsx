@@ -7,7 +7,7 @@ import { Search, ChevronRight, UserPlus, Filter, Phone, QrCode } from "lucide-re
 import { selectCustomers } from "@/features/customers/selectors";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
-import { ConnectSheet } from "@/components/shared/ConnectSheet";
+import { TradeNetworkConnectSheet } from "@/components/shared/TradeNetworkConnectSheet";
 import QrScannerModal from "@/components/shared/QrScannerModal";
 import { usePlan } from "@/hooks/usePlan";
 import { CustomerType } from "@/features/customers/types";
@@ -265,7 +265,7 @@ export default function Customers() {
         </div>
       </div>
 
-      <ConnectSheet
+      <TradeNetworkConnectSheet
         open={connectOpen}
         onOpenChange={setConnectOpen}
         initialCode={connectCode}

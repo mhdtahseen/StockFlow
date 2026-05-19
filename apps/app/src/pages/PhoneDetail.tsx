@@ -41,7 +41,7 @@ import {
 import { getUnitHistory } from "@/app/supabaseApi";
 import { Badge } from "@/components/ui/badge";
 import clsx from "clsx";
-import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
+import Autocomplete from "../components/ui/Autocomplete";
 import { repairsFlatList } from "../data/repairCatalog";
 import { CreateOrderSheet } from "../components/shared/CreateOrderSheet";
 import HeaderActions from "@/components/layout/HeaderActions";
@@ -716,7 +716,7 @@ export default function PhoneDetail() {
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">
                   What was repaired?
                 </label>
-                <ReusableAutocomplete
+                <Autocomplete
                   data={repairsFlatList}
                   value={repairNote}
                   onChange={setRepairNote}

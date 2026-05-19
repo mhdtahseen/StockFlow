@@ -21,10 +21,10 @@ import Login from "@/pages/Login";
 // Main pages
 import Dashboard from "@/pages/Dashboard";
 import Inventory from "@/pages/Inventory";
-import AddPhoneUpdate from "@/pages/AddPhoneUpdate";
+import AddDevices from "@/pages/AddDevices";
 import PhoneDetail from "@/pages/PhoneDetail";
 import EditPhone from "@/pages/EditPhone";
-import LedgerPage from "@/pages/LedgerPage";
+import Ledger from "@/pages/Ledger";
 import Customers from "@/pages/Customers";
 import CustomerDetail from "@/pages/CustomerDetail";
 import Orders from "@/pages/Orders";
@@ -128,10 +128,10 @@ function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path="inventory" element={<Inventory />} />
-            <Route path="add" element={<AddPhoneUpdate />} />
+            <Route path="add" element={<AddDevices />} />
             <Route path="inventory/:id" element={<PhoneDetail />} />
             <Route path="edit/:id" element={<EditPhone />} />
-            <Route path="ledger" element={<GatedRoute feature="full_ledger" element={<LedgerPage />} />} />
+            <Route path="ledger" element={<GatedRoute feature="full_ledger" element={<Ledger />} />} />
             <Route
               path="financials"
               element={<Navigate to="/ledger" replace />}

@@ -55,7 +55,7 @@ interface Props {
 
 type RejectionReason = "SCRATCHED" | "DEAD" | "WRONG_MODEL" | "OTHER";
 
-export function POConfirmSheet({ open, onOpenChange, order, onComplete }: Props) {
+export function PurchaseOrderConfirmSheet({ open, onOpenChange, order, onComplete }: Props) {
   const dispatch = useAppDispatch();
   const inventoryPhones = useAppSelector((state) => state.inventory.phones);
   const {

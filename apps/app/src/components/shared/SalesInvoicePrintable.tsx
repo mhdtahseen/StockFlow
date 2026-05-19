@@ -98,7 +98,7 @@ const amountToWords = (num: number) => {
   return words + "Only";
 };
 
-export const InvoicePrintable: React.FC<InvoicePrintableProps> = ({
+export const SalesInvoicePrintable: React.FC<InvoicePrintableProps> = ({
   order,
   customer,
   tenant,

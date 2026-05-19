@@ -80,7 +80,7 @@ interface Props {
   initialCode?: string; // pre-filled from QR scan or deep link
 }
 
-export function ConnectSheet({ open, onOpenChange, initialCode }: Props) {
+export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Props) {
   const dispatch = useAppDispatch();
   const existingCustomers = useAppSelector((s) => s.customers.customers);
 

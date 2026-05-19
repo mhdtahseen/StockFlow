@@ -32,7 +32,7 @@ import { selectCustomers, selectCounterpartyAdvance } from "@/features/customers
 import { addCustomerSettlement } from "@/features/customers/slice";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import CurrencyInput from "@/components/ui/CurrencyInput";
-import { PhoneSelectorSheet } from "./PhoneSelectorSheet";
+import { DeviceSelectorSheet } from "./DeviceSelectorSheet";
 import { usePlan } from "@/hooks/usePlan";
 import { useAuth } from "@/context/AuthContext";
 import { useUpgradeGate } from "@/context/UpgradeGateContext";
@@ -111,6 +111,7 @@ export function CreateOrderSheet({
   // Auto-switch to TRANSFER when a linked counterparty is selected
   const handleCustomerSelect = (c: Customer) => {
     setCustomer(c);
+    setBuyerGstin(c.gstin || "");
     if (c.linkedTenantId && canUse("trade_network")) {
       setOrderType("TRANSFER");
     } else if (orderType === "TRANSFER" && !c.linkedTenantId) {
@@ -128,6 +129,7 @@ export function CreateOrderSheet({
         // Pre-fill from existing order
         const existingCustomer = allCustomers.find((c) => c.id === existingOrder.counterpartyId) || null;
         setCustomer(existingCustomer);
+        setBuyerGstin((existingOrder as any).buyerGstin || existingCustomer?.gstin || "");
         setOrderType((existingOrder as any).orderType || "RETAIL");
         setNotes(existingOrder.notes || "");
         setDueDateStr(existingOrder.dueDate || "");
@@ -1106,7 +1108,7 @@ export function CreateOrderSheet({
         </SheetContent>
       </Sheet>
 
-      <PhoneSelectorSheet
+      <DeviceSelectorSheet
         open={selectorOpen}
         onOpenChange={setSelectorOpen}
         selectedIds={items.map((it) => it.phone.id)}

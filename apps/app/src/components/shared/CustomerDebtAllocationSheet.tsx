@@ -18,7 +18,7 @@ interface Props {
   customerId: string;
 }
 
-export function AllocationSheet({ open, onOpenChange, customerId }: Props) {
+export function CustomerDebtAllocationSheet({ open, onOpenChange, customerId }: Props) {
   const dispatch = useAppDispatch();
   const { user } = useAuth();
   const orders = useAppSelector(selectOrdersByCounterparty(customerId)).filter(o => o.status === 'OPEN' || o.status === 'PARTIAL').sort((a,b) => new Date(a.dueDate || a.createdAt).getTime() - new Date(b.dueDate || b.createdAt).getTime());

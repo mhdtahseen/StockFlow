@@ -20,7 +20,7 @@ interface Props {
   customer: Customer;
 }
 
-export function LinkTenantSheet({ open, onOpenChange, customer }: Props) {
+export function CustomerTradeLinkSheet({ open, onOpenChange, customer }: Props) {
   const dispatch = useAppDispatch();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);

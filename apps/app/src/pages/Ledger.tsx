@@ -51,7 +51,7 @@ import { supabase } from "../lib/supabase";
 import { parseStructuredNote } from "@/utils/financeUtils";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 
-export default function LedgerPage() {
+export default function Ledger() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const buckets = useAppSelector(selectWalletBuckets);

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Wrench, ChevronDown, X, Plus, CheckCircle2 } from "lucide-react";
 import clsx from "clsx";
 import { issuesFlatList, severityColorMap } from "@/data/issueCatalog";
-import ReusableAutocomplete from "./ui/ReusableAutocomplete";
+import Autocomplete from "./ui/Autocomplete";
 
 interface IssueSelectorProps {
   selectedTags: string[];
@@ -144,7 +144,7 @@ export const IssueSelector: React.FC<IssueSelectorProps> = ({
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">
                   Search Catalog
                 </label>
-                <ReusableAutocomplete
+                <Autocomplete
                   data={issuesFlatList}
                   value={tagQuery}
                   onChange={setTagQuery}

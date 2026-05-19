@@ -1,4 +1,4 @@
-import { AutocompleteItem } from "@/components/ui/ReusableAutocomplete";
+import { AutocompleteItem } from "@/components/ui/Autocomplete";
 
 export const PLATFORM_CATALOG: AutocompleteItem[] = [
   {

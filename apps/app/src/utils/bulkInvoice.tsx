@@ -5,7 +5,7 @@ import type { SaleOrder } from "@/features/billing/types";
 import type { PurchaseOrder } from "@/features/purchasing/types";
 import type { Customer } from "@/features/customers/types";
 import type { TenantInfo } from "@/context/AuthContext";
-import { PrintableInvoice } from "@/components/shared/PrintableInvoice";
+import { OrderPrintView } from "@/components/shared/OrderPrintView";
 
 export type BulkInvoiceMode = "combined" | "individual";
 
@@ -57,7 +57,7 @@ export async function generateBulkInvoice(opts: BulkInvoiceOptions): Promise<voi
           await new Promise<void>((resolve) => {
             reactRoot.render(
               <React.StrictMode>
-                <PrintableInvoice
+                <OrderPrintView
                   order={order}
                   counterparty={counterparty}
                   tenant={opts.tenant}
@@ -131,7 +131,7 @@ export async function generateBulkInvoice(opts: BulkInvoiceOptions): Promise<voi
           await new Promise<void>((resolve) => {
             reactRoot.render(
               <React.StrictMode>
-                <PrintableInvoice
+                <OrderPrintView
                   order={order}
                   counterparty={counterparty}
                   tenant={opts.tenant}
@@ -278,7 +278,7 @@ export async function generateBulkInvoice(opts: BulkInvoiceOptions): Promise<voi
       <>
         {opts.orders.map((order) => (
           <div key={order.id} className="invoice-page">
-            <PrintableInvoice
+            <OrderPrintView
               order={order}
               counterparty={opts.counterpartyMap[order.counterpartyId]}
               tenant={opts.tenant}
@@ -325,7 +325,7 @@ export async function generateBulkInvoice(opts: BulkInvoiceOptions): Promise<voi
       await new Promise<void>((resolve) => {
         reactRoot.render(
           <React.StrictMode>
-            <PrintableInvoice
+            <OrderPrintView
               order={order}
               counterparty={counterparty}
               tenant={opts.tenant}

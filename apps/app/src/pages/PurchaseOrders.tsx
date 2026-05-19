@@ -8,7 +8,7 @@ import { useAppSelector } from "../app/hooks";
 import { selectCustomers } from "../features/customers/selectors";
 import { PurchaseOrder, PurchaseOrderItem } from "../features/purchasing/types";
 import HeaderActions from "../components/layout/HeaderActions";
-import { BatchAddSheet } from "../components/shared/BatchAddSheet";
+import { BulkDeviceEntrySheet } from "../components/shared/BulkDeviceEntrySheet";
 import { FeatureGate } from "../components/shared/FeatureGate";
 import { BulkInvoiceSheet } from "../components/shared/BulkInvoiceSheet";
 import { useMultiSelect } from "../hooks/useMultiSelect";
@@ -321,7 +321,7 @@ export default function PurchaseOrders() {
         </div>
       )}
 
-      <BatchAddSheet
+      <BulkDeviceEntrySheet
         open={showBatchAdd}
         onOpenChange={setShowBatchAdd}
       />

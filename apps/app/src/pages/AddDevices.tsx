@@ -22,7 +22,7 @@ import CurrencyInput from "../components/ui/CurrencyInput";
 import { CustomerPicker } from "../components/ui/CustomerPicker";
 import { Customer } from "../features/customers/types";
 import ImeiSection from "../components/ImeiSection";
-import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
+import Autocomplete from "../components/ui/Autocomplete";
 import { PLATFORM_CATALOG } from "../data/platforms";
 import clsx from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
@@ -74,7 +74,7 @@ function makeRow(): DeviceRow {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AddPhoneUpdate() {
+export default function AddDevices() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const phones = useAppSelector((s) => s.inventory.phones);
@@ -360,9 +360,9 @@ export default function AddPhoneUpdate() {
                   : "Platform Name"}
               </label>
               {channel === "DIRECT" ? (
-                <CustomerPicker selectedId={vendor?.id} onSelect={setVendor} />
+                <CustomerPicker selectedId={vendor?.id} onSelect={(v) => { setVendor(v); setSellerGstin(v.gstin || ""); }} />
               ) : (
-                <ReusableAutocomplete
+                <Autocomplete
                   data={PLATFORM_CATALOG}
                   value={selectedPlatform}
                   onChange={setSelectedPlatform}

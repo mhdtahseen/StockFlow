@@ -11,7 +11,7 @@ export type AutocompleteItem = {
   severity?: 1 | 2 | 3 | 4 | 5;
 };
 
-export interface ReusableAutocompleteProps {
+export interface AutocompleteProps {
   data: AutocompleteItem[];
   placeholder?: string;
   value: string;
@@ -21,7 +21,7 @@ export interface ReusableAutocompleteProps {
   autoFocus?: boolean;
 }
 
-export default function ReusableAutocomplete({
+export default function Autocomplete({
   data,
   placeholder = "Search...",
   value,
@@ -29,7 +29,7 @@ export default function ReusableAutocomplete({
   onSelect,
   icon,
   autoFocus = false,
-}: ReusableAutocompleteProps) {
+}: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);

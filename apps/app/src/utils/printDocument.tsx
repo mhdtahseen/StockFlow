@@ -5,10 +5,10 @@ import type { SaleOrder } from "@/features/billing/types";
 import type { PurchaseOrder } from "@/features/purchasing/types";
 import type { Customer } from "@/features/customers/types";
 import type { TenantInfo } from "@/context/AuthContext";
-import { PrintableInvoice } from "@/components/shared/PrintableInvoice";
+import { OrderPrintView } from "@/components/shared/OrderPrintView";
 
 /**
- * Opens a new browser window with the PrintableInvoice component rendered,
+ * Opens a new browser window with the OrderPrintView component rendered,
  * then triggers window.print() for a pixel-perfect PDF with selectable text.
  *
  * On native Capacitor platforms (where window.print() is unavailable),
@@ -20,7 +20,7 @@ export async function printDocument(
   tenant: TenantInfo | null,
   isPurchaseOrder: boolean,
 ): Promise<void> {
-  // ─── Native: render PrintableInvoice → html2canvas → jsPDF → Share sheet ───
+  // ─── Native: render OrderPrintView → html2canvas → jsPDF → Share sheet ───
   if (Capacitor.isNativePlatform()) {
     const { jsPDF } = await import("jspdf");
     const html2canvas = (await import("html2canvas")).default;
@@ -36,7 +36,7 @@ export async function printDocument(
       await new Promise<void>((resolve) => {
         reactRoot.render(
           <React.StrictMode>
-            <PrintableInvoice
+            <OrderPrintView
               order={order}
               counterparty={counterparty}
               tenant={tenant}
@@ -164,7 +164,7 @@ export async function printDocument(
   const reactRoot = createRoot(root);
   reactRoot.render(
     <React.StrictMode>
-      <PrintableInvoice
+      <OrderPrintView
         order={order}
         counterparty={counterparty}
         tenant={tenant}

@@ -46,7 +46,7 @@ import {
 } from "@/utils/gstCalc";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Building } from "lucide-react";
-import ReusableAutocomplete from "../ui/ReusableAutocomplete";
+import Autocomplete from "../ui/Autocomplete";
 import { PLATFORM_CATALOG } from "@/data/platforms";
 import { lookupUnitByImei } from "@/app/supabaseApi";
 
@@ -67,7 +67,7 @@ interface DeviceRow {
   isAutoPopulated?: boolean;
 }
 
-export function BatchAddSheet({ open, onOpenChange }: Props) {
+export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
   const dispatch = useAppDispatch();
   const { user, tenant } = useAuth();
   const { canUse } = usePlan();
@@ -508,10 +508,10 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
                 {channel === "DIRECT" ? (
                   <CustomerPicker
                     selectedId={supplier?.id}
-                    onSelect={setSupplier}
+                    onSelect={(v) => { setSupplier(v); setSellerGstin(v.gstin || ""); }}
                   />
                 ) : (
-                  <ReusableAutocomplete
+                  <Autocomplete
                     data={PLATFORM_CATALOG}
                     value={selectedPlatform}
                     onChange={setSelectedPlatform}

@@ -8,8 +8,8 @@ import {
 
 import { Link } from "react-router-dom"
 
-import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
+import { NavMain } from "@/components/NavMain"
+import { NavUser } from "@/components/NavUser"
 import {
   Sidebar,
   SidebarContent,

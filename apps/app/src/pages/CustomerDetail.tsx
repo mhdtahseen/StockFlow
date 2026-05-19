@@ -46,7 +46,7 @@ import { SaleOrder } from "@/features/billing/types";
 import { CustomerPayment } from "@/features/customers/types";
 import { PaymentAllocationSheet } from "@/components/shared/PaymentAllocationSheet";
 import { CustomerEditSheet } from "@/components/shared/CustomerEditSheet";
-import { LinkTenantSheet } from "@/components/shared/LinkTenantSheet";
+import { CustomerTradeLinkSheet } from "@/components/shared/CustomerTradeLinkSheet";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 import { createShareLink } from "@/services/shareService";
 import { useAuth } from "@/context/AuthContext";
@@ -955,7 +955,7 @@ export default function CustomerDetail() {
         onOpenChange={setEditOpen}
         customer={customer}
       />
-      <LinkTenantSheet
+      <CustomerTradeLinkSheet
         open={linkTenantOpen}
         onOpenChange={setLinkTenantOpen}
         customer={customer}

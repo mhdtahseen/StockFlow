@@ -14,7 +14,7 @@ interface Props {
   onSelect: (phones: Phone[]) => void;
 }
 
-export function PhoneSelectorSheet({ open, onOpenChange, selectedIds, onSelect }: Props) {
+export function DeviceSelectorSheet({ open, onOpenChange, selectedIds, onSelect }: Props) {
   const [query, setQuery] = useState("");
   const phones = useAppSelector(state => state.inventory.phones).filter((p: Phone) => p.status === 'IN_STOCK');
   const [draftIds, setDraftIds] = useState<Set<string>>(new Set(selectedIds));

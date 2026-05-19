@@ -24,7 +24,7 @@ import {
   type ColorOption,
 } from "../hooks/useDeviceCatalog";
 import { CatalogAutocomplete } from "../components/ui/CatalogAutocomplete";
-import ReusableAutocomplete from "../components/ui/ReusableAutocomplete";
+import Autocomplete from "../components/ui/Autocomplete";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
@@ -51,7 +51,7 @@ import {
   ArrowRight,
   Receipt,
 } from "lucide-react";
-import { BatchAddSheet } from "../components/shared/BatchAddSheet";
+import { BulkDeviceEntrySheet } from "../components/shared/BulkDeviceEntrySheet";
 
 import { usePlan } from "../hooks/usePlan";
 import { useAuth } from "../context/AuthContext";
@@ -502,7 +502,7 @@ export default function AddPhone() {
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Supplier / Channel</label>
               <CustomerPicker 
                 selectedId={selectedSupplier?.id} 
-                onSelect={setSelectedSupplier} 
+                onSelect={(v) => { setSelectedSupplier(v); setSellerGstin(v.gstin || ""); }} 
               />
             </div>
 
@@ -668,7 +668,7 @@ export default function AddPhone() {
         </form>
       </main>
 
-      <BatchAddSheet
+      <BulkDeviceEntrySheet
         open={showBatchAdd}
         onOpenChange={setShowBatchAdd}
       />

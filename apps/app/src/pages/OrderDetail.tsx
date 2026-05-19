@@ -68,7 +68,7 @@ import { format, parseISO } from "date-fns";
 import clsx from "clsx";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 import { RecordPaymentSheet } from "@/components/shared/RecordPaymentSheet";
-import { POConfirmSheet } from "@/components/shared/POConfirmSheet";
+import { PurchaseOrderConfirmSheet } from "@/components/shared/PurchaseOrderConfirmSheet";
 import { EditPurchaseOrderSheet } from "@/components/shared/EditPurchaseOrderSheet";
 import { EditSaleOrderSheet } from "@/components/shared/EditSaleOrderSheet";
 import HeaderActions from "@/components/layout/HeaderActions";
@@ -1608,7 +1608,7 @@ export default function OrderDetail() {
       />
 
       {isPurchaseOrder && (
-        <POConfirmSheet
+        <PurchaseOrderConfirmSheet
           open={showConfirmSheet}
           onOpenChange={setShowConfirmSheet}
           order={order as any}
