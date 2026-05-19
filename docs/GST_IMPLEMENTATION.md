@@ -23,7 +23,7 @@ Optional GST support for sale and purchase invoices. Tax is **tax-inclusive** (M
 
 | Rule | Detail |
 |---|---|
-| **Opt-in per order** | GST toggle appears on the CreateOrderSheet only when `tenant.gstin` is set |
+| **Opt-in per order** | GST toggle appears on CreateOrderSheet, BatchAddSheet, AddPhoneUpdate, and AddPhone — only when `tenant.gstin` is set |
 | **Tax-inclusive pricing** | MRP already includes GST — taxable value is back-calculated: `taxable = price / (1 + rate/100)` |
 | **Default rate** | 18% — correct for mobile handsets (HSN 8517) |
 | **Default HSN code** | 8517 — telephones / mobile handsets |
@@ -31,36 +31,38 @@ Optional GST support for sale and purchase invoices. Tax is **tax-inclusive** (M
 | **Inter-state** | IGST (18%) — when seller and buyer are in different states |
 | **State detection** | Derived from first 2 digits of GSTIN (e.g. `27` = Maharashtra). Falls back to CGST+SGST when buyer GSTIN is absent or invalid |
 | **Buyer GSTIN** | Optional — entered at order creation or pre-filled from customer record. Required for B2B inter-state IGST |
-| **Purchase orders** | GST fields stored on PurchaseOrder for input tax credit tracking — no creation UI yet (see [Known Enhancements](#known-enhancements)) |
+| **Purchase orders** | GST toggle available on all three PO creation forms (BatchAddSheet, AddPhoneUpdate, AddPhone). Toggle defaults off — opt-in only. Useful for recording input tax credit |
 
 ---
 
 ## Architecture Overview
 
 ```
-User toggles GST on CreateOrderSheet
+User toggles GST on CreateOrderSheet / BatchAddSheet / AddPhoneUpdate / AddPhone
         │
         ▼
 calculateOrderGst()  ←──  gstCalc.ts (pure functions)
         │
         ▼
-Redux: addOrder dispatch
-  ├── SaleOrder.gstEnabled = true
-  ├── SaleOrder.gstType, gstRate, subtotal, cgst/sgst/igstAmount
-  ├── SaleOrder.buyerGstin
+Redux: addOrder / addPurchaseOrder dispatch
+  ├── Order.gstEnabled = true
+  ├── Order.gstType, gstRate, subtotal, cgst/sgst/igstAmount
+  ├── Order.buyerGstin (sale) or sellerGstin (purchase)
   └── OrderItem.hsnCode, gstRate, taxableValue, cgst/sgst/igstAmount
         │
         ▼
 supabaseApi.ts
-  ├── create_trade_order RPC  (creates order + items — no GST params)
-  └── UPDATE sale_orders SET gst_enabled, gst_type, ...  (follow-up if gstEnabled)
+  ├── create_trade_order / create_purchase_order RPC  (no GST params)
+  └── UPDATE sale_orders / purchase_orders SET gst_enabled, gst_type, ...  (follow-up if gstEnabled)
         │
-        ▼
-PrintableInvoice.tsx
-  ├── Shows Subtotal (taxable value)
-  ├── CGST + SGST rows  OR  single IGST row
-  ├── Grand Total (= original totalAmount including tax)
-  └── Buyer GSTIN in "Bill To" block
+        ├──► OrderDetail.tsx
+        │     └── GST breakdown card (taxable value, CGST+SGST or IGST, counterparty GSTIN)
+        │
+        └──► PrintableInvoice.tsx
+              ├── Shows Subtotal (taxable value)
+              ├── CGST + SGST rows  OR  single IGST row
+              ├── Grand Total (= original totalAmount including tax)
+              └── Buyer GSTIN in "Bill To" block
 ```
 
 ---
@@ -73,7 +75,11 @@ PrintableInvoice.tsx
 | `apps/app/src/features/billing/types.ts` | `SaleOrder` + `OrderItem` GST fields |
 | `apps/app/src/features/purchasing/types.ts` | `PurchaseOrder` + `PurchaseOrderItem` GST fields |
 | `apps/app/src/features/customers/types.ts` | `Customer.gstin` + `Customer.state` |
-| `apps/app/src/components/shared/CreateOrderSheet.tsx` | GST toggle UI + live breakdown preview |
+| `apps/app/src/components/shared/CreateOrderSheet.tsx` | Sale order GST toggle UI + live breakdown preview |
+| `apps/app/src/components/shared/BatchAddSheet.tsx` | Batch PO GST toggle with Supplier GSTIN input + live breakdown |
+| `apps/app/src/pages/AddPhoneUpdate.tsx` | Bulk ingest PO GST toggle + per-item GST spread |
+| `apps/app/src/pages/AddPhone.tsx` | Single-device PO GST toggle (shown when supplier selected) |
+| `apps/app/src/pages/OrderDetail.tsx` | Inline GST breakdown card on order detail view |
 | `apps/app/src/components/shared/PrintableInvoice.tsx` | Invoice rendering with conditional GST rows |
 | `apps/app/src/components/shared/CustomerEditSheet.tsx` | GSTIN field on customer edit form |
 | `apps/app/src/components/ui/CustomerPicker.tsx` | GSTIN field in quick-create customer form |
@@ -203,6 +209,19 @@ sgstAmount:   <item SGST>
 igstAmount:   <item IGST>
 ```
 
+### Purchase Order Creation (BatchAddSheet, AddPhoneUpdate, AddPhone)
+
+GST toggle is available on all three purchase order creation forms. Behaviour is identical to sale orders:
+
+- Toggle is hidden unless `tenant?.gstin` is set
+- Toggle defaults **off** — always opt-in
+- `sellerGstin` input (Supplier GSTIN) appears when toggled on — pre-fills from `supplier.gstin` if set
+- Tax type badge shows **Inter-state → IGST** or **Intra-state → CGST + SGST** based on comparing tenant GSTIN state code vs supplier GSTIN state code
+- Live breakdown shows taxable value, tax lines, and grand total
+- On submit, `gstEnabled`, `gstType`, `gstRate`, `subtotal`, `cgstAmount`, `sgstAmount`, `igstAmount`, `sellerGstin` are spread onto the PO; each item gets `hsnCode`, `gstRate`, `taxableValue`, per-item `cgst/sgst/igstAmount`
+
+> **AddPhone only:** the GST section is additionally gated on `selectedSupplier !== null`, since there is no PO without a supplier.
+
 ### Customer GSTIN
 
 **CustomerEditSheet:** GSTIN input added to the edit form (optional, auto-uppercase, 15-char validation warning).
@@ -210,6 +229,25 @@ igstAmount:   <item IGST>
 **CustomerPicker (quick-create):** GSTIN field added to the Advanced section alongside Address/Aadhaar.
 
 When a customer with a saved GSTIN is selected on `CreateOrderSheet`, the buyer GSTIN field is pre-filled from `customer.gstin` automatically.
+
+### OrderDetail GST Breakdown (`OrderDetail.tsx`)
+
+When `order.gstEnabled` is true, a **GST Breakdown card** is rendered below the master summary (Total / Paid / Outstanding) and above the Core Actions buttons:
+
+```
+┌─────────────────────────────────────────┐
+│  🧾  GST BREAKDOWN                      │
+│  Taxable Value              ₹XX,XXX.XX  │
+│  CGST (9%)                  ₹X,XXX.XX   │  ← or IGST (18%)
+│  SGST (9%)                  ₹X,XXX.XX   │
+│  ──────────────────────────────────── │
+│  Total (incl. GST)          ₹XX,XXX.XX  │
+│  Supplier GSTIN   27AAACR5055K1ZF       │  ← when present
+└─────────────────────────────────────────┘
+```
+
+- Shows `Supplier GSTIN` for purchase orders, `Buyer GSTIN` for sale orders
+- IGST variant shows a single IGST row instead of CGST + SGST
 
 ---
 
@@ -324,9 +362,7 @@ All columns are **nullable** — existing rows are fully unaffected.
 
 | Enhancement | Priority | Notes |
 |---|---|---|
-| **GST toggle on Purchase Orders** (AddPhone, AddPhoneUpdate, BatchAddSheet) | Medium | Purchase orders can carry GST for input tax credit — no creation UI yet |
 | **`customer.state` fallback in `determineGstType`** | Low | When a buyer has no GSTIN, `customer.state` (free-text) could be used to infer inter-state — `CreateOrderSheet` doesn't pass it yet |
 | **Full GSTIN regex validation in CustomerEditSheet** | Low | Currently only warns on length ≠ 15; doesn't call `isValidGstin()` for format check |
-| **GST breakdown on OrderDetail page** | Low | Tax summary is only visible on the invoice, not inline on the order detail view |
 | **Per-item HSN code customization** | Very Low | All phones default to 8517 — only relevant if non-phone inventory is added |
-| **Item-level GST persistence to DB** | Very Low | `sale_order_items.cgst_amount` etc. are stored in Redux but not written to Supabase (order-level aggregates are sufficient for invoicing) |
+| **Item-level GST persistence to DB** | Very Low | `sale_order_items.cgst_amount` / `purchase_order_items.cgst_amount` etc. are stored in Redux but not written to Supabase (order-level aggregates are sufficient for invoicing) |
