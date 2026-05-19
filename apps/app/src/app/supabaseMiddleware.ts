@@ -51,9 +51,10 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
           type.startsWith(prefix),
         );
 
-        // 2a. Prevent double-sync for ledger entries included in RPC transactions
+        // 2a. Prevent double-sync for ledger entries that are part of an RPC transaction
+        // (entries with a purchaseOrderId or saleOrderId are synced by the RPC itself)
         const isTransactionSegment = 
-          type === "ledger/addEntry" && action.payload?.referenceId;
+          type === "ledger/addEntry" && (action.payload?.purchaseOrderId || action.payload?.saleOrderId);
 
         // 2b. Prevent double-sync for phones linked to a PO
         const isPOLinkedPhone = 

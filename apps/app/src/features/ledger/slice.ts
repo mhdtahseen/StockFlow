@@ -300,7 +300,7 @@ const ledgerSlice = createSlice({
     // 6. REPAIR AUTOMATION
     builder.addCase(addRepairLog, (state, action) => {
       const { phoneId, amount, note, recordedBy } = action.payload;
-      state.pendingEntries.push({
+      state.entries.push({
         id: `v-repair-${phoneId}-${Date.now()}`,
         type: "REPAIR_COST",
         referenceId: phoneId,
@@ -309,6 +309,17 @@ const ledgerSlice = createSlice({
         createdAt: new Date().toISOString(),
         recordedBy: recordedBy || "system",
       });
+    });
+
+    // Fix A: REPAIR DELETION — void ledger entry and clean pending
+    builder.addCase(removeRepairLog, (state, action) => {
+      const { phoneId, entryId } = action.payload;
+      state.entries.forEach((e) => {
+        if (e.id === entryId) e.isVoided = true;
+      });
+      state.pendingEntries = state.pendingEntries.filter(
+        (e) => !(e.referenceId === phoneId && e.type === "REPAIR_COST"),
+      );
     });
 
     // 7. INVENTORY ADJUSTMENT AUTOMATION (Asset Drift Management)
@@ -322,7 +333,7 @@ const ledgerSlice = createSlice({
         newPrice !== prevPrice
       ) {
         const delta = newPrice - prevPrice;
-        state.pendingEntries.push({
+        state.entries.push({
           id: `v-adj-${id}-${Date.now()}`,
           type: "INVENTORY_ADJUSTMENT",
           referenceId: id,
@@ -347,6 +358,10 @@ const ledgerSlice = createSlice({
           e.isVoided = true;
         }
       });
+      // Fix C: also clear any pending entries for this phone
+      state.pendingEntries = (state.pendingEntries || []).filter(
+        (e) => e.referenceId !== phoneId,
+      );
     });
   },
 });
@@ -358,4 +373,5 @@ export const {
   addPendingEntry,
   removePendingEntry,
 } = ledgerSlice.actions;
+
 export default ledgerSlice.reducer;

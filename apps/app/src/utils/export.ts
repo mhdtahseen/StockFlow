@@ -27,23 +27,14 @@ export const generateExport = (
     switch (entry.type) {
       case "CAPITAL_INJECTION":
       case "CUSTOMER_PAYMENT":
-      case "FUNDS_RELEASED":
       case "PHONE_SALE":
-        change = entry.amount; // positive
+        change = entry.amount;
         break;
       case "WITHDRAWAL":
       case "SUPPLIER_PAYMENT":
       case "PROFIT_WITHDRAWAL":
       case "REPAIR_COST":
-        change = entry.amount; // negative
-        break;
-      case "FUNDS_PLEDGED":
-        // This moves money OUT of wallet into lien
-        change = entry.amount; // usually negative
-        break;
-      case "FUNDS_CONSUMED":
-        // This is money spent from the lien, doesn't affect wallet balance again
-        change = 0;
+        change = entry.amount;
         break;
     }
     runningBalance += change;
@@ -109,7 +100,6 @@ export const generateExport = (
     switch (entry.type) {
       case "CAPITAL_INJECTION":
       case "CUSTOMER_PAYMENT":
-      case "FUNDS_RELEASED":
       case "PHONE_SALE":
         change = entry.amount;
         break;
@@ -117,11 +107,7 @@ export const generateExport = (
       case "SUPPLIER_PAYMENT":
       case "PROFIT_WITHDRAWAL":
       case "REPAIR_COST":
-      case "FUNDS_PLEDGED":
-        change = entry.amount; // usually negative
-        break;
-      case "FUNDS_CONSUMED":
-        change = 0;
+        change = entry.amount;
         break;
     }
 

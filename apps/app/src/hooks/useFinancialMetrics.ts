@@ -39,8 +39,7 @@ export function useFinancialData(dateRange?: DateRange) {
   const liquidity = useMemo(() => {
     return {
       availableToSpend: buckets.wallet,
-      lockedInPledges: buckets.lien,
-      cashAtHand: buckets.wallet + buckets.lien,
+      cashAtHand: buckets.wallet,
       stockValue: stockValue,
     };
   }, [buckets, stockValue]);
@@ -61,7 +60,7 @@ export function useFinancialData(dateRange?: DateRange) {
       .reduce((sum, e) => sum + e.amount, 0);
 
     const inventoryCost = rangeEntries
-      .filter((e) => e.type === "FUNDS_CONSUMED")
+      .filter((e) => e.type === "SUPPLIER_PAYMENT")
       .reduce((sum, e) => sum + Math.abs(e.amount), 0);
 
     const operationalCosts = rangeEntries
@@ -105,10 +104,10 @@ export function useFinancialData(dateRange?: DateRange) {
   const dailyVelocity = useMemo(() => {
     const todayEntries = entries.filter((e) => isToday(parseISO(e.createdAt)));
     const moneyIn = todayEntries
-      .filter((e) => ["PHONE_SALE", "CAPITAL_INJECTION", "CUSTOMER_PAYMENT", "FUNDS_RELEASED"].includes(e.type))
+      .filter((e) => ["PHONE_SALE", "CAPITAL_INJECTION", "CUSTOMER_PAYMENT"].includes(e.type))
       .reduce((s, e) => s + Math.max(0, e.amount), 0);
     const moneyOut = todayEntries
-      .filter((e) => ["FUNDS_PLEDGED", "WITHDRAWAL", "SUPPLIER_PAYMENT", "PROFIT_WITHDRAWAL", "REPAIR_COST"].includes(e.type))
+      .filter((e) => ["WITHDRAWAL", "SUPPLIER_PAYMENT", "PROFIT_WITHDRAWAL", "REPAIR_COST"].includes(e.type))
       .reduce((s, e) => s + Math.abs(Math.min(0, e.amount)), 0);
     
     // Reverse calculation for opening balance
@@ -128,11 +127,10 @@ export function useFinancialData(dateRange?: DateRange) {
           case "CAPITAL_INJECTION":
           case "CUSTOMER_PAYMENT":
           case "PHONE_SALE":
-          case "FUNDS_RELEASED":
+          case "SUPPLIER_PAYMENT":
           case "WITHDRAWAL":
           case "PROFIT_WITHDRAWAL":
           case "REPAIR_COST":
-          case "FUNDS_PLEDGED":
             currentWallet += entry.amount;
             break;
         }
@@ -165,7 +163,7 @@ export function useGroupedTransactions(filter: FinancialHistoryFilter, dateRange
 
     const filtered = sorted.filter((entry) => {
       if (filter === "Sales" && entry.type !== "PHONE_SALE") return false;
-      if (filter === "Purchases" && entry.type !== "FUNDS_CONSUMED") return false;
+      if (filter === "Purchases" && entry.type !== "SUPPLIER_PAYMENT") return false;
       if (filter === "Repairs" && entry.type !== "REPAIR_COST") return false;
 
       const entryDate = parseISO(entry.createdAt);

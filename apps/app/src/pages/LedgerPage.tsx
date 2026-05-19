@@ -27,7 +27,6 @@ import {
   Banknote,
   Landmark,
   Wallet as WalletIcon,
-  Package,
   ShoppingBag,
   ArrowUp,
   ArrowUpRight,
@@ -241,9 +240,6 @@ export default function LedgerPage() {
         case "SUPPLIER_PAYMENT": return "PAYOUT";
         case "WITHDRAWAL": return "WITHDRAWAL";
         case "PROFIT_WITHDRAWAL": return "PROFIT_TAKE";
-        case "FUNDS_PLEDGED": return "PLEDGE";
-        case "FUNDS_RELEASED": return "REFUND";
-        case "FUNDS_CONSUMED": return "PURCHASE";
         case "REPAIR_COST": return "REPAIR";
         case "PHONE_SALE": return "SALE";
         default: return entry.type;
@@ -262,9 +258,6 @@ export default function LedgerPage() {
       PAYOUT: { label: "Bill Payout", icon: <Building2 size={20} />, color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400" },
       WITHDRAWAL: { label: "Owner Takeout", icon: <Banknote size={20} />, color: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400" },
       PROFIT_TAKE: { label: "Profit Takeout", icon: <Banknote size={20} />, color: "bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400" },
-      PLEDGE: { label: "Funds Pledged", icon: <ArrowRightLeft size={20} />, color: "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400" },
-      REFUND: { label: "Funds Refunded", icon: <ArrowRightLeft size={20} />, color: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" },
-      PURCHASE: { label: "Stock Buy", icon: <Package size={20} />, color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400" },
       REPAIR: { label: "Repair Payout", icon: <Wrench size={20} />, color: "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400" },
       SALE: { label: "Stock Sale", icon: <ShoppingBag size={20} />, color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400" },
     } as Record<string, { label: string; icon: React.ReactElement; color: string }>)[type] || { label: type, icon: <ArrowRightLeft size={20} />, color: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400" };
@@ -559,15 +552,6 @@ export default function LedgerPage() {
                         {formatCurrency(liquidity.availableToSpend)}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <div className="w-1 h-1 rounded-full bg-amber-500"></div>{" "}
-                        Lien
-                      </span>
-                      <span className="text-amber-400 text-xs">
-                        {formatCurrency(liquidity.lockedInPledges)}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -775,15 +759,14 @@ export default function LedgerPage() {
                         "CUSTOMER_PAYMENT",
                         "MONEY_ADDED",
                         "PHONE_SALE",
-                        "FUNDS_RELEASED",
                       ].includes(entry.type);
 
                       // Specific logic for running totals on this specific day (calculated by iterating backwards)
                       let dailyAccumulatedExpense = 0;
                       let dailyAccumulatedProfit = 0;
-                      if (entry.type === "FUNDS_CONSUMED") {
+                      if (entry.type === "SUPPLIER_PAYMENT") {
                         for (let i = entries.length - 1; i >= index; i--) {
-                          if (entries[i].type === "FUNDS_CONSUMED") {
+                          if (entries[i].type === "SUPPLIER_PAYMENT") {
                             dailyAccumulatedExpense += Math.abs(
                               entries[i].amount,
                             );
@@ -896,8 +879,6 @@ export default function LedgerPage() {
                                     "SUPPLIER_PAYMENT",
                                     "WITHDRAWAL",
                                     "PROFIT_WITHDRAWAL",
-                                    "FUNDS_PLEDGED",
-                                    "FUNDS_RELEASED",
                                   ].includes(entry.type) ? (
                                     <span className="text-slate-500 dark:text-slate-400 font-medium shrink-0 ml-2">
                                       Balance:{" "}
@@ -905,7 +886,7 @@ export default function LedgerPage() {
                                         runningBalances[entry.id],
                                       )}
                                     </span>
-                                  ) : entry.type === "FUNDS_CONSUMED" ? (
+                                  ) : entry.type === "SUPPLIER_PAYMENT" ? (
                                     <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px] shrink-0 ml-2">
                                       Expense:{" "}
                                       {formatCurrency(dailyAccumulatedExpense)}
@@ -1005,7 +986,6 @@ export default function LedgerPage() {
                                 "CAPITAL_INJECTION",
                                 "CUSTOMER_PAYMENT",
                                 "PHONE_SALE",
-                                "FUNDS_RELEASED",
                               ].includes(entries[entries.length - 1].type)
                                 ? entries[entries.length - 1].amount
                                 : 0) +
@@ -1013,7 +993,6 @@ export default function LedgerPage() {
                                 "WITHDRAWAL",
                                 "SUPPLIER_PAYMENT",
                                 "PROFIT_WITHDRAWAL",
-                                "FUNDS_PLEDGED",
                                 "REPAIR_COST",
                               ].includes(entries[entries.length - 1].type)
                                 ? Math.abs(entries[entries.length - 1].amount)

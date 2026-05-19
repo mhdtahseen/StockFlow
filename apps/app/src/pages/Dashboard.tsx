@@ -9,7 +9,6 @@ import { supabase } from "@/lib/supabase";
 import {
   ArrowRight,
   Wallet,
-  ShieldCheck,
   ShoppingCart,
   Landmark,
   TrendingUp,
@@ -209,7 +208,7 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* 4 Widgets: Purchases, Pledged, Sales, Avg Profit */}
+        {/* 4 Widgets: Purchases, Sales, Avg Profit */}
         <section className="py-4">
           <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 pl-1">
             Capital Allocation
@@ -230,21 +229,6 @@ export default function Dashboard() {
               </div>
               <p className="font-bold text-xl text-slate-900 dark:text-slate-100 tracking-tight">
                 {formatCurrency(buckets.purchases)}
-              </p>
-            </div>
-
-            {/* Pledged */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="size-10 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <ShieldCheck size={20} />
-                </div>
-                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Pledged (Lien)
-                </p>
-              </div>
-              <p className="font-bold text-xl text-slate-900 dark:text-slate-100 tracking-tight">
-                {formatCurrency(buckets.lien)}
               </p>
             </div>
 

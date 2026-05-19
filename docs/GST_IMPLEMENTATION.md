@@ -1,6 +1,6 @@
 # GST Implementation
 
-Optional GST support for sale and purchase invoices. Tax is **tax-inclusive** (MRP already contains GST — standard Indian retail model). GST is toggled per-order, not globally, and is only available when the tenant's own GSTIN is configured in their profile.
+Optional GST support for sale and purchase invoices. GST is toggled per-order, not globally, and is only available when the tenant's own GSTIN is configured in their profile. Each order carries a **pricing mode** — **Inclusive** (price already includes GST, back-calculate taxable value) or **Exclusive** (price is pre-tax, add GST on top). The mode defaults to Inclusive (standard Indian retail MRP model) and is user-selectable via a segmented toggle on every order creation form.
 
 ---
 
@@ -24,7 +24,7 @@ Optional GST support for sale and purchase invoices. Tax is **tax-inclusive** (M
 | Rule | Detail |
 |---|---|
 | **Opt-in per order** | GST toggle appears on CreateOrderSheet, BatchAddSheet, AddPhoneUpdate, and AddPhone — only when `tenant.gstin` is set |
-| **Tax-inclusive pricing** | MRP already includes GST — taxable value is back-calculated: `taxable = price / (1 + rate/100)` |
+| **Pricing mode** | **Inclusive** (default): price contains GST — `taxable = price / (1 + rate/100)`. **Exclusive**: price is pre-tax — `taxable = price`, `total = price × (1 + rate/100)`. Selectable per order via Inclusive/Exclusive toggle |
 | **Default rate** | 18% — correct for mobile handsets (HSN 8517) |
 | **Default HSN code** | 8517 — telephones / mobile handsets |
 | **Intra-state** | CGST (9%) + SGST (9%) — when seller and buyer are in the same state |
@@ -46,17 +46,23 @@ calculateOrderGst()  ←──  gstCalc.ts (pure functions)
         ▼
 Redux: addOrder / addPurchaseOrder dispatch
   ├── Order.gstEnabled = true
+  ├── Order.gstInclusive (true = inclusive, false = exclusive)
   ├── Order.gstType, gstRate, subtotal, cgst/sgst/igstAmount
   ├── Order.buyerGstin (sale) or sellerGstin (purchase)
   └── OrderItem.hsnCode, gstRate, taxableValue, cgst/sgst/igstAmount
         │
         ▼
 supabaseApi.ts
-  ├── create_trade_order / create_purchase_order RPC  (no GST params)
-  └── UPDATE sale_orders / purchase_orders SET gst_enabled, gst_type, ...  (follow-up if gstEnabled)
+  └── create_trade_order / create_purchase_order RPC  ← GST params passed directly (atomic)
+        ├── p_gst_enabled, p_gst_inclusive, p_gst_type, p_gst_rate
+        ├── p_subtotal, p_cgst_amount, p_sgst_amount, p_igst_amount
+        ├── p_buyer_gstin (sale) / p_seller_gstin (purchase)
+        └── p_items JSON now includes hsn_code, gst_rate, taxable_value,
+                                         cgst_amount, sgst_amount, igst_amount per item
         │
         ├──► OrderDetail.tsx
         │     └── GST breakdown card (taxable value, CGST+SGST or IGST, counterparty GSTIN)
+        │     └── INCLUSIVE / EXCLUSIVE badge + dynamic total label
         │
         └──► PrintableInvoice.tsx
               ├── Shows Subtotal (taxable value)
@@ -83,9 +89,10 @@ supabaseApi.ts
 | `apps/app/src/components/shared/PrintableInvoice.tsx` | Invoice rendering with conditional GST rows |
 | `apps/app/src/components/shared/CustomerEditSheet.tsx` | GSTIN field on customer edit form |
 | `apps/app/src/components/ui/CustomerPicker.tsx` | GSTIN field in quick-create customer form |
-| `apps/app/src/app/supabaseApi.ts` | Persists GST fields to Supabase after order creation |
+| `apps/app/src/app/supabaseApi.ts` | Passes all GST params atomically to RPCs; item-level GST in `p_items` JSON |
 | `apps/app/src/app/useOfflineSyncManager.ts` | Hydrates GST fields when loading orders + customers |
 | `supabase/migrations/20260519_gst_fields.sql` | Adds all nullable GST columns to DB tables |
+| `supabase/migrations/20260520_gst_atomic_inclusive.sql` | Adds `gst_inclusive` column; rewrites both RPCs to accept GST params atomically + item-level GST extraction |
 
 ---
 
@@ -94,14 +101,15 @@ supabaseApi.ts
 ### `SaleOrder` (billing/types.ts)
 
 ```ts
-gstEnabled?:  boolean              // false by default
-gstType?:     "CGST_SGST" | "IGST"
-gstRate?:     number               // e.g. 18
-subtotal?:    number               // sum of taxable values (pre-tax)
-cgstAmount?:  number               // 0 when IGST
-sgstAmount?:  number               // 0 when IGST
-igstAmount?:  number               // 0 when CGST_SGST
-buyerGstin?:  string               // buyer GSTIN for B2B invoices
+gstEnabled?:   boolean              // false by default
+gstInclusive?: boolean             // true = price includes GST (default); false = price is pre-tax
+gstType?:      "CGST_SGST" | "IGST"
+gstRate?:      number               // e.g. 18
+subtotal?:     number               // sum of taxable values (pre-tax)
+cgstAmount?:   number               // 0 when IGST
+sgstAmount?:   number               // 0 when IGST
+igstAmount?:   number               // 0 when CGST_SGST
+buyerGstin?:   string               // buyer GSTIN for B2B invoices
 ```
 
 ### `OrderItem` (billing/types.ts)
@@ -117,7 +125,7 @@ igstAmount?:   number
 
 ### `PurchaseOrder` (purchasing/types.ts)
 
-Same GST fields as `SaleOrder`, except `sellerGstin?` instead of `buyerGstin?`.
+Same GST fields as `SaleOrder` (including `gstInclusive?`), except `sellerGstin?` instead of `buyerGstin?`.
 
 ### `Customer` (customers/types.ts)
 
@@ -147,11 +155,15 @@ Returns the first 2 characters (state code) from a GSTIN.
 - Falls back to `"CGST_SGST"` when buyer GSTIN is absent or invalid
 
 #### `calculateGst(amount, rate, type, inclusive): GstBreakdown`
-Core calculation for a single price:
+Core calculation for a single price. The `inclusive` boolean controls pricing mode:
 ```ts
-// Tax-inclusive (MRP contains GST):
+// Inclusive (default — MRP contains GST):
 taxableValue = amount / (1 + rate/100)
-taxAmount    = taxableValue * rate/100
+taxAmount    = amount - taxableValue
+
+// Exclusive (price is pre-tax):
+taxableValue = amount
+taxAmount    = amount * rate/100
 
 // CGST_SGST split:
 cgstAmount = sgstAmount = taxAmount / 2
@@ -178,32 +190,34 @@ The GST toggle section is rendered **between the Devices list and Fiscal Settlem
 - No tax fields on submitted order
 
 **Toggle on:**
-1. Switch turns green — shows "18% inclusive · HSN 8517 · CGST + SGST / IGST"
-2. Optional buyer GSTIN input field appears:
+1. Switch turns green — shows `"18% inclusive · HSN 8517 · CGST + SGST"` (subtitle updates dynamically when mode or type changes)
+2. **Inclusive / Exclusive segmented toggle** appears — two-pill selector, defaults to Inclusive
+3. Optional buyer GSTIN input field:
    - Auto-uppercased
    - Green checkmark when valid (15-char + regex)
-   - Red warning when 15 chars but invalid format
+   - Amber warning when 15 chars but invalid format
    - Inter-state/intra-state badge updates live as GSTIN is typed
-3. Live tax breakdown preview:
+4. Live tax breakdown preview:
    - Subtotal (taxable value)
    - CGST (9%) + SGST (9%)  **or**  IGST (18%)
-   - Grand Total
+   - **"Total (incl. tax)"** label when Inclusive; **"Total + Tax"** when Exclusive
 
 **On submit**, the following are written to the order:
 ```ts
-gstEnabled: true
-gstType:    "CGST_SGST" | "IGST"
-gstRate:    18
-subtotal:   <sum of back-calculated taxable values>
-cgstAmount: <aggregate CGST>
-sgstAmount: <aggregate SGST>
-igstAmount: <aggregate IGST>
-buyerGstin: <entered GSTIN or customer.gstin>
+gstEnabled:   true
+gstInclusive: true | false          // user-selected pricing mode
+gstType:      "CGST_SGST" | "IGST"
+gstRate:      18
+subtotal:     <sum of taxable values>
+cgstAmount:   <aggregate CGST>
+sgstAmount:   <aggregate SGST>
+igstAmount:   <aggregate IGST>
+buyerGstin:   <entered GSTIN or customer.gstin>
 
 // Per item:
 hsnCode:      "8517"
 gstRate:      18
-taxableValue: <item effectivePrice / 1.18>
+taxableValue: <per-item taxable value>
 cgstAmount:   <item CGST>
 sgstAmount:   <item SGST>
 igstAmount:   <item IGST>
@@ -215,18 +229,19 @@ GST toggle is available on all three purchase order creation forms. Behaviour is
 
 - Toggle is hidden unless `tenant?.gstin` is set
 - Toggle defaults **off** — always opt-in
+- **Inclusive / Exclusive segmented toggle** identical to sale order forms
 - `sellerGstin` input (Supplier GSTIN) appears when toggled on — pre-fills from `supplier.gstin` if set
 - Tax type badge shows **Inter-state → IGST** or **Intra-state → CGST + SGST** based on comparing tenant GSTIN state code vs supplier GSTIN state code
-- Live breakdown shows taxable value, tax lines, and grand total
-- On submit, `gstEnabled`, `gstType`, `gstRate`, `subtotal`, `cgstAmount`, `sgstAmount`, `igstAmount`, `sellerGstin` are spread onto the PO; each item gets `hsnCode`, `gstRate`, `taxableValue`, per-item `cgst/sgst/igstAmount`
+- Live breakdown shows taxable value, tax lines, and grand total with dynamic label ("Total (incl. tax)" / "Total + Tax")
+- On submit, `gstEnabled`, `gstInclusive`, `gstType`, `gstRate`, `subtotal`, `cgstAmount`, `sgstAmount`, `igstAmount`, `sellerGstin` are spread onto the PO; each item gets `hsnCode`, `gstRate`, `taxableValue`, per-item `cgst/sgst/igstAmount`
 
 > **AddPhone only:** the GST section is additionally gated on `selectedSupplier !== null`, since there is no PO without a supplier.
 
 ### Customer GSTIN
 
-**CustomerEditSheet:** GSTIN input added to the edit form (optional, auto-uppercase, 15-char validation warning).
+**CustomerEditSheet:** GSTIN input on the edit form (optional, auto-uppercase). Graduated validation: amber "GSTIN must be 15 characters" when length ≠ 15; amber "Invalid GSTIN format" when 15 chars but fails regex; no blocking — save is always allowed.
 
-**CustomerPicker (quick-create):** GSTIN field added to the Advanced section alongside Address/Aadhaar.
+**CustomerPicker (quick-create):** Same graduated validation on the GSTIN field in the Advanced section.
 
 When a customer with a saved GSTIN is selected on `CreateOrderSheet`, the buyer GSTIN field is pre-filled from `customer.gstin` automatically.
 
@@ -235,17 +250,19 @@ When a customer with a saved GSTIN is selected on `CreateOrderSheet`, the buyer 
 When `order.gstEnabled` is true, a **GST Breakdown card** is rendered below the master summary (Total / Paid / Outstanding) and above the Core Actions buttons:
 
 ```
-┌─────────────────────────────────────────┐
-│  🧾  GST BREAKDOWN                      │
-│  Taxable Value              ₹XX,XXX.XX  │
-│  CGST (9%)                  ₹X,XXX.XX   │  ← or IGST (18%)
-│  SGST (9%)                  ₹X,XXX.XX   │
-│  ──────────────────────────────────── │
-│  Total (incl. GST)          ₹XX,XXX.XX  │
-│  Supplier GSTIN   27AAACR5055K1ZF       │  ← when present
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  🧾  GST BREAKDOWN              [INCLUSIVE]      │  ← or [EXCLUSIVE] badge
+│  Taxable Value              ₹XX,XXX.XX           │
+│  CGST (9%)                  ₹X,XXX.XX            │  ← or IGST (18%)
+│  SGST (9%)                  ₹X,XXX.XX            │
+│  ────────────────────────────────────────────  │
+│  Total (incl. GST)          ₹XX,XXX.XX           │  ← or "Total + GST" when Exclusive
+│  Supplier GSTIN   27AAACR5055K1ZF                │  ← when present
+└─────────────────────────────────────────────────┘
 ```
 
+- **INCLUSIVE** (emerald badge) or **EXCLUSIVE** (blue badge) shown in card header based on `order.gstInclusive !== false`
+- Total label is dynamic: `"Total (incl. GST)"` when inclusive, `"Total + GST"` when exclusive
 - Shows `Supplier GSTIN` for purchase orders, `Buyer GSTIN` for sale orders
 - IGST variant shows a single IGST row instead of CGST + SGST
 
@@ -292,25 +309,30 @@ Seller header:
 
 ### Writing to Supabase (`supabaseApi.ts`)
 
-The `create_trade_order` and `create_purchase_order` Postgres RPCs do not accept GST parameters. A follow-up direct `UPDATE` is performed after each RPC when `gstEnabled` is true:
+GST data is passed **atomically inside the RPC call** — no follow-up UPDATE. Both RPCs accept optional GST params (all `DEFAULT NULL` / `DEFAULT FALSE`), so existing callers without GST are unaffected.
 
-```ts
-// billing/addOrder
-if (payload.gstEnabled) {
-  await supabase.from("sale_orders").update({
-    gst_enabled, gst_type, gst_rate, subtotal,
-    cgst_amount, sgst_amount, igst_amount, buyer_gstin
-  }).eq("id", payload.id);
-}
-
-// purchasing/addPurchaseOrder
-if (payload.gstEnabled) {
-  await supabase.from("purchase_orders").update({
-    gst_enabled, gst_type, gst_rate, subtotal,
-    cgst_amount, sgst_amount, igst_amount, seller_gstin
-  }).eq("id", payload.id);
-}
+**`create_trade_order` (sale orders) — additional params:**
+```sql
+p_gst_enabled   BOOLEAN  DEFAULT FALSE
+p_gst_inclusive BOOLEAN  DEFAULT TRUE
+p_gst_type      TEXT     DEFAULT NULL
+p_gst_rate      NUMERIC  DEFAULT NULL
+p_subtotal      NUMERIC  DEFAULT NULL
+p_cgst_amount   NUMERIC  DEFAULT NULL
+p_sgst_amount   NUMERIC  DEFAULT NULL
+p_igst_amount   NUMERIC  DEFAULT NULL
+p_buyer_gstin   TEXT     DEFAULT NULL
 ```
+
+**`create_purchase_order` (purchase orders) — same, with `p_seller_gstin` instead of `p_buyer_gstin`.**
+
+The RPC body does an atomic `UPDATE ... WHERE id = p_order_id` inside the same transaction when `p_gst_enabled` is true.
+
+**Item-level GST** is written via the existing `p_items` JSON array. Each item object now includes:
+```json
+{ "hsn_code": "8517", "gst_rate": 18, "taxable_value": ..., "cgst_amount": ..., "sgst_amount": ..., "igst_amount": ... }
+```
+The RPC extracts these keys per item during the INSERT loop (via `COALESCE`), so item-level GST data is fully persisted in the same transaction.
 
 Customer `gstin` and `state` are included in the standard `INSERT`/`UPDATE` on the `counterparties` table.
 
@@ -320,14 +342,15 @@ All GST fields are mapped during the 90-day hydration fetch:
 
 **Sale orders:**
 ```ts
-gstEnabled: o.gst_enabled ?? false
-gstType:    o.gst_type ?? undefined
-gstRate:    o.gst_rate ?? undefined
-subtotal:   o.subtotal ?? undefined
-cgstAmount: o.cgst_amount ?? undefined
-sgstAmount: o.sgst_amount ?? undefined
-igstAmount: o.igst_amount ?? undefined
-buyerGstin: o.buyer_gstin ?? undefined
+gstEnabled:   o.gst_enabled   ?? false
+gstInclusive: o.gst_inclusive ?? undefined
+gstType:      o.gst_type      ?? undefined
+gstRate:      o.gst_rate      ?? undefined
+subtotal:     o.subtotal      ?? undefined
+cgstAmount:   o.cgst_amount   ?? undefined
+sgstAmount:   o.sgst_amount   ?? undefined
+igstAmount:   o.igst_amount   ?? undefined
+buyerGstin:   o.buyer_gstin   ?? undefined
 ```
 
 **Purchase orders:** same, with `sellerGstin: o.seller_gstin ?? undefined`.
@@ -342,9 +365,9 @@ state: c.state ?? undefined
 
 ## Database Migration
 
-`supabase/migrations/20260519_gst_fields.sql`
+### `20260519_gst_fields.sql`
 
-All columns are **nullable** — existing rows are fully unaffected.
+Adds all nullable GST columns — existing rows fully unaffected.
 
 | Table | Columns Added |
 |---|---|
@@ -356,6 +379,15 @@ All columns are **nullable** — existing rows are fully unaffected.
 
 `gst_type` has a `CHECK` constraint: `('CGST_SGST', 'IGST')`.
 
+### `20260520_gst_atomic_inclusive.sql`
+
+| Table | Change |
+|---|---|
+| `sale_orders` | `gst_inclusive BOOLEAN DEFAULT TRUE` added |
+| `purchase_orders` | `gst_inclusive BOOLEAN DEFAULT TRUE` added |
+| `public.create_trade_order(...)` | Rewritten — accepts 9 optional GST params; atomic UPDATE + item-level GST extraction inside single transaction |
+| `public.create_purchase_order(...)` | Rewritten — same pattern with `p_seller_gstin` |
+
 ---
 
 ## Known Enhancements
@@ -363,6 +395,5 @@ All columns are **nullable** — existing rows are fully unaffected.
 | Enhancement | Priority | Notes |
 |---|---|---|
 | **`customer.state` fallback in `determineGstType`** | Low | When a buyer has no GSTIN, `customer.state` (free-text) could be used to infer inter-state — `CreateOrderSheet` doesn't pass it yet |
-| **Full GSTIN regex validation in CustomerEditSheet** | Low | Currently only warns on length ≠ 15; doesn't call `isValidGstin()` for format check |
 | **Per-item HSN code customization** | Very Low | All phones default to 8517 — only relevant if non-phone inventory is added |
-| **Item-level GST persistence to DB** | Very Low | `sale_order_items.cgst_amount` / `purchase_order_items.cgst_amount` etc. are stored in Redux but not written to Supabase (order-level aggregates are sufficient for invoicing) |
+| **Invoice template for Exclusive pricing** | Very Low | `PrintableInvoice.tsx` currently assumes inclusive totals — line item prices should be shown as pre-tax when `gstInclusive` is false |

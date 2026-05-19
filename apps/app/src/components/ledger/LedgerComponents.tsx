@@ -4,7 +4,6 @@ import {
   ArrowRightLeft, 
   Banknote, 
   Landmark, 
-  Package, 
   ShoppingBag, 
   Wrench,
   Calendar
@@ -28,7 +27,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   customSummaryLabel,
   formatCurrency
 }) => {
-  const isPositive = ["CAPITAL_INJECTION", "CUSTOMER_PAYMENT", "PHONE_SALE", "FUNDS_RELEASED"].includes(entry.type);
+  const isPositive = ["CAPITAL_INJECTION", "CUSTOMER_PAYMENT", "PHONE_SALE"].includes(entry.type);
 
   const getDetails = (entry: any) => {
     switch (entry.type) {
@@ -67,33 +66,6 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
           color: "bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400",
           note: "Taking Profits",
         };
-      case "FUNDS_PLEDGED": {
-        const p = phones.find((ph) => ph.id === entry.referenceId);
-        return {
-          label: p ? `Pending: ${p.brand} ${p.model}` : "Capital Pledged",
-          icon: <ArrowRightLeft size={20} />,
-          color: "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400",
-          note: "Escrow Locked",
-        };
-      }
-      case "FUNDS_RELEASED": {
-        const r = phones.find((ph) => ph.id === entry.referenceId);
-        return {
-          label: r ? `Refund: ${r.brand} ${r.model}` : "Pledge Released",
-          icon: <ArrowRightLeft size={20} />,
-          color: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400",
-          note: "Escrow Refunded",
-        };
-      }
-      case "FUNDS_CONSUMED": {
-        const c = phones.find((ph) => ph.id === entry.referenceId);
-        return {
-          label: c ? `${c.brand} ${c.model} Purchase` : "Inventory Acquisition",
-          icon: <Package size={20} />,
-          color: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400",
-          note: "Acquisition",
-        };
-      }
       case "REPAIR_COST": {
         const rp = phones.find((ph) => ph.id === entry.referenceId);
         return {

@@ -45,9 +45,8 @@ export const selectCashflowSummary = (period: TimePeriod) =>
 
     let grossSales = 0;
     let collections = 0;
-    let capitalInvested = 0; // Money actually consumed for assets
+    let capitalInvested = 0; // Money paid to suppliers for purchases
     let repairCosts = 0;
-    let pledgedCapital = 0; // Money tied up currently
     let injections = 0;
     let supplierPayments = 0;
     let personalWithdrawals = 0;
@@ -59,11 +58,11 @@ export const selectCashflowSummary = (period: TimePeriod) =>
           grossSales += entry.amount;
         }
         if (entry.type === "CUSTOMER_PAYMENT") collections += entry.amount;
-        if (entry.type === "FUNDS_CONSUMED") capitalInvested += Math.abs(entry.amount);
+        if (entry.type === "SUPPLIER_PAYMENT") {
+          capitalInvested += Math.abs(entry.amount);
+          supplierPayments += Math.abs(entry.amount);
+        }
         if (entry.type === "REPAIR_COST") repairCosts += Math.abs(entry.amount);
-        if (entry.type === "SUPPLIER_PAYMENT") supplierPayments += Math.abs(entry.amount);
-        if (entry.type === "FUNDS_PLEDGED") pledgedCapital += Math.abs(entry.amount);
-        if (entry.type === "FUNDS_RELEASED") pledgedCapital -= Math.abs(entry.amount);
         if (entry.type === "CAPITAL_INJECTION") injections += entry.amount;
         if (entry.type === "WITHDRAWAL") personalWithdrawals += Math.abs(entry.amount);
         if (entry.type === "PROFIT_WITHDRAWAL") personalWithdrawals += Math.abs(entry.amount);
@@ -77,7 +76,6 @@ export const selectCashflowSummary = (period: TimePeriod) =>
       collections,
       capitalInvested,
       repairCosts,
-      pledgedCapital,
       injections,
       supplierPayments,
       personalWithdrawals,

@@ -55,10 +55,10 @@ export const selectTrueProfit = createSelector(
       .filter((e) => e.type === "PHONE_SALE")
       .reduce((sum, e) => sum + e.amount, 0);
 
-    // Expenses (FUNDS_CONSUMED is usually purchase cost, REPAIR_COST)
+    // Expenses: purchases via supplier payments + repair costs
     const costs = active
       .filter((e) =>
-        ["FUNDS_CONSUMED", "REPAIR_COST", "PROFIT_WITHDRAWAL"].includes(e.type),
+        ["SUPPLIER_PAYMENT", "REPAIR_COST", "PROFIT_WITHDRAWAL"].includes(e.type),
       )
       .reduce((sum, e) => sum + Math.abs(e.amount), 0);
 

@@ -9,9 +9,6 @@ export type FinanceTransactionType =
   | "CAPITAL_TOPUP"
   | "WITHDRAWAL"
   | "PROFIT_TAKE"
-  | "PLEDGE"
-  | "REFUND"
-  | "STOCK_BUY"
   | "STOCK_SALE"
   | "OPERATIONAL_EXPENSE";
 
@@ -35,9 +32,6 @@ export const mapLedgerType = (rawType: string, isAdvance: boolean = false): Fina
     case "SUPPLIER_PAYMENT": return "SUPPLIER_PAYMENT";
     case "WITHDRAWAL": return "WITHDRAWAL";
     case "PROFIT_WITHDRAWAL": return "PROFIT_TAKE";
-    case "FUNDS_PLEDGED": return "PLEDGE";
-    case "FUNDS_RELEASED": return "REFUND";
-    case "FUNDS_CONSUMED": return "STOCK_BUY";
     case "REPAIR_COST": return "REPAIR";
     case "PHONE_SALE": return "STOCK_SALE";
     case "OPERATIONAL_EXPENSE": return "OPERATIONAL_EXPENSE";
@@ -55,9 +49,6 @@ export const getTransactionLabel = (type: FinanceTransactionType): string => {
     case "CAPITAL_TOPUP": return "Owner Injection";
     case "WITHDRAWAL": return "Owner Takeout";
     case "PROFIT_TAKE": return "Profit Takeout";
-    case "PLEDGE": return "Funds Pledged";
-    case "REFUND": return "Funds Refunded";
-    case "STOCK_BUY": return "Stock Purchase";
     case "STOCK_SALE": return "Stock Sale";
     case "OPERATIONAL_EXPENSE": return "Op. Expense";
     default: return type;
@@ -97,7 +88,6 @@ export const parseStructuredNote = (note: string): ParsedNote | null => {
 export const getTransactionColor = (type: FinanceTransactionType): string => {
   switch (type) {
     case "CAPITAL_TOPUP":
-    case "REFUND":
       return "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400";
     case "SETTLEMENT":
     case "STOCK_SALE":
@@ -105,12 +95,10 @@ export const getTransactionColor = (type: FinanceTransactionType): string => {
     case "MID_PAYMENT":
       return "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400";
     case "SUPPLIER_PAYMENT":
-    case "STOCK_BUY":
     case "WITHDRAWAL":
     case "OPERATIONAL_EXPENSE":
       return "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400";
     case "REPAIR":
-    case "PLEDGE":
       return "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400";
     case "PROFIT_TAKE":
       return "bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400";

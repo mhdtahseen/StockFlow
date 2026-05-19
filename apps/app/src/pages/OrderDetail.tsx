@@ -611,14 +611,13 @@ export default function OrderDetail() {
 
       if (isPurchaseOrder) {
         return (
-          (e.type === "SUPPLIER_PAYMENT" || e.type === "FUNDS_CONSUMED") &&
+          (e.type === "SUPPLIER_PAYMENT") &&
           Math.abs(e.amount) > 0
         );
       } else {
         return (
           (e.type === "CUSTOMER_PAYMENT" ||
-            e.type === "PHONE_SALE" ||
-            e.type === "FUNDS_CONSUMED") &&
+            e.type === "PHONE_SALE") &&
           Math.abs(e.amount) > 0
         );
       }

@@ -273,6 +273,33 @@ export const syncActionToSupabase = async (
         break;
       }
       // ─── INVENTORY ────────────────────────────────────────────────────
+      case "inventory/addRepairLog": {
+        const { phoneId, amount, note, recordedBy } = payload;
+        const { error } = await supabase.from("ledger").insert({
+          id: `v-repair-${phoneId}-${Date.now()}`,
+          tenant_id,
+          user_id: recordedBy,
+          type: "REPAIR_COST",
+          reference_id: phoneId,
+          amount: -amount,
+          note: `REPAIR - #${phoneId.slice(0, 8).toUpperCase()} : ${note}`,
+          created_at: new Date().toISOString(),
+        });
+        if (error) throw error;
+        break;
+      }
+
+      case "inventory/removeRepairLog": {
+        const { entryId } = payload;
+        const { error } = await supabase
+          .from("ledger")
+          .delete()
+          .eq("id", entryId)
+          .eq("tenant_id", tenant_id);
+        if (error) throw error;
+        break;
+      }
+
       case "inventory/linkPhoneToPO": {
         const { error } = await supabase.rpc("link_phone_to_po", {
           p_phone_id: payload.phoneId,

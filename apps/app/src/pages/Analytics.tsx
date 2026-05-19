@@ -103,7 +103,7 @@ export default function Analytics() {
           const entryTime = new Date(e.createdAt).getTime();
           if (entryTime >= periodStart && entryTime <= periodEnd) {
             if (e.type === "PHONE_SALE") sales += e.amount;
-            if (["FUNDS_CONSUMED", "REPAIR_COST", "SUPPLIER_PAYMENT"].includes(e.type)) expense += Math.abs(e.amount);
+            if (["REPAIR_COST", "SUPPLIER_PAYMENT"].includes(e.type)) expense += Math.abs(e.amount);
           }
         });
 
@@ -121,7 +121,7 @@ export default function Analytics() {
         entries.forEach((e) => {
           if (format(new Date(e.createdAt), "MMM dd") === dayStr) {
             if (e.type === "PHONE_SALE") sales += e.amount;
-            if (["FUNDS_CONSUMED", "REPAIR_COST", "SUPPLIER_PAYMENT"].includes(e.type)) expense += Math.abs(e.amount);
+            if (["REPAIR_COST", "SUPPLIER_PAYMENT"].includes(e.type)) expense += Math.abs(e.amount);
           }
         });
 
@@ -141,7 +141,7 @@ export default function Analytics() {
           const entryTime = new Date(e.createdAt).getTime();
           if (entryTime > periodStart && entryTime <= periodEndEnd) {
             if (e.type === "PHONE_SALE") sales += e.amount;
-            if (["FUNDS_CONSUMED", "REPAIR_COST", "SUPPLIER_PAYMENT"].includes(e.type)) expense += Math.abs(e.amount);
+            if (["REPAIR_COST", "SUPPLIER_PAYMENT"].includes(e.type)) expense += Math.abs(e.amount);
           }
         });
 
@@ -159,7 +159,7 @@ export default function Analytics() {
         entries.forEach((e) => {
           if (format(new Date(e.createdAt), "MMM yyyy") === monthStr) {
             if (e.type === "PHONE_SALE") sales += e.amount;
-            if (e.type === "FUNDS_CONSUMED") expense += Math.abs(e.amount);
+            if (e.type === "SUPPLIER_PAYMENT") expense += Math.abs(e.amount);
           }
         });
 
@@ -1000,16 +1000,8 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Pledged & Avg Profit — compact row */}
-        <div className="grid grid-cols-2 gap-3 pb-8">
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 text-center">
-            <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">
-              Pledged Escrow
-            </p>
-            <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
-              {formatCurrency(summary.pledgedCapital)}
-            </p>
-          </div>
+        {/* Avg Profit — compact row */}
+        <div className="grid grid-cols-1 gap-3 pb-8">
           <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 text-center">
             <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">
               Avg Profit %

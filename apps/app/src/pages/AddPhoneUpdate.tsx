@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { addPhone, linkPhoneToPO } from "../features/inventory/slice";
-import { addEntry } from "../features/ledger/slice";
 import { addPurchaseOrder, addSupplierPayment } from "../features/purchasing/slice";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -301,23 +300,9 @@ export default function AddPhoneUpdate() {
           allocations: [{ purchaseOrderId: poId, amountAllocated: totalPaid }],
         }),
       );
-      dispatch(
-        addEntry({
-          id: crypto.randomUUID(),
-          createdAt: ts,
-          description: channel === "PLATFORM" ? `Payment for ${selectedPlatform} Order` : `Payment to ${effectiveVendor.name}`,
-          type: "FUNDS_CONSUMED",
-          amount: -totalPaid,
-          balanceAfter: 0,
-          counterpartyId: effectiveVendor.id,
-          purchaseOrderId: poId,
-          paymentMode: "CASH",
-          status: "PENDING", // PENDING so that ledger sync can replace it without duplicate
-        } as any),
-      );
     }
 
-    // Resulting wallet impact will be handled by the create_purchase_order RPC (Cash Basis).
+    // Resulting wallet impact will be handled by the create_purchase_order RPC (SUPPLIER_PAYMENT).
 
     setIsSubmitting(true);
     toast.success(

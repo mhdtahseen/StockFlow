@@ -6,15 +6,12 @@ import CurrencyInput from "../components/ui/CurrencyInput";
 import { useAppSelector, useAppDispatch } from "../app/hooks";
 import { useAuth } from "../context/AuthContext";
 import {
-  markAsInStock,
   markAsSold,
   removePhone,
   addRepairLog,
   removeRepairLog,
 } from "../features/inventory/slice";
-import { addEntry, removeEntry } from "../features/ledger/slice";
 import {
-  markPOItemAccepted,
   markPOItemRejected,
 } from "../features/purchasing/slice";
 import { format, parseISO } from "date-fns";
@@ -66,8 +63,6 @@ export default function PhoneDetail() {
   );
 
   const [showSaleModal, setShowSaleModal] = useState(false);
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [purchasePriceInput, setPurchasePriceInput] = useState("");
   const [showRepairModal, setShowRepairModal] = useState(false);
   const [repairAmount, setRepairAmount] = useState("");
   const [repairNote, setRepairNote] = useState("");
@@ -142,96 +137,13 @@ export default function PhoneDetail() {
     ? ((phone.salePrice - effectiveCostBasis) / effectiveCostBasis) * 100
     : 15.0;
 
-  const handleConfirmPurchase = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!purchasePriceInput || Number(purchasePriceInput) <= 0) return;
-    const finalPrice = Number(purchasePriceInput);
-    const pledgedAmount = phone.purchasePrice; // original escrow amount
-    const now = new Date().toISOString();
-
-    // 1. Adjust escrow if final price differs from pledged amount
-    if (finalPrice > pledgedAmount) {
-      // Need more money — pledge the difference from wallet → lien
-      dispatch(
-        addEntry({
-          id: crypto.randomUUID(),
-          type: "FUNDS_PLEDGED",
-          referenceId: phone.id,
-          amount: -(finalPrice - pledgedAmount), // NEGATIVE for wallet deduction
-          note: `PURCHASE - ${phone.brand} ${phone.model} : Cost adjustment (Increase)`,
-          recordedBy: user?.id || 'system',
-          createdAt: now,
-        }),
-      );
-    } else if (finalPrice < pledgedAmount) {
-      // Overpledged — release the surplus from lien → wallet
-      dispatch(
-        addEntry({
-          id: crypto.randomUUID(),
-          type: "FUNDS_RELEASED",
-          referenceId: phone.id,
-          amount: pledgedAmount - finalPrice,
-          note: `PURCHASE - ${phone.brand} ${phone.model} : Cost adjustment (Surplus)`,
-          recordedBy: user?.id || 'system',
-          createdAt: now,
-        }),
-      );
-    }
-
-    // 2. Consume the final amount from lien → purchases
-    dispatch(
-      addEntry({
-        id: crypto.randomUUID(),
-        type: "FUNDS_CONSUMED",
-        referenceId: phone.id,
-        amount: -finalPrice, // NEGATIVE for consumption from lien
-        note: `PURCHASE - ${phone.brand} ${phone.model} : Confirmed and added to stock`,
-        recordedBy: user?.id || 'system',
-        createdAt: now,
-      }),
-    );
-
-    // 3. Update inventory status + price
-    dispatch(markAsInStock({ id: phone.id, finalPrice }));
-
-    // 4. PO-aware logic: if phone has a purchaseOrderId, mark PO item as accepted
-    if ((phone as any).purchaseOrderId) {
-      dispatch(
-        markPOItemAccepted({
-          purchaseOrderId: (phone as any).purchaseOrderId,
-          itemId: (phone as any).purchaseOrderItemId ?? phone.id,
-          phoneId: phone.id,
-          finalPrice,
-        }),
-      );
-    }
-
-    setShowPurchaseModal(false);
-    toast.success("Purchase Confirmed", {
-      description: `${phone.brand} ${phone.model} moved to In Stock.${(phone as any).purchaseOrderId ? " Purchase order updated." : ""}`,
-    });
-  };
-
   const handleLogRepair = (e: React.FormEvent) => {
     e.preventDefault();
     if (!repairAmount || Number(repairAmount) <= 0) return;
     const amount = Number(repairAmount);
     const entryId = `repair-${phone.id}-${Date.now()}`;
 
-    // Write directly to ledger.entries so Finance tab shows it immediately.
-    // addRepairLog only goes to pendingEntries (Watchtower), which is NOT
-    // what the repairEntries selector reads from.
-    dispatch(addEntry({
-      id: entryId,
-      type: "REPAIR_COST",
-      referenceId: phone.id,
-      amount: -amount,
-      note: `REPAIR - #${phone.id.slice(0, 8).toUpperCase()} : ${repairNote.trim() || 'General Maintenance'}`,
-      createdAt: new Date().toISOString(),
-      recordedBy: user?.id || 'system',
-    }));
-
-    // Also fire addRepairLog so the sync middleware queues this to the backend
+    // Fire addRepairLog: Watchtower will push to ledger.entries (Fix B)
     dispatch(addRepairLog({
       phoneId: phone.id,
       amount,
@@ -260,22 +172,10 @@ export default function PhoneDetail() {
     const entryId = `repair-${phone.id}-${Date.now()}`;
     const noteText = `${editNote.trim() || 'General Maintenance'} (Updated)`;
 
-    // Remove old entry from ledger.entries and pending
-    dispatch(removeEntry(entry.id));
+    // Remove old entry and queue void via removeRepairLog
     dispatch(removeRepairLog({ phoneId: phone.id, entryId: entry.id }));
 
-    // Write new entry directly to ledger.entries so Finance tab updates immediately
-    dispatch(addEntry({
-      id: entryId,
-      type: "REPAIR_COST",
-      referenceId: phone.id,
-      amount: -amount,
-      note: `REPAIR - #${phone.id.slice(0, 8).toUpperCase()} : ${noteText}`,
-      createdAt: new Date().toISOString(),
-      recordedBy: user?.id || 'system',
-    }));
-
-    // Also queue to backend via addRepairLog Watchtower
+    // Queue new entry via addRepairLog: Watchtower pushes to ledger.entries (Fix B)
     dispatch(addRepairLog({
       phoneId: phone.id,
       amount,
@@ -443,17 +343,6 @@ export default function PhoneDetail() {
               <button
                 onClick={() => {
                   dispatch(removePhone(phone.id));
-                  dispatch(
-                    addEntry({
-                      id: crypto.randomUUID(),
-                      type: "FUNDS_RELEASED",
-                      referenceId: phone.id,
-                      amount: Math.abs(phone.purchasePrice),
-                      note: `REJECTION - ${phone.brand} ${phone.model} : Inspection failed, funds released`,
-                      recordedBy: user?.id || 'system',
-                      createdAt: new Date().toISOString(),
-                    }),
-                  );
 
                   if ((phone as any).purchaseOrderId) {
                     dispatch(
@@ -470,15 +359,6 @@ export default function PhoneDetail() {
                 className="flex-1 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 rounded-lg border border-rose-100 dark:border-rose-900 active:scale-95 transition-all text-center"
               >
                 Reject
-              </button>
-              <button
-                onClick={() => {
-                  setPurchasePriceInput(String(phone.purchasePrice));
-                  setShowPurchaseModal(true);
-                }}
-                className="flex-[2] py-2.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg shadow-sm active:scale-95 transition-all"
-              >
-                Confirm Purchase
               </button>
             </div>
           )}
@@ -807,51 +687,6 @@ export default function PhoneDetail() {
         onOpenChange={setShowSaleModal}
         initialPhones={[phone]}
       />
-
-      {/* Purchase Confirmation Modal */}
-      {showPurchaseModal && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-60 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl dark:shadow-black/40 border border-transparent dark:border-slate-800">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1 tracking-tight">
-              Confirm Purchase
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1 font-medium">
-              Enter the final price paid for this device.
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mb-6 font-medium">
-              Negotiated:{" "}
-              <span className="font-bold text-slate-600 dark:text-slate-300">
-                {formatCurrency(phone.purchasePrice)}
-              </span>
-            </p>
-
-            <form onSubmit={handleConfirmPurchase}>
-              <div className="mb-6">
-                <CurrencyInput
-                  value={purchasePriceInput}
-                  onChange={setPurchasePriceInput}
-                  autoFocus
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPurchaseModal(false)}
-                  className="flex-[0.5] py-3.5 font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3.5 font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all"
-                >
-                  Confirm & Add to Stock
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Repair Cost Modal */}
       {showRepairModal && (
