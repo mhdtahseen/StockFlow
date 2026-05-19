@@ -131,7 +131,7 @@ export const syncActionToSupabase = async (
           const exists = await doesPhoneExist(finalReferenceId);
           // If the phone was deleted (e.g. reject unit -> removePhone),
           // we drop the referenceId to avoid foreign key violations,
-          // but we MUST STILL insert the ledger entry (e.g. FUNDS_RELEASED)
+          // but we MUST STILL insert the ledger entry (e.g. SUPPLIER_PAYMENT for refunds)
           if (!exists) {
             finalReferenceId = null;
           }

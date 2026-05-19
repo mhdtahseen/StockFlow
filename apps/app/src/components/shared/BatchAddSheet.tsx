@@ -458,7 +458,7 @@ export function BatchAddSheet({ open, onOpenChange }: Props) {
     };
 
     // Dispatch PO to Redux + sync outbox.
-    // The create_purchase_order RPC handles the FUNDS_CONSUMED ledger entry server-side.
+    // The create_purchase_order RPC handles the SUPPLIER_PAYMENT ledger entry server-side.
     // The addPurchaseOrder extraReducer in ledger/slice creates a virtual pendingEntry for optimistic display.
     dispatch(addPurchaseOrder(order));
     clearDraft();
