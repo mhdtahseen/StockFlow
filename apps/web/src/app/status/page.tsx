@@ -48,22 +48,17 @@ export default function StatusPage() {
     setResult(null);
     setNotFound(false);
 
-    const { data } = await supabase
-      .from("tenant_requests")
-      .select("status, org_name, created_at")
-      .eq("email", email.trim().toLowerCase())
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await supabase
+      .rpc("check_request_status", { input_email: email.trim().toLowerCase() });
 
     setIsLoading(false);
 
-    if (!data) {
+    if (error || !data || data.length === 0) {
       setNotFound(true);
       return;
     }
 
-    setResult(data as Result);
+    setResult(data[0] as Result);
   };
 
   const config = result ? STATUS_CONFIG[result.status] : null;
