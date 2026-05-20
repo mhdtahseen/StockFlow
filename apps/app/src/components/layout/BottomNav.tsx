@@ -12,11 +12,11 @@ export default function BottomNav({ onMenuOpen }: Props) {
       <NavLink to="/"
         aria-label="Go to Dashboard"
         className={({ isActive }) => clsx(
-          'flex flex-col items-center justify-center w-16 pt-1 transition-colors',
+          'flex flex-col items-center justify-center w-20 min-h-[48px] pt-1 transition-colors',
           isActive ? 'text-primary-500 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'
         )}>
         <LayoutDashboard size={22} />
-        <span className="text-[10px] mt-1 font-semibold">Dashboard</span>
+        <span className="text-xs mt-1 font-semibold">Dashboard</span>
       </NavLink>
 
       {location.pathname === '/add' ? (
@@ -39,9 +39,9 @@ export default function BottomNav({ onMenuOpen }: Props) {
       <button
         onClick={onMenuOpen}
         aria-label="Open navigation menu"
-        className="flex flex-col items-center justify-center w-16 pt-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+        className="flex flex-col items-center justify-center w-20 min-h-[48px] pt-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
         <Menu size={22} />
-        <span className="text-[10px] mt-1 font-semibold">Menu</span>
+        <span className="text-xs mt-1 font-semibold">Menu</span>
       </button>
     </nav>
   );

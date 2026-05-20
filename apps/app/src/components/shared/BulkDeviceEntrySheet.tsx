@@ -4,7 +4,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { CatalogAutocomplete } from "@/components/ui/CatalogAutocomplete";
 import { useDeviceCatalog, sortBySize } from "@/hooks/useDeviceCatalog";

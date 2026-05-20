@@ -3,7 +3,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch } from "@/app/hooks";
@@ -73,11 +73,6 @@ export function CustomerTradeLinkSheet({ open, onOpenChange, customer }: Props) 
         side="bottom"
         className="rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-0 pt-0 pb-safe-bottom"
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-        </div>
-
         {/* Header */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="size-10 rounded-2xl bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0">

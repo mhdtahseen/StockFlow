@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Loader2, FileStack, Files, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";

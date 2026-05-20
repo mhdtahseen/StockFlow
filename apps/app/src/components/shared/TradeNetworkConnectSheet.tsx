@@ -12,7 +12,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
@@ -175,9 +175,6 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-3xl px-0 pb-safe-area-inset-bottom max-h-[90vh] overflow-y-auto">
-        {/* Drag handle */}
-        <div className="w-10 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mt-3 mb-1" />
-
         <SheetTitle className="sr-only">Connect with a Business</SheetTitle>
 
         <div className="px-5 pb-8 pt-4 space-y-6">

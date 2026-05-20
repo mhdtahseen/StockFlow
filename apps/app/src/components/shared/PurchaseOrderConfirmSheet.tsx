@@ -6,7 +6,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetClose,
-} from "@/components/ui/sheet";
+} from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { confirmReceipt } from "@/features/purchasing/slice";
