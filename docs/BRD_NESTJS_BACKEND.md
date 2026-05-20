@@ -520,6 +520,7 @@ All errors return:
 
 | Method | Path | Auth | Tables | Description |
 |--------|------|------|--------|-------------|
+| POST | `/auth/login` | [PUBLIC] | `profiles`, `tenants` | Body: `{ email, password }`. Calls `supabase.auth.admin.signInWithPassword`, issues NestJS JWT + refresh token. Rate-limited 5 attempts/15 min per email (returns 429 on breach). |
 | GET | `/auth/google` | [PUBLIC] | — | Redirect to Google consent screen. Sets CSRF state cookie. |
 | GET | `/auth/google/callback` | [PUBLIC] | `profiles`, `tenants` | Google redirects here. Exchange code → upsert user → issue JWT → deep link redirect. |
 | POST | `/auth/google/mobile` | [PUBLIC] | `profiles`, `tenants` | Body: `{ id_token: string }`. Validates Google `id_token`, upserts user, returns `{ token, refreshToken, user }`. |
@@ -527,8 +528,10 @@ All errors return:
 | POST | `/auth/logout` | ✅ | — | Invalidates current refresh token. Returns 204. |
 | GET | `/auth/me` | ✅ | `profiles`, `tenants` | Returns current user profile + tenant details. |
 | PATCH | `/auth/me` | ✅ | `profiles` | Body: `{ fullName, avatarUrl, phone }`. Updates `profiles` row. Password and email changes are separate routes. |
-| PATCH | `/auth/me/password` | ✅ | Supabase Auth Admin API | Body: `{ currentPassword, newPassword }`. Verifies current password, then calls `supabase.auth.admin.updateUserById`. Enforce min 8 chars. |
+| PATCH | `/auth/me/password` | ✅ | Supabase Auth Admin API | Body: `{ currentPassword, newPassword, firstTimeSet?: boolean }`. If `firstTimeSet=true` (post-invite flow), skip current password verification. Otherwise verify current password first. Enforce min 8 chars. |
 | PATCH | `/auth/me/email` | ✅ | Supabase Auth Admin API | Body: `{ newEmail }`. Triggers Supabase email confirmation flow. |
+| POST | `/auth/invite/complete` | [PUBLIC] | `profiles`, `tenants`, Supabase Auth Admin API | Body: `{ email, password, fullName, tenantId }`. Creates user in Supabase Auth with `full_name` + `tenant_id` metadata (Postgres trigger assigns tenant). Issues NestJS JWT or sends email confirmation. Validates `tenantId` exists and is active before creating user. |
+| POST | `/auth/generate-handoff` | ✅ | — | Issues a short-lived (5 min), single-use handoff token for the current authenticated user. Used by `UpgradeGateContext.tsx` to embed seamless auth in the pricing page URL: `finventree.com/pricing?token=...`. The pricing page calls `GET /auth/handoff?token=...` to exchange it. |
 | POST | `/auth/magic-link` | [PUBLIC] | Supabase Auth Admin API | Admin-triggered. Body: `{ email, redirectUrl }`. Generates a magic link wrapping the Supabase token and redirecting to `/auth/handoff?token=...`. Used by approve-tenant flow and landing site. |
 | GET | `/auth/handoff` | [PUBLIC] | Supabase Auth Admin API | Query: `?token=`. Validates token via Supabase `verifyOtp`, issues NestJS JWT + refresh token, redirects to `stockflow://auth/callback?token=...&refresh=...`. |
 | POST | `/auth/tenant-request` | [PUBLIC] | `tenant_requests` | Body: `{ orgName, fullName, email }`. Rate-limited 3/hour per IP. |
@@ -2057,6 +2060,7 @@ Initialize in a `FcmService` using the Firebase service account JSON stored as a
    - Replace `fetchFeatureFlags()`: `supabase.from("feature_flags").select(...)` → `GET /api/v1/tenant/feature-flags`
    - Replace `fetchTenant()`: `supabase.from("tenants").select(...)` → `GET /api/v1/tenant`
    - Replace `refreshProfile()`: `supabase.from("profiles").select(...)` → `GET /api/v1/auth/me`
+   - Replace `supabase.auth.signOut()` → `POST /api/v1/auth/logout` then clear `token` and `refreshToken` from `Capacitor.Preferences`.
 
 3. **`src/lib/supabase.ts`**:
    - Keep file alive but remove the client creation and replace with an `apiClient` HTTP wrapper:
@@ -2093,6 +2097,26 @@ Initialize in a `FcmService` using the Firebase service account JSON stored as a
 
 10. **`src/pages/AuthHandoff.tsx`**:
     - Replace `supabase.auth.verifyOtp({ token_hash, type: 'magiclink' })` — instead redirect to `GET /api/v1/auth/handoff?token=...` which handles verification and issues the NestJS JWT via the existing deep link callback handler.
+
+11. **`src/pages/Login.tsx`**:
+    - Replace `supabase.auth.signInWithPassword({ email, password })` → `POST /api/v1/auth/login`.
+    - On success, store `token` and `refreshToken` in `Capacitor.Preferences` (same as Google OAuth callback).
+
+12. **`src/pages/InviteSignup.tsx`**:
+    - Replace `supabase.auth.signUp({ email, password, options: { data: { tenant_id } } })` → `POST /api/v1/auth/invite/complete`.
+    - Remove direct reading of `emailRedirectTo` — NestJS controls the redirect URL.
+
+13. **`src/pages/Verified.tsx`**:
+    - Remove `supabase.auth.getSession()` check — instead read JWT from `Capacitor.Preferences` (set by `GET /auth/handoff` when user tapped the confirmation email link).
+    - Replace `supabase.auth.updateUser({ password })` → `PATCH /api/v1/auth/me/password` with body `{ newPassword, firstTimeSet: true }`.
+
+14. **`src/main.tsx`** (Capacitor deep link handler):
+    - `token_hash` path: replace `supabase.auth.verifyOtp(...)` → redirect internally to `GET /api/v1/auth/handoff?token=...`.
+    - `?code=` path: `supabase.auth.exchangeCodeForSession(code)` → becomes dead code. The PKCE code exchange happens server-side at `GET /auth/google/callback`. `main.tsx` should instead listen for the `stockflow://auth/callback?token=...&refresh=...` deep link, which is the NestJS redirect.
+
+15. **`src/context/UpgradeGateContext.tsx`** (`openPricing()` function):
+    - Replace raw `fetch` to `SUPABASE_URL/functions/v1/auth-handoff` → `POST /api/v1/auth/generate-handoff`.
+    - Response changes from `{ token_hash, type }` to `{ token }`. Update URL construction: append `?token=${token}` instead of `?token_hash=...&type=...`.
 
 **Supabase Realtime** (keep as-is):
    - The counterparty trade-connection subscription in `useOfflineSyncManager.ts` stays direct-to-Supabase. It is a read-only channel on `counterparties` inserts — safe with the anon key + RLS.
@@ -2504,6 +2528,87 @@ The BRD has no `/wallet` module. If the wallet slice has server-side persistence
 
 ---
 
+### D.5 Second Audit Findings (21 May 2026) — Auth Page Coverage
+
+---
+
+#### GAP-16: `POST /auth/login` is Entirely Missing
+
+**Source file**: `apps/app/src/pages/Login.tsx`
+
+`Login.tsx` calls `supabase.auth.signInWithPassword({ email, password })` — the email+password login path that exists alongside Google OAuth. The BRD's Section 9.1 only documents Google OAuth auth flows. If this isn't ported, every user who logs in with email+password is completely broken the moment the app migrates away from direct Supabase calls in Phase 12.
+
+**Resolution — add to Section 9.1:**
+
+| Method | Path | Auth | Tables | Description |
+|--------|------|------|--------|-------------|
+| `POST` | `/auth/login` | [PUBLIC] | `profiles`, `tenants` | Body: `{ email, password }`. Issues NestJS JWT + refresh token on success. Rate-limited 5 attempts/15 min per email. Returns 429 on breach. |
+
+**Phase 12 migration**: `Login.tsx` `onSubmit` → `POST /api/v1/auth/login`. On success, store `token` and `refreshToken` in `Capacitor.Preferences` identically to the Google OAuth callback.
+
+---
+
+#### GAP-17: `POST /auth/invite/complete` is Entirely Missing
+
+**Source file**: `apps/app/src/pages/InviteSignup.tsx`
+
+`InviteSignup.tsx` is the page reached via an invite link (`/invite-signup?tenant_id=...&org_name=...`). It calls `supabase.auth.signUp({ email, password, options: { data: { tenant_id } } })`. A Postgres trigger reads `tenant_id` from the user's metadata and assigns the new user to that tenant with role `associate`. The BRD's `POST /tenant/invite` sends the invite link but never covers the page where the invitee creates their credentials.
+
+**Resolution — add to Section 9.1:**
+
+| Method | Path | Auth | Tables | Description |
+|--------|------|------|--------|-------------|
+| `POST` | `/auth/invite/complete` | [PUBLIC] | `profiles`, `tenants`, Supabase Auth Admin API | Body: `{ email, password, fullName, tenantId }`. Validates `tenantId` exists and is active. Creates user via `supabase.auth.admin.createUser()` with `full_name` + `tenant_id` metadata (Postgres trigger handles profile + tenant assignment). Issues NestJS JWT or sends email confirmation based on Supabase project settings. |
+
+**Edge cases**: If `tenantId` doesn't exist → 400. If email already registered → 409. If Supabase requires email confirmation → return `{ requiresConfirmation: true }` and redirect user to check email.
+
+---
+
+#### GAP-18: `Verified.tsx` and `main.tsx` Deep Link Handler Not in Phase 12
+
+**Source files**: `apps/app/src/pages/Verified.tsx`, `apps/app/src/main.tsx`
+
+**`Verified.tsx`**: After email confirmation, Supabase auto-issues a session via the confirmation link click, and `Verified.tsx` calls `supabase.auth.updateUser({ password })` to let the user set their initial password. With NestJS, the email confirmation link should route through `GET /auth/handoff?token=...` (which issues a NestJS JWT + refresh token stored in `Capacitor.Preferences`). `Verified.tsx` then calls `PATCH /api/v1/auth/me/password` with `{ newPassword, firstTimeSet: true }` — skipping the current-password check since this is first-time setup. The `PATCH /auth/me/password` route already supports `firstTimeSet` flag (see GAP-03 resolution).
+
+**`main.tsx`**: The Capacitor `appUrlOpen` deep link handler has two uncovered Supabase calls:
+
+1. `supabase.auth.verifyOtp({ token_hash, type: 'magiclink' })` — fired when the app is opened from a magic link / activation email. After migration → call `GET /api/v1/auth/handoff?token={token_hash}` which exchanges the token and issues a NestJS JWT via the deep link redirect.
+2. `supabase.auth.exchangeCodeForSession(code)` — fired for PKCE OAuth `?code=` callbacks. After migration → this becomes dead code. PKCE exchange happens server-side at `GET /auth/google/callback`, which redirects to `stockflow://auth/callback?token=...&refresh=...`. The `main.tsx` handler just needs to detect and store the JWT from the callback URL.
+
+**Resolution**: Add `Verified.tsx` and `main.tsx` as items 13 and 14 to Phase 12 migration sub-steps (already applied above).
+
+---
+
+#### GAP-19: `UpgradeGateContext.tsx` Directly Calls `auth-handoff` Edge Function; `POST /auth/generate-handoff` Missing
+
+**Source file**: `apps/app/src/context/UpgradeGateContext.tsx` — `openPricing()` function
+
+`openPricing()` makes a raw `fetch` to `${SUPABASE_URL}/functions/v1/auth-handoff` with the user's Supabase `access_token`, receiving back `{ token_hash, type }` to embed in the pricing page URL for seamless auth. When Phase 13 deprecates `auth-handoff`, this fetch silently fails (errors are swallowed) and users open the pricing page without auth context — they see the login page instead of being seamlessly authenticated for upgrade.
+
+The BRD's `POST /auth/magic-link` is admin-triggered and wrong for this use case. The user-facing handoff flow needs a **separate authenticated endpoint** that generates a short-lived (5 min), single-use token for the current JWT holder.
+
+**Resolution — add to Section 9.1:**
+
+| Method | Path | Auth | Tables | Description |
+|--------|------|------|--------|-------------|
+| `POST` | `/auth/generate-handoff` | ✅ all | — | No body required. Issues a 5-minute, single-use JWT signed with `HANDOFF_SECRET`. Returns `{ token }`. Client appends as `?token=...` to the pricing page URL. The pricing page calls `GET /auth/handoff?token=...` to exchange it for a web session. |
+
+**Phase 12 migration**: In `UpgradeGateContext.tsx` `openPricing()`:
+- Replace `fetch(SUPABASE_URL/functions/v1/auth-handoff, ...)` → `POST /api/v1/auth/generate-handoff` using the stored NestJS access token.
+- Response changes from `{ token_hash, type }` to `{ token }`. Update URL construction: `url += \`?token=\${token}\`` instead of `?token_hash=...&type=...`.
+
+---
+
+#### GAP-20: `supabase.auth.signOut()` Replacement Not Explicit in Phase 12
+
+**Source file**: `apps/app/src/context/AuthContext.tsx` line 288 — `await supabase.auth.signOut()`
+
+`POST /auth/logout` exists in the BRD and Phase 12 covers `AuthContext.tsx`, but the specific replacement (`supabase.auth.signOut()` → `POST /api/v1/auth/logout` + clear `Capacitor.Preferences`) was not listed in the Phase 12 sub-steps, making it easy to miss during implementation since it's a destructive operation (if not called, the refresh token remains valid server-side).
+
+**Resolution**: Added explicitly to the `AuthContext.tsx` Phase 12 sub-step (already applied above).
+
+---
+
 ### D.4 Summary Table
 
 | ID | Severity | Description | Action Required |
@@ -2523,6 +2628,11 @@ The BRD has no `/wallet` module. If the wallet slice has server-side persistence
 | GAP-13 | 🟠 Minor | Ledger allocation drill-down endpoints missing | Add `GET /payments/:type/:id/allocations` to Section 9 |
 | GAP-14 | 🟠 Minor | `billing/updateOrder` vs edit ambiguity | Clarify descriptions in Section 9.4 |
 | GAP-15 | 🟠 Minor | `wallet` slice has no server persistence — undocumented | Add note that wallet is intentionally local-only |
+| GAP-16 | 🔴 Critical | `POST /auth/login` missing — email+password login broken at migration | Add `POST /auth/login` to Section 9.1 |
+| GAP-17 | 🔴 Critical | `POST /auth/invite/complete` missing — invite signup broken | Add `POST /auth/invite/complete` to Section 9.1 |
+| GAP-18 | 🟡 Medium | `Verified.tsx` + `main.tsx` not in Phase 12 migration steps | Add to Phase 12 sub-steps |
+| GAP-19 | 🟡 Medium | `UpgradeGateContext.tsx` calls `auth-handoff` directly; `POST /auth/generate-handoff` missing | Add endpoint to Section 9.1 + Phase 12 step |
+| GAP-20 | 🟠 Minor | `supabase.auth.signOut()` replacement not explicit in Phase 12 | Add to AuthContext.tsx Phase 12 sub-step |
 
 ---
 
