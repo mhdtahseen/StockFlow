@@ -41,7 +41,7 @@ ALTER TABLE purchase_order_items
   ADD COLUMN IF NOT EXISTS sgst_amount      NUMERIC(12,2),
   ADD COLUMN IF NOT EXISTS igst_amount      NUMERIC(12,2);
 
--- ── customers ────────────────────────────────────────────────────────────────
-ALTER TABLE customers
+-- ── counterparties ───────────────────────────────────────────────────────────
+ALTER TABLE counterparties
   ADD COLUMN IF NOT EXISTS gstin            TEXT,
   ADD COLUMN IF NOT EXISTS state            TEXT;

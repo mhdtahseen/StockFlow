@@ -72,6 +72,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
   const { user, tenant } = useAuth();
   const { canUse } = usePlan();
   const { showUpgrade } = useUpgradeGate();
+  const customers = useAppSelector((state) => state.customers.customers);
   const {
     getBrandOptions,
     getModelOptions,
@@ -354,8 +355,23 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
     return rows.reduce((sum, r) => sum + (parseFloat(r.purchasePrice) || 0), 0);
   }, [rows]);
 
-  const platformFee = parseFloat(platformFeeStr) || 0;
-  const totalAmount = totalCost + platformFee;
+  const platformFee = channel === "PLATFORM" ? (parseFloat(platformFeeStr) || 0) : 0;
+
+  const gstType = useMemo(
+    () => determineGstType(sellerGstin || supplier?.gstin, tenant?.gstin),
+    [sellerGstin, supplier?.gstin, tenant?.gstin],
+  );
+  const gstBreakdown = useMemo(() => {
+    if (!gstEnabled || rows.length === 0) return null;
+    const prices = rows.map((r) => parseFloat(r.purchasePrice) || 0).filter(Boolean);
+    if (prices.length === 0) return null;
+    return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, gstInclusive);
+  }, [gstEnabled, rows, gstType, gstInclusive]);
+
+  const totalAmount = useMemo(() => {
+    const cost = gstEnabled && gstBreakdown ? gstBreakdown.grandTotal : totalCost;
+    return cost + platformFee;
+  }, [gstEnabled, gstBreakdown, totalCost, platformFee]);
 
   const cashPaid = parseFloat(cashAmountStr) || 0;
   const upiPaid = parseFloat(upiAmountStr) || 0;
@@ -373,19 +389,6 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
           : bankPaid > 0
             ? "BANK_TRANSFER"
             : "CREDIT";
-
-  const customers = useAppSelector((state) => state.customers.customers);
-
-  const gstType = useMemo(
-    () => determineGstType(sellerGstin || supplier?.gstin, tenant?.gstin),
-    [sellerGstin, supplier?.gstin, tenant?.gstin],
-  );
-  const gstBreakdown = useMemo(() => {
-    if (!gstEnabled || rows.length === 0) return null;
-    const prices = rows.map((r) => parseFloat(r.purchasePrice) || 0).filter(Boolean);
-    if (prices.length === 0) return null;
-    return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, gstInclusive);
-  }, [gstEnabled, rows, gstType, gstInclusive]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -743,163 +746,9 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
               </div>
             </section>
 
-            {/* FEES & PAYMENT SECTION */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-4 block">
-                  3. Fees
-                </label>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Platform / Logistics Fee
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        Included in order total
-                      </span>
-                    </div>
-                    <CurrencyInput
-                      value={platformFeeStr}
-                      onChange={setPlatformFeeStr}
-                      className="h-12 text-base! py-0! rounded-xl font-bold"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 bg-primary-500 h-full" />
-                <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-4 block">
-                  4. Payment
-                </label>
-                <div className="space-y-6">
-                  {/* Mode Tabs */}
-                  <div className="flex gap-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                    {(["CASH", "UPI", "BANK_TRANSFER"] as const).map((mode) => {
-                      const val =
-                        mode === "CASH"
-                          ? cashPaid
-                          : mode === "UPI"
-                            ? upiPaid
-                            : bankPaid;
-                      return (
-                        <button
-                          key={mode}
-                          type="button"
-                          onClick={() => setSelectedTab(mode)}
-                          className={clsx(
-                            "flex-1 py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all relative flex flex-col items-center gap-1",
-                            selectedTab === mode
-                              ? "bg-white dark:bg-slate-800 text-primary-500 shadow-sm border border-slate-100 dark:border-slate-700"
-                              : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200",
-                          )}
-                        >
-                          {mode.replace("_", " ")}
-                          {val > 0 && (
-                            <span className="text-[8px] px-1.5 py-0.5 bg-primary-500 text-white rounded-full leading-none">
-                              ₹{val.toLocaleString()}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Single Visible Input */}
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1 mb-2 block">
-                      Record {selectedTab.replace("_", " ")} Amount
-                    </label>
-                    {selectedTab === "CASH" && (
-                      <CurrencyInput
-                        value={cashAmountStr}
-                        onChange={setCashAmountStr}
-                        className="h-16 text-2xl! py-0! rounded-2xl"
-                      />
-                    )}
-                    {selectedTab === "UPI" && (
-                      <CurrencyInput
-                        value={upiAmountStr}
-                        onChange={setUpiAmountStr}
-                        className="h-16 text-2xl! py-0! rounded-2xl"
-                      />
-                    )}
-                    {selectedTab === "BANK_TRANSFER" && (
-                      <CurrencyInput
-                        value={bankAmountStr}
-                        onChange={setBankAmountStr}
-                        className="h-16 text-2xl! py-0! rounded-2xl"
-                      />
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-tighter">
-                          Amount Paid
-                      </span>
-                      <span className="text-sm font-black text-slate-900 dark:text-slate-100">
-                        ₹{amountPaid.toLocaleString()}
-                      </span>
-                    </div>
-                    {amountPaid < totalAmount && (
-                      <div className="text-right">
-                        <span className="text-[10px] font-bold text-rose-400 uppercase block tracking-tighter text-right">
-                          Remaining Balance
-                        </span>
-                        <span className="text-sm font-black text-rose-500 italic">
-                          ₹{(totalAmount - amountPaid).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {amountPaid < totalAmount && (
-                    <div className="animate-in fade-in slide-in-from-top-2 border-t border-slate-100 dark:border-slate-800 pt-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                        <div>
-                          <label className="text-sm font-black text-rose-500 block mb-1">
-                            Pending Balance: ₹
-                            {(totalAmount - amountPaid).toLocaleString()}
-                          </label>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            Credit Settlement Layout
-                          </p>
-                        </div>
-                        <div className="flex-1 max-w-xs">
-                          <Input
-                            required
-                            type="date"
-                            value={dueDateStr}
-                            onChange={(e) => setDueDateStr(e.target.value)}
-                            className="h-12 font-black border-2 border-amber-100 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 rounded-xl"
-                          />
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-slate-400 italic font-medium">
-                        * A due date is required for credit or partial payments.
-                      </p>
-                    </div>
-                  )}
-
-                  {amountPaid === totalAmount && (
-                    <div className="bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 flex items-center gap-3">
-                      <div className="size-8 bg-emerald-500 rounded-full flex items-center justify-center text-white">
-                        <Info size={16} />
-                      </div>
-                      <p className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tight">
-                        Fully Paid — No Balance Due
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-
             {/* ─── GST Section (optional) ─────────────────────────────────── */}
             {tenant?.gstin && (
-              <section>
+              <section className="mb-6 animate-in fade-in slide-in-from-bottom-2 duration-200">
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
                   <div className="px-5 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -1026,6 +875,165 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
                 </div>
               </section>
             )}
+
+            {/* FEES & PAYMENT SECTION */}
+            <section className={clsx(
+              "grid gap-6 transition-all duration-300",
+              channel === "PLATFORM" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
+            )}>
+              {channel === "PLATFORM" && (
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-4 block">
+                    3. Fees
+                  </label>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          Platform / Logistics Fee
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          Included in order total
+                        </span>
+                      </div>
+                      <CurrencyInput
+                        value={platformFeeStr}
+                        onChange={setPlatformFeeStr}
+                        className="h-12 text-base! py-0! rounded-xl font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 bg-primary-500 h-full" />
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-4 block">
+                  {channel === "PLATFORM" ? "4. Payment" : "3. Payment"}
+                </label>
+                <div className="space-y-6">
+                  {/* Mode Tabs */}
+                  <div className="flex gap-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    {(["CASH", "UPI", "BANK_TRANSFER"] as const).map((mode) => {
+                      const val =
+                        mode === "CASH"
+                          ? cashPaid
+                          : mode === "UPI"
+                            ? upiPaid
+                            : bankPaid;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setSelectedTab(mode)}
+                          className={clsx(
+                            "flex-1 py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all relative flex flex-col items-center gap-1",
+                            selectedTab === mode
+                              ? "bg-white dark:bg-slate-800 text-primary-500 shadow-sm border border-slate-100 dark:border-slate-700"
+                              : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200",
+                          )}
+                        >
+                          {mode.replace("_", " ")}
+                          {val > 0 && (
+                            <span className="text-[8px] px-1.5 py-0.5 bg-primary-500 text-white rounded-full leading-none">
+                              ₹{val.toLocaleString()}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Single Visible Input */}
+                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1 mb-2 block">
+                      Record {selectedTab.replace("_", " ")} Amount
+                    </label>
+                    {selectedTab === "CASH" && (
+                      <CurrencyInput
+                        value={cashAmountStr}
+                        onChange={setCashAmountStr}
+                        className="h-16 text-2xl! py-0! rounded-2xl"
+                      />
+                    )}
+                    {selectedTab === "UPI" && (
+                      <CurrencyInput
+                        value={upiAmountStr}
+                        onChange={setUpiAmountStr}
+                        className="h-16 text-2xl! py-0! rounded-2xl"
+                      />
+                    )}
+                    {selectedTab === "BANK_TRANSFER" && (
+                      <CurrencyInput
+                        value={bankAmountStr}
+                        onChange={setBankAmountStr}
+                        className="h-16 text-2xl! py-0! rounded-2xl"
+                      />
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-tighter">
+                          Amount Paid
+                      </span>
+                      <span className="text-sm font-black text-slate-900 dark:text-slate-100">
+                        ₹{amountPaid.toLocaleString()}
+                      </span>
+                    </div>
+                    {amountPaid < totalAmount && (
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-rose-400 uppercase block tracking-tighter text-right">
+                          Remaining Balance
+                        </span>
+                        <span className="text-sm font-black text-rose-500 italic">
+                          ₹{(totalAmount - amountPaid).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {amountPaid < totalAmount && (
+                    <div className="animate-in fade-in slide-in-from-top-2 border-t border-slate-100 dark:border-slate-800 pt-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                        <div>
+                          <label className="text-sm font-black text-rose-500 block mb-1">
+                            Pending Balance: ₹
+                            {(totalAmount - amountPaid).toLocaleString()}
+                          </label>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            Credit Settlement Layout
+                          </p>
+                        </div>
+                        <div className="flex-1 max-w-xs">
+                          <Input
+                            required
+                            type="date"
+                            value={dueDateStr}
+                            onChange={(e) => setDueDateStr(e.target.value)}
+                            className="h-12 font-black border-2 border-amber-100 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 rounded-xl"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 italic font-medium">
+                        * A due date is required for credit or partial payments.
+                      </p>
+                    </div>
+                  )}
+
+                  {amountPaid === totalAmount && (
+                    <div className="bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 flex items-center gap-3">
+                      <div className="size-8 bg-emerald-500 rounded-full flex items-center justify-center text-white">
+                        <Info size={16} />
+                      </div>
+                      <p className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tight">
+                        Fully Paid — No Balance Due
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
           </form>
         </div>
 

@@ -108,7 +108,7 @@ export function calculateOrderGst(
   const sgstTotal = Math.round(breakdowns.reduce((s, b) => s + b.sgstAmount, 0) * 100) / 100;
   const igstTotal = Math.round(breakdowns.reduce((s, b) => s + b.igstAmount, 0) * 100) / 100;
   const totalTax = type === "IGST" ? igstTotal : cgstTotal + sgstTotal;
-  const grandTotal = Math.round(effectivePrices.reduce((s, p) => s + p, 0) * 100) / 100;
+  const grandTotal = Math.round(breakdowns.reduce((s, b) => s + b.totalWithTax, 0) * 100) / 100;
 
   return { subtotal, cgstTotal, sgstTotal, igstTotal, totalTax, grandTotal };
 }

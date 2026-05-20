@@ -274,6 +274,24 @@ export default function Dashboard() {
                 {metrics.avgMargin.toFixed(1)}%
               </p>
             </div>
+
+            {/* Active Stock Value */}
+            <div
+              onClick={() => navigate("/inventory?tab=IN_STOCK")}
+              className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-slate-100 dark:border-slate-800 hover:border-cyan-200 dark:hover:border-cyan-800 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="size-10 rounded-full bg-cyan-50 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+                  <Package size={20} />
+                </div>
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Stock Value
+                </p>
+              </div>
+              <p className="font-bold text-xl text-slate-900 dark:text-slate-100 tracking-tight">
+                {formatCurrency(metrics.investment)}
+              </p>
+            </div>
           </div>
         </section>
 

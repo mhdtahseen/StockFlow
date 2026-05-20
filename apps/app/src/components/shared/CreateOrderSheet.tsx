@@ -160,19 +160,6 @@ export function CreateOrderSheet({
     prevOpen.current = open;
   }, [open, isEditMode, existingOrder, allCustomers, initialPhones]);
 
-  // ── Derived amounts ────────────────────────────────────────────────────────
-  const totalAmount = useMemo(() => {
-    return items.reduce((sum, item) => {
-      const price = parseFloat(item.salePrice) || 0;
-      const discountVal = parseFloat(item.discountAmount) || 0;
-      const discount =
-        item.discountType === "PERCENT"
-          ? price * (discountVal / 100)
-          : discountVal;
-      return sum + Math.max(0, price - discount);
-    }, 0);
-  }, [items]);
-
   // ── GST breakdown (computed only when gstEnabled) ──────────────────────────
   const gstType = useMemo(
     () => determineGstType(tenant?.gstin, buyerGstin || customer?.gstin),
@@ -190,6 +177,22 @@ export function CreateOrderSheet({
     });
     return calculateOrderGst(effectivePrices, DEFAULT_GST_RATE, gstType, gstInclusive);
   }, [gstEnabled, items, gstType, gstInclusive]);
+
+  // ── Derived amounts ────────────────────────────────────────────────────────
+  const totalAmount = useMemo(() => {
+    if (gstEnabled && gstBreakdown) {
+      return gstBreakdown.grandTotal;
+    }
+    return items.reduce((sum, item) => {
+      const price = parseFloat(item.salePrice) || 0;
+      const discountVal = parseFloat(item.discountAmount) || 0;
+      const discount =
+        item.discountType === "PERCENT"
+          ? price * (discountVal / 100)
+          : discountVal;
+      return sum + Math.max(0, price - discount);
+    }, 0);
+  }, [items, gstEnabled, gstBreakdown]);
 
   const cashPaid = parseFloat(cashStr) || 0;
   const upiPaid = parseFloat(upiStr) || 0;
