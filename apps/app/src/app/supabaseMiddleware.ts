@@ -1,6 +1,6 @@
 import { Middleware } from "@reduxjs/toolkit";
 import { RootState } from "./store";
-import { queueAction, removeAction } from "@/features/sync/slice";
+import { queueAction, removeAction, markStuck } from "@/features/sync/slice";
 import { syncActionToSupabase } from "./supabaseApi";
 
 export const supabaseMiddleware: Middleware<{}, RootState> =
@@ -45,6 +45,9 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
           "customers/setPayments",
           "purchasing/setPayments",
           "orderEdits/setOrderEdits",
+          // Local-only actions already handled server-side by parent RPCs:
+          "inventory/linkPhoneToSO",    // create_trade_order RPC links the phone
+          "customers/updateCustomerLink", // connect_by_trade_code RPC sets the link
         ];
 
         const isTrackable = trackablePrefixes.some((prefix) =>
@@ -70,11 +73,16 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
         store.dispatch(queueAction({ id: syncId, action }));
 
         // 2. Attempt to sync
-        const success = await syncActionToSupabase(action);
+        const result = await syncActionToSupabase(action);
 
-        // 3. Cleanup: If success, remove from outbox. If fail, it's already there for retry.
-        if (success) {
+        // 3. Cleanup based on result:
+        //    success          → remove from outbox (confirmed written)
+        //    permanent_conflict → mark stuck immediately (FK violation won't self-heal)
+        //    auth_expired / retry → leave in outbox for sync manager to retry
+        if (result === "success") {
           store.dispatch(removeAction(syncId));
+        } else if (result === "permanent_conflict") {
+          store.dispatch(markStuck(syncId));
         }
       } catch (err) {
         console.error("Middleware Sync Exception:", err);

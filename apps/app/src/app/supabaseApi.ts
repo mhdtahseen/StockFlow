@@ -3,6 +3,14 @@ import posthog from "@/lib/posthog";
 
 type AnyAction = { type: string; payload?: any };
 
+/** Discriminated result from a single sync attempt. The sync manager uses this
+ *  to decide whether to remove, skip, park, or pause the outbox item. */
+export type SyncResult =
+  | "success"           // confirmed written (or idempotent hit)
+  | "retry"             // transient failure — apply backoff and try again
+  | "auth_expired"      // 401 / JWT expired — pause all processing until re-auth
+  | "permanent_conflict"; // FK violation — will never succeed, mark item stuck
+
 // Cache tenant ID to avoid redundant queries
 let cachedTenantId: string | null = null;
 export const getTenantId = async () => {
@@ -42,7 +50,7 @@ const doesPhoneExist = async (id: string): Promise<boolean> => {
 
 export const syncActionToSupabase = async (
   action: AnyAction,
-): Promise<boolean> => {
+): Promise<SyncResult> => {
   try {
     const type = action.type;
     const payload = action.payload;
@@ -70,23 +78,28 @@ export const syncActionToSupabase = async (
         break;
       }
       case "inventory/updatePhone": {
-        const { error } = await supabase
-          .from("phones")
-          .update({
-            brand: payload.brand,
-            model: payload.model,
-            storage: payload.storage,
-            ram: payload.ram,
-            color: payload.color,
-            purchase_price: payload.purchasePrice,
-            sale_price: payload.salePrice,
-            status: payload.status,
-            issue_tags: payload.issueTags,
-            imeis: payload.imeis || [],
-          })
-          .eq("id", payload.id)
-          .eq("tenant_id", tenant_id);
-        if (error) throw error;
+        // The reducer payload shape is { id, phone: Partial<Phone>, prevPrice? }.
+        // Only send fields that are actually defined to avoid overwriting with nulls.
+        const { id, phone } = payload;
+        const updates: Record<string, any> = {};
+        if (phone.brand !== undefined)         updates.brand = phone.brand;
+        if (phone.model !== undefined)         updates.model = phone.model;
+        if (phone.storage !== undefined)       updates.storage = phone.storage;
+        if (phone.ram !== undefined)           updates.ram = phone.ram;
+        if (phone.color !== undefined)         updates.color = phone.color;
+        if (phone.purchasePrice !== undefined) updates.purchase_price = phone.purchasePrice;
+        if (phone.salePrice !== undefined)     updates.sale_price = phone.salePrice;
+        if (phone.status !== undefined)        updates.status = phone.status;
+        if (phone.issueTags !== undefined)     updates.issue_tags = phone.issueTags;
+        if (phone.imeis !== undefined)         updates.imeis = phone.imeis;
+        if (Object.keys(updates).length > 0) {
+          const { error } = await supabase
+            .from("phones")
+            .update(updates)
+            .eq("id", id)
+            .eq("tenant_id", tenant_id);
+          if (error) throw error;
+        }
         break;
       }
       case "inventory/removePhone": {
@@ -274,9 +287,10 @@ export const syncActionToSupabase = async (
       }
       // ─── INVENTORY ────────────────────────────────────────────────────
       case "inventory/addRepairLog": {
-        const { phoneId, amount, note, recordedBy } = payload;
+        // payload.id is a stable UUID generated at dispatch time — safe to retry
+        const { id: repairId, phoneId, amount, note, recordedBy } = payload;
         const { error } = await supabase.from("ledger").insert({
-          id: `v-repair-${phoneId}-${Date.now()}`,
+          id: repairId,
           tenant_id,
           user_id: recordedBy,
           type: "REPAIR_COST",
@@ -442,6 +456,20 @@ export const syncActionToSupabase = async (
             .eq("tenant_id", tenant_id);
           if (error) throw error;
         }
+        break;
+      }
+      case "purchasing/updatePOPayment": {
+        // Local reducer updates amountPaid + status on a PO after a partial payment.
+        // Without this handler the PO balance would reset to the server value on refresh.
+        const { error } = await supabase
+          .from("purchase_orders")
+          .update({
+            amount_paid: payload.amountPaid,
+            status: payload.status,
+          })
+          .eq("id", payload.id)
+          .eq("tenant_id", tenant_id);
+        if (error) throw error;
         break;
       }
       case "purchasing/confirmReceipt": {
@@ -613,42 +641,59 @@ export const syncActionToSupabase = async (
         if (error) throw error;
         break;
       }
+      default:
+        // An action type was queued but has no handler. Log a warning so this is
+        // caught in development, but return "success" to clear it from the outbox
+        // rather than letting it block indefinitely.
+        console.warn(`[Sync] No API handler for queued action: "${type}". Clearing from outbox.`);
+        posthog.capture("sync.unhandled_action", { action: type });
+        break;
     }
 
-    return true; // Sync succeeded
+    return "success";
   } catch (error: any) {
-    // 409 Conflict logic: In an offline-sync context with client-generated UUIDs, 
-    // a "Unique Violation" (23505) typically means the previous sync attempt 
-    // succeeded but the ACK was lost. We treat this as a success.
-    // However, a "Foreign Key Violation" (23503) means a required record (e.g. phone)
-    // is missing. This MUST be treated as an error so it stays in the outbox.
-    
     const pgErrorCode = error.code;
-    const isUniqueViolation = pgErrorCode === "23505";
-    const isIdempotencyHit = error.status === 409 && 
-      (error.message && error.message.toLowerCase().includes("already exists"));
 
-    if (isUniqueViolation || isIdempotencyHit) {
-      console.info(
-        "Supabase Sync: Record already exists (Idempotency), marking as success.",
-        action.type,
-      );
-      return true;
+    // ── Idempotency hit ─────────────────────────────────────────────
+    // A unique-key violation means the record was already written (the previous
+    // sync attempt succeeded but the ACK was lost). Treat as success so the
+    // outbox item is cleared and not retried.
+    if (pgErrorCode === "23505" || (error.status === 409 && error.message?.toLowerCase().includes("already exists"))) {
+      console.info("Supabase Sync: Idempotency hit — already exists.", action.type);
+      return "success";
     }
 
-    // Explicitly log FK violations for debugging
+    // ── Auth expired ─────────────────────────────────────────────────
+    // JWT expired or session revoked. Do NOT increment retryCount — the item
+    // should resume automatically when the session is refreshed.
+    if (
+      error.status === 401 ||
+      pgErrorCode === "PGRST301" ||
+      error.message?.includes("JWT") ||
+      error.message?.includes("session_not_found") ||
+      error.message?.includes("invalid claim")
+    ) {
+      console.warn("Supabase Sync: Auth expired — pausing outbox.", error.message);
+      return "auth_expired";
+    }
+
+    // ── Foreign key violation ────────────────────────────────────────
+    // A dependency record (phone, customer, PO) no longer exists on the server.
+    // Retrying will never fix this — mark the item stuck for user resolution.
     if (pgErrorCode === "23503") {
-      console.warn("Supabase Sync: Foreign Key Violation. Dependency record missing.", error.message);
-    } else {
-        console.warn("Supabase Sync Failed:", error.message || error);
-      posthog.capture("sync.failed", {
-        action: action.type,
-        error_code: pgErrorCode ?? null,
-        error_message: error.message ?? null,
-      });
+      console.warn("Supabase Sync: FK violation — marking stuck.", action.type, error.message);
+      posthog.capture("sync.stuck", { action: action.type, error_message: error.message ?? null });
+      return "permanent_conflict";
     }
 
-    return false; // Sync failed
+    // ── Retriable failure ────────────────────────────────────────────
+    console.warn("Supabase Sync Failed:", error.message || error);
+    posthog.capture("sync.failed", {
+      action: action.type,
+      error_code: pgErrorCode ?? null,
+      error_message: error.message ?? null,
+    });
+    return "retry";
   }
 };
 

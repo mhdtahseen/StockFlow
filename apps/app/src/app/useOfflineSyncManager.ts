@@ -9,6 +9,7 @@ import {
   removeAction,
   incrementRetry,
   setOnlineStatus,
+  markStuck,
 } from "@/features/sync/slice";
 import { addCustomer } from "@/features/customers/slice";
 import { removePendingEntryById } from "@/features/ledger/slice";
@@ -23,6 +24,12 @@ export function useOfflineSyncManager() {
 
   const isOnline = useSelector((state: RootState) => state.sync.isOnline);
   const outbox = useSelector((state: RootState) => state.sync.outbox);
+  // Counts only non-stuck items — used as an effect dep so the initial data fetch
+  // re-triggers when pending items are marked stuck (outbox.length stays the same
+  // but pendingCount drops, signalling that it's now safe to overwrite local state).
+  const pendingCount = useSelector(
+    (state: RootState) => state.sync.outbox.filter((i) => !i.stuck).length,
+  );
 
   const [isSyncing, setIsSyncing] = useState(true);
   const [hasFetchedInitial, setHasFetchedInitial] = useState(false);
@@ -40,23 +47,31 @@ export function useOfflineSyncManager() {
   }, [session?.user?.id]);
 
   const isProcessingOutboxRef = useRef(false);
+  // Debounce timer for online/offline toasts — prevents spam on flaky connections
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // 1. ONLINE / OFFLINE LISTENERS
   useEffect(() => {
     const handleOnline = () => {
       dispatch(setOnlineStatus(true));
-      toast.success("System Online", {
-        description:
-          "Connection restored. Synchronizing pending transactions with the server.",
-      });
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        toast.success("System Online", {
+          description:
+            "Connection restored. Synchronizing pending transactions with the server.",
+        });
+      }, 300);
     };
 
     const handleOffline = () => {
       dispatch(setOnlineStatus(false));
-      toast.error("System Offline", {
-        description:
-          "Connection lost. Operating in offline mode. Data is securely saved on this device.",
-      });
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        toast.error("System Offline", {
+          description:
+            "Connection lost. Operating in offline mode. Data is securely saved on this device.",
+        });
+      }, 300);
     };
 
     if (Capacitor.isNativePlatform()) {
@@ -74,6 +89,7 @@ export function useOfflineSyncManager() {
       });
 
       return () => {
+        clearTimeout(toastTimerRef.current);
         listenerPromise.then((handle) => handle.remove());
       };
     } else {
@@ -83,6 +99,7 @@ export function useOfflineSyncManager() {
       dispatch(setOnlineStatus(navigator.onLine));
 
       return () => {
+        clearTimeout(toastTimerRef.current);
         window.removeEventListener("online", handleOnline);
         window.removeEventListener("offline", handleOffline);
       };
@@ -107,32 +124,36 @@ export function useOfflineSyncManager() {
           // Refresh outbox snapshot from store each iteration to catch new items
           const state = store.getState() as RootState;
           const currentOutbox = state.sync.outbox;
-          
+
           if (currentOutbox.length === 0) {
             hasMore = false;
             break;
           }
 
           const now = Date.now();
-          const item = currentOutbox[0]; // Always process the first available item
 
-          if (item.nextAttemptAt && item.nextAttemptAt > now) {
-            hasMore = false; // Wait for scheduled retry
+          // Find the first item that is processable right now.
+          // Skip: stuck items (awaiting user resolution), items in backoff, and
+          // items <5s old with retryCount=0 (the middleware's immediate attempt
+          // may still be in-flight — avoid firing the same RPC twice).
+          const item = currentOutbox.find((i) => {
+            if (i.stuck) return false;
+            if (i.nextAttemptAt && i.nextAttemptAt > now) return false;
+            if (i.retryCount === 0 && now - i.timestamp < 5_000) return false;
+            return true;
+          });
+
+          if (!item) {
+            hasMore = false;
             break;
           }
 
-          if (item.retryCount >= 5) {
-            console.error(`[Outbox] Permanently dropping action after 5 retries:`, item.action.type);
-            dispatch(removeAction(item.id));
-            continue;
-          }
+          const result = await syncActionToSupabase(item.action);
 
-          const success = await syncActionToSupabase(item.action);
-
-          if (success) {
+          if (result === "success") {
             dispatch(removeAction(item.id));
-            // Clean up the optimistic pending ledger entry that was created when
-            // the action was dispatched — prevents duplicate display after refresh.
+            // Clean up the optimistic pending ledger entry created when the
+            // action was dispatched — prevents duplicate display after refresh.
             const { type, payload } = item.action as { type: string; payload: any };
             if (type === "customers/addCustomerPayment") {
               dispatch(removePendingEntryById(`v-cust-pay-${payload.id}`));
@@ -142,18 +163,43 @@ export function useOfflineSyncManager() {
             } else if (type === "purchasing/addSupplierSettlement") {
               dispatch(removePendingEntryById(`v-sup-set-${payload.id}`));
             }
+
+          } else if (result === "auth_expired") {
+            // Session expired — stop processing ALL items. The sync manager will
+            // re-trigger when the session auto-refreshes (session is in effect deps).
+            // Do NOT increment retryCount — no retries wasted on auth failures.
+            toast.error("Session expired", {
+              description: "Some changes are pending sync. Please re-open the app or sign in again.",
+              duration: 8_000,
+            });
+            hasMore = false;
+
+          } else if (result === "permanent_conflict") {
+            // FK violation — the referenced record no longer exists. This will
+            // never succeed on its own. Mark stuck (skip in future iterations)
+            // and surface the issue to the user. Continue processing the rest
+            // of the queue — one stuck item must not block everything else.
+            dispatch(markStuck(item.id));
+            toast.error("A change couldn't be saved", {
+              description: "One item needs your attention. Open the menu to view sync issues.",
+              duration: 8_000,
+            });
+            // intentionally do NOT set hasMore = false — keep draining the queue
+
           } else {
+            // "retry" — transient network/server error. Apply backoff and stop
+            // hammering the server; the retry timer will wake us up.
             dispatch(incrementRetry(item.id));
-            hasMore = false; // Stop on failure to avoid hammering
+            hasMore = false;
           }
         }
       } finally {
         isProcessingOutboxRef.current = false;
       }
 
-      // Re-check for early retries
+      // Re-check for early retries, ignoring stuck items
       const state = store.getState() as RootState;
-      const nextRetries = state.sync.outbox.filter(i => i.nextAttemptAt);
+      const nextRetries = state.sync.outbox.filter(i => !i.stuck && i.nextAttemptAt && i.nextAttemptAt > Date.now());
       if (mounted && isOnline && nextRetries.length > 0) {
         const earliest = Math.min(...nextRetries.map(i => i.nextAttemptAt!));
         const delayMs = Math.max(0, earliest - Date.now());
@@ -184,6 +230,11 @@ export function useOfflineSyncManager() {
 
     async function fetchInitialData() {
       setIsSyncing(true);
+      // Only overwrite local Redux state with server data if there are no unsynced
+      // local mutations pending. Stuck items are excluded — they are permanently
+      // failed and not going to be retried, so they don't block a server refresh.
+      const noPendingMutations = () =>
+        !store.getState().sync.outbox.some((i) => !i.stuck);
 
       try {
         // Fetch Phones
@@ -207,8 +258,7 @@ export function useOfflineSyncManager() {
             issueTags: p.issue_tags,
             createdAt: p.created_at,
           }));
-          // ONLY OVERWRITE IF NO MUTATIONS OCCURRED DURING FETCH
-          if (store.getState().sync.outbox.length === 0) {
+          if (noPendingMutations()) {
             dispatch({ type: "inventory/setPhones", payload: phones });
           }
         }
@@ -234,7 +284,7 @@ export function useOfflineSyncManager() {
             purchaseOrderId: e.purchase_order_id ?? undefined,
             createdAt: e.created_at,
           }));
-          if (store.getState().sync.outbox.length === 0) {
+          if (noPendingMutations()) {
             dispatch({ type: "ledger/setEntries", payload: entries });
           }
         }
@@ -260,7 +310,7 @@ export function useOfflineSyncManager() {
             }
           });
 
-          if (store.getState().sync.outbox.length === 0) {
+          if (noPendingMutations()) {
             dispatch({
               type: "masterData/setAll",
               payload: {
@@ -284,7 +334,7 @@ export function useOfflineSyncManager() {
             .select("*, linked_tenant:tenants!counterparties_linked_tenant_id_fkey(name)")
             .eq("tenant_id", tenantId)
             .order("name");
-          if (cpData && mounted && store.getState().sync.outbox.length === 0) {
+          if (cpData && mounted && noPendingMutations()) {
             dispatch({
               type: "customers/setAll",
               payload: cpData.map((c: any) => ({
@@ -315,7 +365,7 @@ export function useOfflineSyncManager() {
             .is("deleted_at", null)
             .gte("created_at", ninetyDaysAgo)
             .order("created_at", { ascending: false });
-          if (soData && mounted && store.getState().sync.outbox.length === 0) {
+          if (soData && mounted && noPendingMutations()) {
             dispatch({ type: "billing/setOrders", payload: soData.map((o: any) => ({
               id: o.id, counterpartyId: o.counterparty_id, orderType: o.order_type,
               totalAmount: o.total_amount, amountPaid: o.amount_paid,
@@ -349,7 +399,7 @@ export function useOfflineSyncManager() {
             .is("deleted_at", null)
             .in("status", ["AWAITING_RECEIPT", "RECEIVED", "PARTIAL", "SETTLED", "CANCELLED"])
             .order("created_at", { ascending: false });
-          if (poData && mounted && store.getState().sync.outbox.length === 0) {
+          if (poData && mounted && noPendingMutations()) {
             dispatch({
               type: "purchasing/setPurchaseOrders",
               payload: poData.map((o: any) => ({
@@ -401,7 +451,7 @@ export function useOfflineSyncManager() {
             .eq("tenant_id", tenantId)
             .gte("received_at", ninetyDaysAgo)
             .order("received_at", { ascending: false });
-          if (cpPayData && mounted && store.getState().sync.outbox.length === 0) {
+          if (cpPayData && mounted && noPendingMutations()) {
             dispatch({
               type: "customers/setPayments",
               payload: cpPayData.map((p: any) => ({
@@ -421,7 +471,7 @@ export function useOfflineSyncManager() {
             .eq("tenant_id", tenantId)
             .gte("paid_at", ninetyDaysAgo)
             .order("paid_at", { ascending: false });
-          if (spPayData && mounted && store.getState().sync.outbox.length === 0) {
+          if (spPayData && mounted && noPendingMutations()) {
             dispatch({
               type: "purchasing/setPayments",
               payload: spPayData.map((p: any) => ({
@@ -441,7 +491,7 @@ export function useOfflineSyncManager() {
             .eq("tenant_id", tenantId)
             .gte("created_at", ninetyDaysAgo)
             .order("created_at", { ascending: false });
-          if (editsData && mounted && store.getState().sync.outbox.length === 0) {
+          if (editsData && mounted && noPendingMutations()) {
             dispatch({
               type: "orderEdits/setOrderEdits",
               payload: editsData.map((e: any) => ({
@@ -466,8 +516,9 @@ export function useOfflineSyncManager() {
       }
     }
 
-    // CRUCIAL: Do not fetch remote data over local data if outbox has unsynced local mutations
-    if (outbox.length === 0) {
+    // CRUCIAL: Do not fetch remote data over local data if outbox has unsynced local mutations.
+    // Stuck items (permanent_conflict) are excluded — they no longer mutate server state.
+    if (pendingCount === 0) {
       if (isOnline) {
         fetchInitialData();
       } else {
@@ -484,7 +535,7 @@ export function useOfflineSyncManager() {
     isAuthLoading,
     session,
     hasFetchedInitial,
-    outbox.length,
+    pendingCount,  // tracks non-stuck items only — drops when items are synced OR marked stuck
     isOnline,
     dispatch,
   ]);

@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useSelector } from 'react-redux';
 import { useLocation, NavLink } from 'react-router-dom';
 import {
   Smartphone,
@@ -31,6 +32,7 @@ import clsx from "clsx";
 import { usePlan, FeatureKey } from "@/hooks/usePlan";
 import { useAuth } from "@/context/AuthContext";
 import { useUpgradeGate } from "@/context/UpgradeGateContext";
+import { RootState } from "@/app/store";
 
 const PLAN_LABELS: Record<string, string> = {
   trial: '🟡 Trial Active',
@@ -87,6 +89,9 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
   const { showUpgrade } = useUpgradeGate();
   const [showSignOutConfirm, setShowSignOutConfirm] = React.useState(false);
   const touchStartX = useRef<number>(0);
+  const stuckCount = useSelector(
+    (state: RootState) => state.sync.outbox.filter((i) => i.stuck).length,
+  );
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -197,6 +202,21 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
           className="flex-1 px-3 py-4 space-y-6 overflow-y-auto overscroll-contain"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Sync issues banner — only shown when an outbox item is permanently stuck */}
+          {stuckCount > 0 && (
+            <div className="px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 flex items-start gap-2.5">
+              <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-amber-700 dark:text-amber-400 leading-tight">
+                  {stuckCount} item{stuckCount > 1 ? "s" : ""} couldn't sync
+                </p>
+                <p className="text-[11px] text-amber-600/80 dark:text-amber-500 mt-0.5 leading-tight">
+                  Data saved locally. You may need to re-enter.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Dashboard Item */}
           <div className="space-y-1">
             <NavLink

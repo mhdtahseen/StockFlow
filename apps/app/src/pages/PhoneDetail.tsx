@@ -141,10 +141,10 @@ export default function PhoneDetail() {
     e.preventDefault();
     if (!repairAmount || Number(repairAmount) <= 0) return;
     const amount = Number(repairAmount);
-    const entryId = `repair-${phone.id}-${Date.now()}`;
 
     // Fire addRepairLog: Watchtower will push to ledger.entries (Fix B)
     dispatch(addRepairLog({
+      id: crypto.randomUUID(), // stable ID — safe to retry without creating duplicates
       phoneId: phone.id,
       amount,
       note: repairNote.trim() || 'General Maintenance',
@@ -169,7 +169,6 @@ export default function PhoneDetail() {
   const handleSaveRepairEdit = (entry: { id: string; createdAt: string }) => {
     if (!editAmount || Number(editAmount) <= 0) return;
     const amount = Number(editAmount);
-    const entryId = `repair-${phone.id}-${Date.now()}`;
     const noteText = `${editNote.trim() || 'General Maintenance'} (Updated)`;
 
     // Remove old entry and queue void via removeRepairLog
@@ -177,6 +176,7 @@ export default function PhoneDetail() {
 
     // Queue new entry via addRepairLog: Watchtower pushes to ledger.entries (Fix B)
     dispatch(addRepairLog({
+      id: crypto.randomUUID(), // stable ID — safe to retry without creating duplicates
       phoneId: phone.id,
       amount,
       note: noteText,

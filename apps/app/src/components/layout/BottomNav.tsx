@@ -1,12 +1,17 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { LayoutDashboard, Plus, Menu } from 'lucide-react';
 import clsx from 'clsx';
+import { RootState } from '@/app/store';
 
 interface Props { onMenuOpen: () => void; }
 
 export default function BottomNav({ onMenuOpen }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
+  const stuckCount = useSelector(
+    (state: RootState) => state.sync.outbox.filter((i) => i.stuck).length,
+  );
   return (
     <nav className="fixed bottom-0 w-full bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex justify-around items-center pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] dark:shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] z-40 transition-colors duration-300">
       <NavLink to="/"
@@ -39,8 +44,15 @@ export default function BottomNav({ onMenuOpen }: Props) {
       <button
         onClick={onMenuOpen}
         aria-label="Open navigation menu"
-        className="flex flex-col items-center justify-center w-20 min-h-[48px] pt-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-        <Menu size={22} />
+        className="relative flex flex-col items-center justify-center w-20 min-h-[48px] pt-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+        <div className="relative">
+          <Menu size={22} />
+          {stuckCount > 0 && (
+            <span className="absolute -top-1 -right-1.5 h-3.5 w-3.5 rounded-full bg-amber-500 text-[8px] font-black text-white flex items-center justify-center leading-none">
+              !
+            </span>
+          )}
+        </div>
         <span className="text-xs mt-1 font-semibold">Menu</span>
       </button>
     </nav>

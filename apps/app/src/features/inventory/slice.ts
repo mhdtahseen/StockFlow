@@ -39,6 +39,7 @@ const inventorySlice = createSlice({
     addRepairLog: (
       state,
       action: PayloadAction<{
+        id: string; // stable UUID generated at dispatch time — required for sync idempotency
         phoneId: string;
         amount: number;
         note: string;
