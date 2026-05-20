@@ -121,13 +121,27 @@ export default function ProfilePage() {
 
   // Load profile data only when the user ID changes (not on token refreshes)
   useEffect(() => {
+    let cancelled = false;
+
+    // Safety net: fetch() has no built-in timeout. After the device wakes from
+    // idle, the Supabase client may hang indefinitely trying to refresh an
+    // expired JWT before the query can run. Always release the loader within 10s.
+    const safetyTimer = setTimeout(() => {
+      if (!cancelled) setIsLoading(false);
+    }, 10_000);
+
     async function loadProfileData() {
       if (!session?.user.id) {
         setIsLoading(false); // always release the loader on early exit
+        clearTimeout(safetyTimer);
         return;
       }
       // Skip if we've already fetched for this user in this session
-      if (loadedForUserRef.current === session.user.id) return;
+      if (loadedForUserRef.current === session.user.id) {
+        setIsLoading(false);
+        clearTimeout(safetyTimer);
+        return;
+      }
       setIsLoading(true);
       try {
         const { data, error } = await supabase
@@ -157,11 +171,17 @@ export default function ProfilePage() {
       } catch (err: any) {
         console.error("Profile load catch:", err);
       } finally {
-        setIsLoading(false);
+        clearTimeout(safetyTimer);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
     loadProfileData();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(safetyTimer);
+    };
   }, [session?.user?.id]); // stable ID dep — token refreshes won't re-trigger this
 
   // Sync business fields whenever tenant updates (no loading state needed)

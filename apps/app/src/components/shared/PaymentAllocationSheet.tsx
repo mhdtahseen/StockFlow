@@ -15,7 +15,6 @@ import { addCustomerSettlement } from "@/features/customers/slice";
 import { updateOrderPayment } from "@/features/billing/slice";
 import {
   addSupplierSettlement,
-  addSupplierPayment,
   updatePOPayment,
 } from "@/features/purchasing/slice";
 import { useAuth } from "@/context/AuthContext";

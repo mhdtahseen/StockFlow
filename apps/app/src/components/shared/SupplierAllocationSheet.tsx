@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/bo
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppSelector, useAppDispatch } from '@/app/hooks';
-import { addSupplierSettlement, addSupplierPayment } from '@/features/purchasing/slice';
+import { addSupplierSettlement } from '@/features/purchasing/slice';
 import { addEntry } from '@/features/ledger/slice';
 import { useAuth } from '@/context/AuthContext';
 import { updatePOPayment } from '@/features/purchasing/slice';
