@@ -4,7 +4,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch } from "@/app/hooks";
 import { updateOrderPayment } from "@/features/billing/slice";
@@ -47,19 +47,22 @@ export function RecordPaymentSheet({
   const max = totalAmount - currentAmountPaid;
   const [amountStr, setAmountStr] = useState(max.toString());
   const [mode, setMode] = useState<Exclude<PayMode, "CREDIT">>("CASH");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const dispatch = useAppDispatch();
   const { user } = useAuth();
 
   React.useEffect(() => {
-    if (open) setAmountStr(max.toString());
+    if (open) { setAmountStr(max.toString()); setIsSubmitting(false); }
   }, [open, max]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const amount = parseFloat(amountStr) || 0;
     if (amount <= 0 || amount > max)
       return toast.error(`Invalid amount max is ${max}`);
 
+    setIsSubmitting(true);
     const paymentId = crypto.randomUUID();
     const totalNow = currentAmountPaid + amount;
     const status = totalNow >= totalAmount ? "SETTLED" : "PARTIAL";
@@ -152,11 +155,6 @@ export function RecordPaymentSheet({
         side="bottom"
         className="rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-0 pt-0 pb-safe-bottom"
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-        </div>
-
         {/* Header */}
         <div className={clsx(
           "flex items-center gap-3 px-6 py-4 border-b border-slate-100 dark:border-slate-800",
@@ -302,7 +300,7 @@ export function RecordPaymentSheet({
           {/* Submit */}
           <Button
             type="submit"
-            disabled={enteredAmount <= 0 || enteredAmount > max}
+            disabled={enteredAmount <= 0 || enteredAmount > max || isSubmitting}
             className={clsx(
               "w-full h-14 rounded-2xl text-base font-black tracking-wide text-white shadow-lg transition-all",
               willSettle && enteredAmount > 0

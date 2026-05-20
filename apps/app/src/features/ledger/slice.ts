@@ -42,6 +42,27 @@ const ledgerSlice = createSlice({
         const soId = e.saleOrderId || (e as any).sale_order_id;
         if (poId && officialPOIds.has(poId)) return false;
         if (soId && officialSOIds.has(soId)) return false;
+        // For payment-type pending entries with no PO/SO link (customer payments,
+        // supplier settlements, etc.), prune if a matching official server entry
+        // exists with the same type + amount within 7 days.
+        // Skip entries newer than 30s so freshly-created optimistic entries survive
+        // until the outbox sync fires and calls removePendingEntryById.
+        if (!poId && !soId) {
+          const pendingAgeMs = Date.now() - new Date(e.createdAt).getTime();
+          if (pendingAgeMs > 30_000) {
+            const isStale = state.entries.some(
+              (official) =>
+                !official.id.startsWith("v-") &&
+                official.type === e.type &&
+                official.amount === e.amount &&
+                Math.abs(
+                  new Date(official.createdAt).getTime() -
+                    new Date(e.createdAt).getTime(),
+                ) < 7 * 24 * 60 * 60 * 1000,
+            );
+            if (isStale) return false;
+          }
+        }
         return true;
       });
     },
@@ -112,6 +133,11 @@ const ledgerSlice = createSlice({
         (entry) =>
           entry.purchaseOrderId !== action.payload &&
           entry.saleOrderId !== action.payload,
+      );
+    },
+    removePendingEntryById: (state, action: PayloadAction<string>) => {
+      state.pendingEntries = (state.pendingEntries || []).filter(
+        (entry) => entry.id !== action.payload,
       );
     },
   },
@@ -372,6 +398,7 @@ export const {
   removeEntry,
   addPendingEntry,
   removePendingEntry,
+  removePendingEntryById,
 } = ledgerSlice.actions;
 
 export default ledgerSlice.reducer;

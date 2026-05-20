@@ -11,6 +11,7 @@ import {
   setOnlineStatus,
 } from "@/features/sync/slice";
 import { addCustomer } from "@/features/customers/slice";
+import { removePendingEntryById } from "@/features/ledger/slice";
 import { syncActionToSupabase } from "./supabaseApi";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
@@ -130,6 +131,17 @@ export function useOfflineSyncManager() {
 
           if (success) {
             dispatch(removeAction(item.id));
+            // Clean up the optimistic pending ledger entry that was created when
+            // the action was dispatched — prevents duplicate display after refresh.
+            const { type, payload } = item.action as { type: string; payload: any };
+            if (type === "customers/addCustomerPayment") {
+              dispatch(removePendingEntryById(`v-cust-pay-${payload.id}`));
+            } else if (type === "customers/addCustomerSettlement") {
+              dispatch(removePendingEntryById(`v-set-main-${payload.id}`));
+              dispatch(removePendingEntryById(`v-set-excess-${payload.id}`));
+            } else if (type === "purchasing/addSupplierSettlement") {
+              dispatch(removePendingEntryById(`v-sup-set-${payload.id}`));
+            }
           } else {
             dispatch(incrementRetry(item.id));
             hasMore = false; // Stop on failure to avoid hammering
