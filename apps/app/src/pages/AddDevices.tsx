@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { addPhone, linkPhoneToPO } from "../features/inventory/slice";
 import { addPurchaseOrder, addSupplierPayment } from "../features/purchasing/slice";
@@ -113,6 +113,11 @@ export default function AddDevices() {
   const [gstEnabled, setGstEnabled] = useState(false);
   const [gstInclusive, setGstInclusive] = useState(true);
   const [sellerGstin, setSellerGstin] = useState("");
+
+  // Sync GSTIN from vendor profile whenever vendor changes
+  useEffect(() => {
+    setSellerGstin(vendor?.gstin || "");
+  }, [vendor?.id]);
 
   // ── Top issues from history ────────────────────────────────────────────────
   const topIssues = useMemo(() => {
@@ -572,7 +577,7 @@ export default function AddDevices() {
                     value={sellerGstin}
                     onChange={(e) => setSellerGstin(e.target.value.toUpperCase())}
                     maxLength={15}
-                    placeholder={vendor?.gstin || "e.g. 27AAACR5055K1ZF"}
+                    placeholder="e.g. 27AAACR5055K1ZF"
                     className={clsx(
                       "w-full h-10 px-3 rounded-xl border-2 font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none transition-all bg-slate-50 dark:bg-slate-800",
                       sellerGstin.length === 15

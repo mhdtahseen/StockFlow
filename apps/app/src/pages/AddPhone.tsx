@@ -179,6 +179,11 @@ export default function AddPhone() {
   const [gstInclusive, setGstInclusive] = useState(true);
   const [sellerGstin, setSellerGstin] = useState("");
 
+  // Sync GSTIN from supplier profile whenever supplier changes
+  useEffect(() => {
+    setSellerGstin(selectedSupplier?.gstin || "");
+  }, [selectedSupplier?.id]);
+
   const gstType = useMemo(
     () => determineGstType(sellerGstin || selectedSupplier?.gstin, tenant?.gstin),
     [sellerGstin, selectedSupplier?.gstin, tenant?.gstin],
@@ -574,7 +579,7 @@ export default function AddPhone() {
                       value={sellerGstin}
                       onChange={(e) => setSellerGstin(e.target.value.toUpperCase())}
                       maxLength={15}
-                      placeholder={selectedSupplier?.gstin || "e.g. 27AAACR5055K1ZF"}
+                      placeholder="e.g. 27AAACR5055K1ZF"
                       className={clsx(
                         "w-full h-10 px-3 rounded-xl border-2 font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none transition-all bg-slate-50 dark:bg-slate-800",
                         sellerGstin.length === 15

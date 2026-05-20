@@ -824,7 +824,7 @@ export function CreateOrderSheet({
                           value={buyerGstin}
                           onChange={(e) => setBuyerGstin(e.target.value.toUpperCase())}
                           maxLength={15}
-                          placeholder={customer?.gstin || "e.g. 27AAACR5055K1ZF"}
+                          placeholder="e.g. 27AAACR5055K1ZF"
                           className={clsx(
                             "w-full h-10 px-3 rounded-xl border-2 font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none transition-all bg-slate-50 dark:bg-slate-800",
                             buyerGstin.length === 15
