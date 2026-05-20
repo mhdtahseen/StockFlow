@@ -195,22 +195,12 @@ export function PaymentAllocationSheet({
             amount: rawAmount,
             mode: method,
             note: settlementNote,
-          }),
-        );
-        dispatch(
-          addSupplierPayment({
-            id: paymentId,
-            counterpartyId,
-            totalPaid: rawAmount,
-            mode: method as any,
-            paidAt: now,
-            note: settlementNote,
             recordedBy: user?.id || "system",
             allocations: cashAllocations
               .filter((a) => a.fromCash > 0)
               .map((a) => ({
                 purchaseOrderId: a.orderId,
-                amountAllocated: a.fromCash,
+                amount: a.fromCash,
               })),
           }),
         );

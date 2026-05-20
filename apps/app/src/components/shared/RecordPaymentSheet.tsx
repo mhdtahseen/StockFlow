@@ -124,9 +124,12 @@ export function RecordPaymentSheet({
       } else {
         dispatch(
           addSupplierSettlement({
+            id: paymentId,
             counterpartyId,
             amount,
             mode,
+            allocations: [],
+            recordedBy: user?.id || "system",
             note: structuredNote,
           }),
         );

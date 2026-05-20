@@ -63,20 +63,10 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
       amount: totalPaid,
       mode,
       note: settlementNote,
-    }));
-
-    // 2. Add payment to local state immediately so CustomerDetail payments tab shows it
-    dispatch(addSupplierPayment({
-      id: paymentId,
-      counterpartyId: supplierId,
-      totalPaid,
-      mode: mode as any,
-      paidAt: now,
-      note: settlementNote,
       recordedBy: user?.id || 'system',
       allocations: activeAllocations.map(a => ({
         purchaseOrderId: a.orderId,
-        amountAllocated: a.allocated,
+        amount: a.allocated,
       })),
     }));
 

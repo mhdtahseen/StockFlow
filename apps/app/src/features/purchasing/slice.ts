@@ -32,14 +32,36 @@ const purchasingSlice = createSlice({
     addSupplierPayment: (s, a: PayloadAction<SupplierPayment>) => {
       s.payments.unshift(a.payload);
     },
-    addSupplierSettlement: (s, a: PayloadAction<{
-      id?: string;
-      counterpartyId: string;
-      amount: number;
-      mode: string;
-      note?: string;
-    }>) => {
-      // Backend handles allocation
+    addSupplierSettlement: (
+      s,
+      a: PayloadAction<{
+        id: string;
+        counterpartyId: string;
+        amount: number;
+        mode: string;
+        allocations: {
+          purchaseOrderId: string;
+          amount: number;
+        }[];
+        note?: string;
+        recordedBy?: string;
+      }>,
+    ) => {
+      const { id, counterpartyId, amount, mode, note, recordedBy, allocations } = a.payload;
+      const newPayment: SupplierPayment = {
+        id,
+        counterpartyId,
+        totalPaid: amount,
+        mode: mode as any,
+        paidAt: new Date().toISOString(),
+        note,
+        recordedBy: recordedBy || "system",
+        allocations: (allocations || []).map(al => ({
+          purchaseOrderId: al.purchaseOrderId,
+          amountAllocated: al.amount,
+        }))
+      };
+      s.payments.unshift(newPayment);
     },
     updatePOPayment: (
       s,

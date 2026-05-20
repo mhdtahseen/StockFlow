@@ -360,6 +360,7 @@ export const syncActionToSupabase = async (
           p_amount: payload.amount,
           p_mode: payload.mode,
           p_note: payload.note ?? null,
+          p_payment_id: payload.id,
         });
         if (error) throw error;
         break;
@@ -375,6 +376,7 @@ export const syncActionToSupabase = async (
             note: a.note,
           })),
           p_note: payload.note ?? null,
+          p_payment_id: payload.id,
         });
         if (error) throw error;
         posthog.capture("payment.logged", { direction: "inbound", mode: payload.mode, amount: payload.totalReceived });
@@ -386,6 +388,7 @@ export const syncActionToSupabase = async (
           p_amount: payload.amount,
           p_mode: payload.mode,
           p_note: payload.note ?? null,
+          p_payment_id: payload.id,
         });
         if (error) throw error;
         break;
@@ -401,6 +404,7 @@ export const syncActionToSupabase = async (
             note: a.note,
           })),
           p_note: payload.note ?? null,
+          p_payment_id: payload.id,
         });
         if (error) throw error;
         posthog.capture("payment.logged", { direction: "outbound", mode: payload.mode, amount: payload.totalPaid });

@@ -281,7 +281,7 @@ const ledgerSlice = createSlice({
     builder.addCase(addSupplierSettlement, (state, action) => {
       const set = action.payload;
       state.pendingEntries.push({
-        id: `v-sup-set-${set.id || Date.now()}`,
+        id: `v-sup-set-${set.id}`,
         type: "SUPPLIER_PAYMENT",
         referenceId: set.counterpartyId,
         amount: -set.amount,
