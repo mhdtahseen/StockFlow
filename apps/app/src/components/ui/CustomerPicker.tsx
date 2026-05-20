@@ -215,7 +215,12 @@ export function CustomerPicker({
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight flex items-center gap-1.5">
-                    {selectedCustomer.name}
+                    <span className="truncate">{selectedCustomer.name}</span>
+                    {selectedCustomer.gstin && isValidGstin(selectedCustomer.gstin) && (
+                      <span className="inline-flex items-center text-[8px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1 py-0.5 rounded shrink-0 border border-emerald-500/20">
+                        GST
+                      </span>
+                    )}
                     {selectedCustomer.linkedTenantId && (
                       <Building2 size={11} className="text-violet-500 shrink-0" />
                     )}
@@ -296,7 +301,12 @@ export function CustomerPicker({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
-                        {c.name}
+                        <span className="truncate">{c.name}</span>
+                        {c.gstin && isValidGstin(c.gstin) && (
+                          <span className="inline-flex items-center text-[8px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1 py-0.5 rounded shrink-0 border border-emerald-500/20">
+                            GST
+                          </span>
+                        )}
                         {c.linkedTenantId && (
                           <Building2 size={11} className="text-violet-500 shrink-0" />
                         )}

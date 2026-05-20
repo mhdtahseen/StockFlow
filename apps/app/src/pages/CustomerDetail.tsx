@@ -37,11 +37,13 @@ import {
   Building2,
   Link2,
   Link2Off,
+  Receipt,
 } from "lucide-react";
 import HeaderActions from "@/components/layout/HeaderActions";
 import { format, parseISO, compareDesc, formatDistanceToNowStrict } from "date-fns";
 import clsx from "clsx";
 import { parseStructuredNote } from "@/utils/financeUtils";
+import { isValidGstin } from "@/utils/gstCalc";
 import { SaleOrder } from "@/features/billing/types";
 import { CustomerPayment } from "@/features/customers/types";
 import { PaymentAllocationSheet } from "@/components/shared/PaymentAllocationSheet";
@@ -272,8 +274,13 @@ export default function CustomerDetail() {
         {/* Customer Header */}
         <div className="flex justify-between items-start mt-2">
           <div className="flex flex-col pr-4">
-            <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 leading-tight">
+            <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 leading-tight flex items-center gap-2">
               {customer.name}
+              {customer.gstin && isValidGstin(customer.gstin) && (
+                <span className="inline-flex items-center text-[10px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">
+                  GST
+                </span>
+              )}
             </h1>
             {customer.phone && (
               <span className="text-sm font-semibold text-slate-500 mt-1">
@@ -283,6 +290,12 @@ export default function CustomerDetail() {
             {customer.aadhaarLast4 && (
               <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-500 mt-0.5">
                 Aadhaar: XXXX {customer.aadhaarLast4}
+              </span>
+            )}
+            {customer.gstin && (
+              <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                <Receipt size={11} className="text-slate-400" />
+                GSTIN: <span className="uppercase">{customer.gstin}</span>
               </span>
             )}
             {customer.address && (

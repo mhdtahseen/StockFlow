@@ -137,16 +137,12 @@ export default function AddDevices() {
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const platformFee = parseFloat(platformFeeStr) || 0;
-  const totalItemCost = rows.reduce(
-    (s, r) => s + (parseFloat(r.purchasePrice) || 0),
-    0,
-  );
-  const grandTotal = totalItemCost + platformFee;
-  const cashPaid = parseFloat(cashStr) || 0;
-  const upiPaid = parseFloat(upiStr) || 0;
-  const bankPaid = parseFloat(bankStr) || 0;
-  const totalPaid = cashPaid + upiPaid + bankPaid;
-  const outstanding = Math.max(0, grandTotal - totalPaid);
+  const totalItemCost = useMemo(() => {
+    return rows.reduce(
+      (s, r) => s + (parseFloat(r.purchasePrice) || 0),
+      0,
+    );
+  }, [rows]);
 
   const gstType = useMemo(
     () => determineGstType(sellerGstin || vendor?.gstin, tenant?.gstin),
@@ -158,6 +154,17 @@ export default function AddDevices() {
     if (prices.length === 0) return null;
     return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, gstInclusive);
   }, [gstEnabled, rows, gstType, gstInclusive]);
+
+  const grandTotal = useMemo(() => {
+    const baseCost = gstEnabled && gstBreakdown ? gstBreakdown.grandTotal : totalItemCost;
+    return baseCost + platformFee;
+  }, [gstEnabled, gstBreakdown, totalItemCost, platformFee]);
+
+  const cashPaid = parseFloat(cashStr) || 0;
+  const upiPaid = parseFloat(upiStr) || 0;
+  const bankPaid = parseFloat(bankStr) || 0;
+  const totalPaid = cashPaid + upiPaid + bankPaid;
+  const outstanding = Math.max(0, grandTotal - totalPaid);
 
   // ── Row helpers ────────────────────────────────────────────────────────────
   const updateRow = useCallback((id: string, patch: Partial<DeviceRow>) => {

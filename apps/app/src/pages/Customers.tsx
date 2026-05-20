@@ -11,6 +11,7 @@ import { TradeNetworkConnectSheet } from "@/components/shared/TradeNetworkConnec
 import QrScannerModal from "@/components/shared/QrScannerModal";
 import { usePlan } from "@/hooks/usePlan";
 import { CustomerType } from "@/features/customers/types";
+import { isValidGstin } from "@/utils/gstCalc";
 import {
   Select,
   SelectContent,
@@ -208,8 +209,13 @@ export default function Customers() {
 
                   {/* Main content */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-black text-[15px] text-slate-900 dark:text-slate-100 truncate leading-tight">
-                      {c.name}
+                    <h3 className="font-black text-[15px] text-slate-900 dark:text-slate-100 truncate leading-tight flex items-center gap-1.5">
+                      <span className="truncate">{c.name}</span>
+                      {c.gstin && isValidGstin(c.gstin) && (
+                        <span className="inline-flex items-center text-[8px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1 py-0.5 rounded shrink-0 border border-emerald-500/20">
+                          GST
+                        </span>
+                      )}
                     </h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="text-[9px] uppercase tracking-widest font-black text-slate-400">

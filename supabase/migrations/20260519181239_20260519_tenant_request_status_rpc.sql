@@ -9,11 +9,11 @@ BEGIN
   RETURN QUERY
   SELECT tr.status::text, tr.org_name, tr.created_at
   FROM public.tenant_requests tr
-  WHERE lower(tr.email) = lower(trim(input_email))
+  WHERE tr.email = lower(trim(input_email))
   ORDER BY tr.created_at DESC
   LIMIT 1;
 END;
 $$;
 
 -- Grant execution permissions to anon and authenticated roles
-GRANT EXECUTE ON FUNCTION public.check_request_status(text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_request_status(text) TO anon, authenticated;;

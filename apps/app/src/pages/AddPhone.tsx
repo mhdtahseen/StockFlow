@@ -306,7 +306,8 @@ export default function AddPhone() {
     // Create PO
     const poId = crypto.randomUUID();
     const platformFeeAmount = acquisitionChannel === "PLATFORM" ? parseFloat(platformFeeStr) || 0 : 0;
-    const totalAmount = parseFloat(price) + platformFeeAmount;
+    const baseCost = gstEnabled && gstBreakdown ? gstBreakdown.grandTotal : parseFloat(price);
+    const totalAmount = baseCost + platformFeeAmount;
     const amountPaidNum = parseFloat(amountPaidStr) || 0;
 
     const purchaseOrder = {

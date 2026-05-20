@@ -72,6 +72,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
   const { user, tenant } = useAuth();
   const { canUse } = usePlan();
   const { showUpgrade } = useUpgradeGate();
+  const customers = useAppSelector((state) => state.customers.customers);
   const {
     getBrandOptions,
     getModelOptions,
@@ -350,7 +351,22 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
   }, [rows]);
 
   const platformFee = parseFloat(platformFeeStr) || 0;
-  const totalAmount = totalCost + platformFee;
+
+  const gstType = useMemo(
+    () => determineGstType(sellerGstin || supplier?.gstin, tenant?.gstin),
+    [sellerGstin, supplier?.gstin, tenant?.gstin],
+  );
+  const gstBreakdown = useMemo(() => {
+    if (!gstEnabled || rows.length === 0) return null;
+    const prices = rows.map((r) => parseFloat(r.purchasePrice) || 0).filter(Boolean);
+    if (prices.length === 0) return null;
+    return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, gstInclusive);
+  }, [gstEnabled, rows, gstType, gstInclusive]);
+
+  const totalAmount = useMemo(() => {
+    const cost = gstEnabled && gstBreakdown ? gstBreakdown.grandTotal : totalCost;
+    return cost + platformFee;
+  }, [gstEnabled, gstBreakdown, totalCost, platformFee]);
 
   const cashPaid = parseFloat(cashAmountStr) || 0;
   const upiPaid = parseFloat(upiAmountStr) || 0;
@@ -368,19 +384,6 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
           : bankPaid > 0
             ? "BANK_TRANSFER"
             : "CREDIT";
-
-  const customers = useAppSelector((state) => state.customers.customers);
-
-  const gstType = useMemo(
-    () => determineGstType(sellerGstin || supplier?.gstin, tenant?.gstin),
-    [sellerGstin, supplier?.gstin, tenant?.gstin],
-  );
-  const gstBreakdown = useMemo(() => {
-    if (!gstEnabled || rows.length === 0) return null;
-    const prices = rows.map((r) => parseFloat(r.purchasePrice) || 0).filter(Boolean);
-    if (prices.length === 0) return null;
-    return calculateOrderGst(prices, DEFAULT_GST_RATE, gstType, gstInclusive);
-  }, [gstEnabled, rows, gstType, gstInclusive]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
