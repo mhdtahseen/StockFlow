@@ -19,6 +19,7 @@ import IssueSelector from "../components/IssueSelector";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import { type ImeiEntry } from "../utils/validateImei";
 import CurrencyInput from "../components/ui/CurrencyInput";
+import { RupeeWordsDisplay } from "../components/ui/RupeeWordsDisplay";
 import { CustomerPicker } from "../components/ui/CustomerPicker";
 import { Customer } from "../features/customers/types";
 import ImeiSection from "../components/ImeiSection";
@@ -862,6 +863,7 @@ function DeviceCard({
             onChange={(v) => onUpdate({ purchasePrice: v })}
             placeholder="0.00"
           />
+          <RupeeWordsDisplay amount={parseFloat(row.purchasePrice)} />
         </div>
 
         <IssueSelector

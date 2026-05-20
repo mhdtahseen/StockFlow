@@ -29,6 +29,7 @@ import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 import ImeiSection from "../components/ImeiSection";
 import { type ImeiEntry, validateImei } from "../utils/validateImei";
 import CurrencyInput from "../components/ui/CurrencyInput";
+import { RupeeWordsDisplay } from "../components/ui/RupeeWordsDisplay";
 import { CustomerPicker } from "../components/ui/CustomerPicker";
 import clsx from "clsx";
 import {
@@ -494,6 +495,7 @@ export default function AddPhone() {
             <div className="relative">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Purchase Cost</label>
               <CurrencyInput value={price} onChange={(v) => { setPrice(v); revalidate(); }} />
+              <RupeeWordsDisplay amount={parseFloat(price)} />
               {errors.purchasePrice && <span className="text-red-500 text-xs mt-1 block">{errors.purchasePrice}</span>}
             </div>
           </div>

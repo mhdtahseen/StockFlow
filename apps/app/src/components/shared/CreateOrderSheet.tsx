@@ -4,7 +4,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui/bottom-sheet";
 import {
   X,
   Plus,
@@ -32,6 +32,7 @@ import { selectCustomers, selectCounterpartyAdvance } from "@/features/customers
 import { addCustomerSettlement } from "@/features/customers/slice";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import CurrencyInput from "@/components/ui/CurrencyInput";
+import { RupeeWordsDisplay } from "@/components/ui/RupeeWordsDisplay";
 import { DeviceSelectorSheet } from "./DeviceSelectorSheet";
 import { usePlan } from "@/hooks/usePlan";
 import { useAuth } from "@/context/AuthContext";
@@ -447,11 +448,6 @@ export function CreateOrderSheet({
           side="bottom"
           className="h-[92vh] flex flex-col p-0 rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-hidden"
         >
-          {/* Drag Handle */}
-          <div className="flex justify-center pt-3 pb-0 shrink-0">
-            <div className="w-10 h-1 bg-slate-200 dark:bg-slate-700 rounded-full" />
-          </div>
-
           {/* Header */}
           <SheetHeader className="px-4 py-3 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 mt-2">
             <div className="flex items-center gap-3">
@@ -746,6 +742,7 @@ export function CreateOrderSheet({
                               }
                               placeholder={String(projectedPrice)}
                             />
+                            <RupeeWordsDisplay amount={parseFloat(item.salePrice)} />
                             {showDiscounts && (
                               <CurrencyInput
                                 size="sm"
