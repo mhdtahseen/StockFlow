@@ -43,11 +43,12 @@ export const clearTenantCache = () => {
 // PostHog dashboard (Display conditions → "User sends event: milestone.*").
 const MILESTONE_PFX = "finventree_milestone_";
 
-function checkMilestone(metric: string, threshold: number) {
-  const doneKey = `${MILESTONE_PFX}${metric}_${threshold}`;
+function checkMilestone(metric: string, threshold: number, tenantId: string | null) {
+  const scope = tenantId ?? "anon";
+  const doneKey = `${MILESTONE_PFX}${scope}_${metric}_${threshold}`;
   if (localStorage.getItem(doneKey) === "done") return;
 
-  const countKey = `${MILESTONE_PFX}${metric}_count`;
+  const countKey = `${MILESTONE_PFX}${scope}_${metric}_count`;
   const next = parseInt(localStorage.getItem(countKey) || "0", 10) + 1;
   localStorage.setItem(countKey, String(next));
 
@@ -95,7 +96,7 @@ export const syncActionToSupabase = async (
         });
         if (error) throw error;
         posthog.capture("phone.added", { brand: payload.brand, model: payload.model, status: payload.status });
-        checkMilestone("phones", 10);
+        checkMilestone("phones", 10, tenant_id);
         break;
       }
       case "inventory/updatePhone": {
@@ -269,7 +270,7 @@ export const syncActionToSupabase = async (
         });
         if (error) throw error;
         posthog.capture("order.created", { type: "sale", item_count: payload.items?.length ?? 1, amount: payload.totalAmount });
-        checkMilestone("orders", 5);
+        checkMilestone("orders", 5, tenant_id);
         break;
       }
       case "billing/updateOrderPayment": {
@@ -387,7 +388,7 @@ export const syncActionToSupabase = async (
         });
         if (error) throw error;
         posthog.capture("order.created", { type: "purchase", item_count: payload.items?.length ?? 1, channel: payload.acquisitionChannel, amount: payload.totalAmount });
-        checkMilestone("orders", 5);
+        checkMilestone("orders", 5, tenant_id);
         break;
       }
       // ─── CUSTOMERS ──────────────────────────────────────────────────
@@ -607,7 +608,7 @@ export const syncActionToSupabase = async (
         });
         if (error) throw error;
         posthog.capture("customer.added", { type: mappedType });
-        checkMilestone("customers", 3);
+        checkMilestone("customers", 3, tenant_id);
         break;
       }
       case "customers/updateCustomer": {
