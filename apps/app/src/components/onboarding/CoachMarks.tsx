@@ -27,7 +27,7 @@ const MOBILE_STEPS: Step[] = [
     target: '[data-tour="nav-menu"]',
     title: "Navigate the App",
     content: "Tap Menu to reach Inventory, Orders, Ledger, and Customers — everything you need to run your shop.",
-    placement: "top",
+    placement: "top-end",
   },
 ];
 
@@ -81,7 +81,7 @@ function CoachTip({
   return (
     <div
       {...tooltipProps}
-      className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/60 border border-slate-200 dark:border-slate-700 w-72 overflow-hidden"
+      className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/60 border border-slate-200 dark:border-slate-700 w-60 sm:w-72 overflow-hidden"
     >
       {/* Header accent */}
       <div className="h-1 bg-primary-500" />
@@ -206,7 +206,7 @@ export default function CoachMarks() {
         skipBeacon: true,
         zIndex: 9999,
         overlayColor: "rgba(0, 0, 0, 0.45)",
-        arrowColor: "transparent",
+        arrowColor: "#ffffff",
       }}
     />
   );
