@@ -21,6 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/settings": "Settings",
   "/team": "Manage Team",
   "/about": "About App",
+  "/support": "Help & Support",
   "/pricing": "Upgrade Plan",
 };
 

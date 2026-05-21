@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   User,
   Settings2,
+  HelpCircle,
   ShieldCheck,
   LogOut,
   AlertCircle,
@@ -256,6 +257,7 @@ export default function AppDrawer({ isOpen, onClose }: Props) {
             {renderSection({ label: "My Profile", to: "/profile", icon: User })}
             {isAdmin && renderSection({ label: "Manage Team", to: "/team", icon: ShieldCheck })}
             {renderSection({ label: "App Settings", to: "/settings", icon: Settings2 })}
+            {renderSection({ label: "Help & Support", to: "/support", icon: HelpCircle })}
           </div>
         </nav>
 

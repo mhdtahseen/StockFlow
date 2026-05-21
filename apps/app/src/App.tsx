@@ -38,6 +38,7 @@ import ManageTeam from "@/pages/ManageTeam";
 import Profile from "@/pages/Profile";
 import Settings from "@/pages/Settings";
 import AboutApp from "@/pages/AboutApp";
+import Support from "@/pages/Support";
 import PublicView from "@/pages/PublicView";
 import AuthHandoff from "@/pages/AuthHandoff";
 
@@ -142,6 +143,7 @@ function App() {
             }
           />
           <Route path="/auth/handoff" element={<AuthHandoff />} />
+          <Route path="/support" element={<Support />} />
           <Route path="/public/view/:token" element={<PublicView />} />
           {/* Trade Network connect deep link: /connect/:code → redirect to /customers?connect=CODE */}
           <Route

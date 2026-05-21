@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { AlertTriangle, Clock, HelpCircle, LogOut, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 
 export default function SuspendedScreen() {
   const { tenant, signOut } = useAuth();
+  const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
@@ -41,7 +43,7 @@ export default function SuspendedScreen() {
       )}
 
       <div className="grid gap-3 w-full max-w-xs">
-        <Button variant="outline" className="rounded-xl h-12 font-bold gap-2 border-slate-200 dark:border-slate-800 shadow-sm">
+        <Button onClick={() => navigate("/support")} variant="outline" className="rounded-xl h-12 font-bold gap-2 border-slate-200 dark:border-slate-800 shadow-sm">
           <HelpCircle size={18} /> Support Desk
         </Button>
         <Button onClick={handleSignOut} disabled={isSigningOut} variant="ghost" className="rounded-xl h-12 font-bold gap-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50">

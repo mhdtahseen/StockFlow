@@ -1,0 +1,282 @@
+[
+  {
+    "id": "faq-1",
+    "category": "Getting Started",
+    "question": "How do I add a phone to inventory?",
+    "keywords": ["add", "phone", "new", "device", "inventory", "create", "enter"],
+    "answer": "Tap the **+** button (blue circle, bottom centre of any screen) to open the Add Phone form. Fill in brand, model, IMEI, and purchase price, then tap **Save**."
+  },
+  {
+    "id": "faq-2",
+    "category": "Getting Started",
+    "question": "How do I scan an IMEI?",
+    "keywords": ["scan", "imei", "barcode", "camera", "qr"],
+    "answer": "On the Add Phone screen, tap the **camera icon** next to the IMEI field. Point the camera at the barcode on the box or device — it captures automatically."
+  },
+  {
+    "id": "faq-3",
+    "category": "Getting Started",
+    "question": "How do I open the navigation menu?",
+    "keywords": ["menu", "navigate", "open", "drawer", "navigation", "sidebar", "hamburger"],
+    "answer": "Tap the **☰ hamburger icon** in the top-left corner of any screen to open the full navigation drawer."
+  },
+  {
+    "id": "faq-4",
+    "category": "Getting Started",
+    "question": "How do I use the app offline?",
+    "keywords": ["offline", "no", "internet", "connection", "work", "sync"],
+    "answer": "The app works fully offline. You can add phones, create orders, and record payments without internet. All changes sync automatically when you reconnect."
+  },
+  {
+    "id": "faq-5",
+    "category": "Getting Started",
+    "question": "Can I use Finventree on multiple devices?",
+    "keywords": ["multiple", "devices", "phone", "tablet", "laptop", "desktop", "web"],
+    "answer": "Yes — Finventree is available as a mobile app (Android/iOS) and as a web app. All devices sync to the same data automatically."
+  },
+  {
+    "id": "faq-6",
+    "category": "Inventory",
+    "question": "What do the phone status labels mean?",
+    "keywords": ["status", "stock", "pending", "sold", "meaning", "difference", "label"],
+    "answer": "**In Stock** = available for sale. **Pending** = reserved or awaiting payment. **Sold** = sale complete and fully settled."
+  },
+  {
+    "id": "faq-7",
+    "category": "Inventory",
+    "question": "How do I filter or search inventory?",
+    "keywords": ["filter", "search", "inventory", "status", "find", "brand", "model"],
+    "answer": "Tap the filter pills at the top of the Inventory screen (All / In Stock / Pending / Sold). Use the search bar to search by IMEI, model, or brand."
+  },
+  {
+    "id": "faq-8",
+    "category": "Inventory",
+    "question": "How do I edit a phone?",
+    "keywords": ["edit", "update", "change", "phone", "modify"],
+    "answer": "Open the phone's detail page from Inventory, then tap the **Edit (pencil) icon** at the top right. Update any field and save."
+  },
+  {
+    "id": "faq-9",
+    "category": "Inventory",
+    "question": "How do I delete a phone?",
+    "keywords": ["delete", "remove", "phone", "inventory"],
+    "answer": "Open the phone detail page and tap **⋮ → Delete**. Phones linked to active orders cannot be deleted."
+  },
+  {
+    "id": "faq-10",
+    "category": "Inventory",
+    "question": "What is IMEI and why do I need it?",
+    "keywords": ["imei", "what", "why", "number", "unique", "identification"],
+    "answer": "IMEI is a unique 15-digit number for every phone. It prevents duplicates, tracks specific devices, and is required for warranty claims."
+  },
+  {
+    "id": "faq-11",
+    "category": "Orders",
+    "question": "How do I create a sales order?",
+    "keywords": ["sales", "order", "sell", "create", "new", "so"],
+    "answer": "Go to **Menu → Sales Orders → +**. Select the customer, add phones from inventory, set the price, and save."
+  },
+  {
+    "id": "faq-12",
+    "category": "Orders",
+    "question": "How do I create a purchase order?",
+    "keywords": ["purchase", "order", "buy", "po", "supplier", "create"],
+    "answer": "Go to **Menu → Purchase Orders → +**. Enter the supplier, add phones with prices, and save. Certify the PO once goods are received."
+  },
+  {
+    "id": "faq-13",
+    "category": "Orders",
+    "question": "What is the difference between a PO and an SO?",
+    "keywords": ["po", "so", "purchase", "sales", "difference", "between"],
+    "answer": "A **Purchase Order (PO)** is when you buy phones from a supplier. A **Sales Order (SO)** is when you sell phones to a customer."
+  },
+  {
+    "id": "faq-14",
+    "category": "Orders",
+    "question": "How do I certify a purchase order?",
+    "keywords": ["certify", "po", "purchase", "confirm", "complete", "receive"],
+    "answer": "Open the Purchase Order and tap **Certify PO**. This confirms goods were received, adds the phones to your inventory, and records the purchase in your ledger."
+  },
+  {
+    "id": "faq-15",
+    "category": "Orders",
+    "question": "How do I share an invoice?",
+    "keywords": ["share", "invoice", "pdf", "print", "send", "customer", "bill"],
+    "answer": "Open the Sales Order detail page and tap the **Share icon** (top right). Generate a PDF and share via WhatsApp, email, or any app."
+  },
+  {
+    "id": "faq-16",
+    "category": "Orders",
+    "question": "How do I view order history?",
+    "keywords": ["history", "past", "orders", "previous", "list", "all"],
+    "answer": "Go to **Menu → Sales Orders** or **Purchase Orders** to see the full list. Tap any order to view details, payment history, and attached phones."
+  },
+  {
+    "id": "faq-17",
+    "category": "Payments",
+    "question": "How do I record a payment?",
+    "keywords": ["payment", "record", "received", "paid", "collect", "log"],
+    "answer": "Open the sales or purchase order, scroll to the **Payment** section, and tap **Add Payment**. Enter the amount and payment mode."
+  },
+  {
+    "id": "faq-18",
+    "category": "Payments",
+    "question": "How do I record a partial payment?",
+    "keywords": ["partial", "payment", "installment", "customer", "sale", "order"],
+    "answer": "Open the Sales Order and tap **Add Payment**. Enter only the partial amount — the order shows as Partially Paid. Add more payments later."
+  },
+  {
+    "id": "faq-19",
+    "category": "Payments",
+    "question": "What payment modes are supported?",
+    "keywords": ["payment", "mode", "cash", "upi", "bank", "transfer", "method", "cheque"],
+    "answer": "The app supports **Cash**, **UPI**, **Bank Transfer**, and **Cheque** as payment modes when recording transactions."
+  },
+  {
+    "id": "faq-20",
+    "category": "Payments",
+    "question": "How do I record a supplier payment?",
+    "keywords": ["supplier", "payment", "pay", "outgoing", "purchase", "settle"],
+    "answer": "Open the Purchase Order and scroll to the **Payment** section. Tap **Add Payment** to record how much you paid the supplier."
+  },
+  {
+    "id": "faq-21",
+    "category": "Customers",
+    "question": "How do I add a customer?",
+    "keywords": ["add", "customer", "new", "create", "contact", "buyer"],
+    "answer": "Go to **Menu → Customers → +**. Enter the name, phone number, and details. Customers can be linked to orders."
+  },
+  {
+    "id": "faq-22",
+    "category": "Customers",
+    "question": "How do I track a customer's balance?",
+    "keywords": ["customer", "balance", "credit", "due", "owe", "outstanding"],
+    "answer": "Go to **Menu → Customers** and tap any customer to see total sales, amount paid, and balance due. You can record payments directly from this screen."
+  },
+  {
+    "id": "faq-23",
+    "category": "Customers",
+    "question": "How do I delete a customer?",
+    "keywords": ["delete", "customer", "remove"],
+    "answer": "Go to Customers, tap the customer, then tap **⋮ → Delete**. Customers with active orders cannot be deleted."
+  },
+  {
+    "id": "faq-24",
+    "category": "Finance",
+    "question": "How do I see my profit?",
+    "keywords": ["profit", "margin", "earnings", "revenue", "dashboard", "how much"],
+    "answer": "The **Dashboard** shows net cash flow and average profit per device. For a detailed breakdown, go to **Menu → Analytics** (Pro plan required)."
+  },
+  {
+    "id": "faq-25",
+    "category": "Finance",
+    "question": "How do I view the accounts ledger?",
+    "keywords": ["ledger", "accounts", "balance", "financial", "money"],
+    "answer": "Go to **Menu → Accounts Ledger** to see all transactions (income, expenses, customer balances) in real time. Requires Starter plan or above."
+  },
+  {
+    "id": "faq-26",
+    "category": "Finance",
+    "question": "How do I view analytics and reports?",
+    "keywords": ["analytics", "chart", "report", "revenue", "cogs", "profit", "trend"],
+    "answer": "Go to **Menu → Analytics** to see revenue vs COGS charts, monthly trends, and profit breakdown. Requires Pro plan or above."
+  },
+  {
+    "id": "faq-27",
+    "category": "Finance",
+    "question": "How do I set up GST for invoices?",
+    "keywords": ["gst", "tax", "invoice", "cgst", "sgst", "igst", "billing"],
+    "answer": "When creating a Sales Order, toggle the **GST** option and enter your GSTIN. The app calculates CGST/SGST automatically."
+  },
+  {
+    "id": "faq-28",
+    "category": "Team & Account",
+    "question": "How do I add a team member?",
+    "keywords": ["team", "add", "member", "staff", "employee", "invite", "user"],
+    "answer": "Go to **Menu → Manage Team → Invite Member**. Enter their email — they receive an invitation to join your shop."
+  },
+  {
+    "id": "faq-29",
+    "category": "Team & Account",
+    "question": "How do I change my password?",
+    "keywords": ["password", "change", "reset", "security", "login"],
+    "answer": "Go to **Menu → My Profile → Change Password**. Alternatively, use **Forgot Password** on the login screen."
+  },
+  {
+    "id": "faq-30",
+    "category": "Team & Account",
+    "question": "How do I log out?",
+    "keywords": ["logout", "sign", "out", "exit", "session"],
+    "answer": "Open the navigation drawer (☰ top left), scroll to the bottom, and tap **Sign Out**."
+  },
+  {
+    "id": "faq-31",
+    "category": "Team & Account",
+    "question": "How do I change the app theme to dark mode?",
+    "keywords": ["theme", "dark", "light", "mode", "color", "appearance"],
+    "answer": "Go to **Menu → App Settings** and toggle between Light and Dark mode."
+  },
+  {
+    "id": "faq-32",
+    "category": "Billing & Plans",
+    "question": "How do I upgrade my plan?",
+    "keywords": ["upgrade", "plan", "premium", "pro", "subscription", "billing", "paid"],
+    "answer": "Go to **Menu → Upgrade Plan** or tap the PRO badge on any locked feature. Choose a plan and complete payment — features unlock immediately."
+  },
+  {
+    "id": "faq-33",
+    "category": "Billing & Plans",
+    "question": "What is included in the free plan?",
+    "keywords": ["free", "plan", "trial", "features", "limit", "included"],
+    "answer": "The free trial includes up to 100 phones, 1 user seat, basic inventory, and order management for 6 months. A paid plan is required after the trial."
+  },
+  {
+    "id": "faq-34",
+    "category": "Billing & Plans",
+    "question": "How do I cancel my subscription?",
+    "keywords": ["cancel", "subscription", "plan", "stop", "refund"],
+    "answer": "Go to **Menu → App Settings → Manage Subscription** to cancel your plan. Your access continues until the end of the current billing period. Email support@finventree.com for refund requests."
+  },
+  {
+    "id": "faq-35",
+    "category": "Troubleshooting",
+    "question": "Why is my data not syncing?",
+    "keywords": ["sync", "not", "syncing", "offline", "stuck", "data", "lost"],
+    "answer": "Check your internet connection. If you see a yellow ! badge on the Menu icon, go to **Profile → Developer Tools** to retry stuck sync items. Data is saved locally and syncs when online."
+  },
+  {
+    "id": "faq-36",
+    "category": "Troubleshooting",
+    "question": "The app is blank or crashed — what do I do?",
+    "keywords": ["blank", "crash", "white", "screen", "frozen", "error", "not", "working", "loading"],
+    "answer": "Force-close and reopen the app. If the issue persists, clear the app cache in your device Settings. Data syncs from the server when you reconnect."
+  },
+  {
+    "id": "faq-37",
+    "category": "Troubleshooting",
+    "question": "I forgot my login email or password",
+    "keywords": ["forgot", "email", "password", "login", "access", "locked", "out"],
+    "answer": "Tap **Forgot Password** on the login screen and enter your email to receive a reset link. If you forgot your email, contact support@finventree.com with your shop name."
+  },
+  {
+    "id": "faq-38",
+    "category": "Troubleshooting",
+    "question": "I can't see phones I added earlier",
+    "keywords": ["missing", "phones", "lost", "disappeared", "gone", "data", "not showing"],
+    "answer": "Your data is stored in the cloud. Check your internet connection and pull down to refresh. If logged in on a different account, sign in with the correct email."
+  },
+  {
+    "id": "faq-39",
+    "category": "Troubleshooting",
+    "question": "Why is a feature locked or showing a PRO badge?",
+    "keywords": ["locked", "pro", "badge", "feature", "upgrade", "plan", "unavailable"],
+    "answer": "Some features (Analytics, full Ledger, unlimited team members) require a paid plan. Tap the PRO badge or go to **Menu → Upgrade Plan** to unlock them."
+  },
+  {
+    "id": "faq-40",
+    "category": "Troubleshooting",
+    "question": "How do I contact support?",
+    "keywords": ["contact", "support", "help", "email", "human", "person", "team"],
+    "answer": "Email us at **support@finventree.com** — we typically respond within 24 hours. You can also use the **Email Support** button at the bottom of this page."
+  }
+]
