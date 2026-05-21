@@ -58,6 +58,7 @@ export default function AppHeader({ onMenuOpen }: Props) {
           </button>
         ) : (
           <button
+            data-tour="nav-menu"
             onClick={onMenuOpen}
             aria-label="Open navigation menu"
             className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"

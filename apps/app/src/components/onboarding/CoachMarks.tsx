@@ -26,8 +26,8 @@ const MOBILE_STEPS: Step[] = [
   {
     target: '[data-tour="nav-menu"]',
     title: "Navigate the App",
-    content: "Tap Menu to reach Inventory, Orders, Ledger, and Customers — everything you need to run your shop.",
-    placement: "top-end",
+    content: "Tap the ☰ menu icon to open the full navigation — Inventory, Orders, Ledger, Customers, and more.",
+    placement: "bottom-start",
   },
 ];
 
@@ -75,66 +75,77 @@ interface TooltipProps {
 }
 
 function CoachTip({
-  backProps, closeProps, continuous, index, isLastStep,
+  backProps, closeProps, index, isLastStep,
   primaryProps, skipProps, step, tooltipProps, size,
 }: TooltipProps) {
   return (
     <div
       {...tooltipProps}
-      className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/60 border border-slate-200 dark:border-slate-700 w-60 sm:w-72 overflow-hidden"
+      className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl shadow-black/25 dark:shadow-black/60 border border-slate-100 dark:border-slate-800 w-60 sm:w-64 overflow-hidden"
     >
-      {/* Header accent */}
-      <div className="h-1 bg-primary-500" />
+      {/* Gradient header bar */}
+      <div className="h-1 bg-gradient-to-r from-primary-400 to-primary-600" />
 
-      <div className="p-4">
+      <div className="px-4 pt-3 pb-4">
         {/* Title + close */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <p className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight">
+        <div className="flex items-start justify-between gap-2 mb-1.5">
+          <p className="font-bold text-[13px] text-slate-900 dark:text-slate-100 leading-snug">
             {step.title as React.ReactNode}
           </p>
           <button
             {...closeProps}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 shrink-0 transition-colors"
+            className="p-0.5 rounded-md text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 shrink-0 transition-colors mt-0.5"
           >
-            <X size={15} />
+            <X size={14} />
           </button>
         </div>
 
         {/* Content */}
-        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
           {step.content as React.ReactNode}
         </p>
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2">
-          {/* Step counter + skip */}
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-bold text-slate-400 tabular-nums">
-              {index + 1} / {size}
-            </span>
-            <button
-              {...skipProps}
-              className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-            >
-              Skip
-            </button>
+          {/* Progress dots */}
+          <div className="flex items-center gap-1">
+            {Array.from({ length: size }).map((_, i) => (
+              <div
+                key={i}
+                className={`rounded-full transition-all duration-300 ${
+                  i === index
+                    ? "w-4 h-1.5 bg-primary-500"
+                    : i < index
+                    ? "size-1.5 bg-primary-300"
+                    : "size-1.5 bg-slate-200 dark:bg-slate-700"
+                }`}
+              />
+            ))}
           </div>
 
           {/* Back + Next/Done */}
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1.5">
             {index > 0 && (
               <button
                 {...backProps}
-                className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-medium"
+                className="flex items-center gap-0.5 text-[11px] px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-medium"
               >
-                <ArrowLeft size={12} /> Back
+                <ArrowLeft size={11} /> Back
+              </button>
+            )}
+            {!isLastStep && (
+              <button
+                {...skipProps}
+                className="text-[11px] px-2 py-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              >
+                Skip
               </button>
             )}
             <button
               {...primaryProps}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-semibold transition-colors"
+              className="flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 active:scale-95 text-white font-semibold transition-all"
             >
-              {isLastStep ? "Done!" : <>Next <ArrowRight size={12} /></>}
+              {isLastStep ? "Done ✓" : <>Next <ArrowRight size={11} /></>}
             </button>
           </div>
         </div>
