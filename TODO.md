@@ -1,6 +1,6 @@
 # StockFlow — Pending Features & Tasks
 
-> Last updated: 16 May 2026
+> Last updated: 22 May 2026
 
 ---
 
@@ -147,7 +147,7 @@ Client hook and Supabase infra are ready. Remaining steps:
 
 - [ ] Real-time feature flag sync (Supabase realtime on `feature_flags` instead of 15-min poll)
 - [ ] Dynamic tier control from DB (admin changes tier mappings without frontend deploy)
-- [ ] Onboarding wizard for new tenants
+- [x] ~~Onboarding wizard for new tenants~~ — 3-step setup form (business name, first phone, first team member)
 - [ ] Multi-language / i18n support
 
 ---
@@ -180,3 +180,8 @@ Client hook and Supabase infra are ready. Remaining steps:
 - [x] Admin panel expansion (financials, overdue, imei-lookup, shares pages)
 - [x] PDF generation improvements (PrintableInvoice, window.print approach)
 - [x] Loading spinners on share/download buttons
+- [x] **Onboarding flow** — `Onboarding.tsx` 3-step setup form (business name, first phone, first team member invite); `OnboardingGate` in `App.tsx`; `onboarding_completed_at` column in `profiles`; DB migration applied to production
+- [x] **FeatureTour** — 10-slide modal with mobile PWA-style screen mockups (AppHeader + content + BottomNav chrome); `finventree_feature_tour_shown` localStorage gate; PostHog tracking
+- [x] **CoachMarks** — react-joyride v3 step highlights on Dashboard metrics, + FAB, and hamburger menu icon; custom `CoachTip` tooltip with progress dots; fires after FeatureTour completes; custom event bridge so coach marks appear immediately when FeatureTour is dismissed mid-way
+- [x] **Bottom nav redesign** — changed from Dashboard / + / Menu to **Dashboard / + / Inventory**; hamburger moved exclusively to AppHeader
+- [x] Developer reset button in Profile page (clears both onboarding localStorage keys + nulls `onboarding_completed_at` in DB)
