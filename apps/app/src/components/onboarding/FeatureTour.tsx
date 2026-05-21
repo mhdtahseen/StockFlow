@@ -612,6 +612,7 @@ export default function FeatureTour() {
   const dismiss = (completed = false) => {
     localStorage.setItem(FEATURE_TOUR_KEY, "true");
     setVisible(false);
+    window.dispatchEvent(new CustomEvent("featureTourDone"));
     posthog.capture("onboarding.feature_tour_dismissed", {
       completed,
       stepsViewed: idx + 1,

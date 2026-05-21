@@ -178,6 +178,20 @@ export default function CoachMarks() {
     }
   }, [onboardingCompletedAt, location.pathname]);
 
+  // Also start when FeatureTour is dismissed mid-session (localStorage won't retrigger useEffect)
+  useEffect(() => {
+    const handleFeatureTourDone = () => {
+      if (
+        location.pathname === "/" &&
+        localStorage.getItem(TOUR_KEY) !== "true"
+      ) {
+        setTimeout(() => setRun(true), 600);
+      }
+    };
+    window.addEventListener("featureTourDone", handleFeatureTourDone);
+    return () => window.removeEventListener("featureTourDone", handleFeatureTourDone);
+  }, [location.pathname]);
+
   const handleCallback = (data: EventData) => {
     const { status, action, type } = data;
 
