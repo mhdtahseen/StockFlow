@@ -49,6 +49,7 @@ export default function DesktopSidebar() {
         <button
           key={item.to}
           type="button"
+          data-tour={item.tourId}
           onClick={() => showUpgrade(item.feature as FeatureKey)}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors text-sm font-medium"
         >
@@ -63,6 +64,7 @@ export default function DesktopSidebar() {
       <NavLink
         key={item.to}
         to={item.to}
+        data-tour={item.tourId}
         className={clsx(
           "flex items-center gap-2.5 px-3 py-2 rounded-xl transition-colors text-sm font-medium",
           isActive

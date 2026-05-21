@@ -16,6 +16,8 @@ import AnnouncementBanner from "./AnnouncementBanner";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UpgradeGateProvider } from "@/context/UpgradeGateContext";
+import CoachMarks from "@/components/onboarding/CoachMarks";
+import FeatureTour from "@/components/onboarding/FeatureTour";
 
 export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -62,6 +64,8 @@ export default function AppLayout() {
         {/* Bottom nav — mobile only */}
         {isMobile && <BottomNav onMenuOpen={() => setDrawerOpen(true)} />}
       </div>
+      <CoachMarks />
+      <FeatureTour />
     </div>
     </UpgradeGateProvider>
   );

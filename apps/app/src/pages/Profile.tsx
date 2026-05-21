@@ -60,13 +60,25 @@ const generateRandomAvatars = () => {
 };
 
 export default function ProfilePage() {
-  const { session, tenant, refreshTenant, refreshProfile } = useAuth();
+  const { session, tenant, refreshTenant, refreshProfile, isSuperAdmin, isAdmin } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingBusiness, setIsSavingBusiness] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const { canUse } = usePlan();
+
+  const handleResetOnboarding = async () => {
+    localStorage.removeItem("finventree_feature_tour_shown");
+    localStorage.removeItem("finventree_tour_shown");
+    if (session?.user?.id) {
+      await supabase
+        .from("profiles")
+        .update({ onboarding_completed_at: null })
+        .eq("id", session.user.id);
+    }
+    toast.success("Onboarding reset — reload the app to test.");
+  };
 
   const handleCopyTradeCode = () => {
     if (!tenant?.tradeCode) return;
@@ -684,6 +696,29 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
+        {/* ── Dev Tools (superadmin only) ──────────────────────────────── */}
+        {(isAdmin || isSuperAdmin) && (
+          <Card className="border-amber-200 dark:border-amber-800 shadow-sm bg-amber-50 dark:bg-amber-950/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                Developer Tools
+              </CardTitle>
+              <CardDescription className="text-xs text-amber-600 dark:text-amber-500">
+                Superadmin only. Not visible to regular users.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetOnboarding}
+                className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-xs font-semibold"
+              >
+                Reset Onboarding Tour
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
       </main>
 

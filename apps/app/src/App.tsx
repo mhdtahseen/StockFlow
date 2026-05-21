@@ -17,6 +17,7 @@ import AppLayout from "@/components/layout/AppLayout";
 
 // Auth pages
 import Login from "@/pages/Login";
+import Onboarding from "@/pages/Onboarding";
 
 // Main pages
 import Dashboard from "@/pages/Dashboard";
@@ -70,6 +71,28 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+/**
+ * Redirects first-time admin users to the onboarding setup form.
+ * Invited members (non-admin) skip straight to the app.
+ * Only triggers once onboarding_completed_at is loaded (not undefined).
+ */
+function OnboardingGate({ children }: { children: React.ReactNode }) {
+  const { isAdmin, isSuperAdmin, onboardingCompletedAt, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (
+    !isLoading &&
+    !isSuperAdmin &&
+    isAdmin &&
+    onboardingCompletedAt === null &&
+    location.pathname !== "/onboarding"
+  ) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 // Renders the page if the plan allows, otherwise shows the upgrade modal and
 // renders an empty placeholder — so the user can't access the page content.
 function GatedRoute({ feature, element }: { feature: FeatureKey; element: React.ReactNode }) {
@@ -110,6 +133,14 @@ function App() {
         {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/auth/handoff" element={<AuthHandoff />} />
           <Route path="/public/view/:token" element={<PublicView />} />
           {/* Trade Network connect deep link: /connect/:code → redirect to /customers?connect=CODE */}
@@ -122,7 +153,9 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <AppLayout />
+                <OnboardingGate>
+                  <AppLayout />
+                </OnboardingGate>
               </ProtectedRoute>
             }
           >

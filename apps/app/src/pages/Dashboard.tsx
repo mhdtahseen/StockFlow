@@ -209,7 +209,7 @@ export default function Dashboard() {
         </section>
 
         {/* 4 Widgets: Purchases, Sales, Avg Profit */}
-        <section className="py-4">
+        <section className="py-4" data-tour="dashboard-metrics">
           <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 pl-1">
             Capital Allocation
           </h3>

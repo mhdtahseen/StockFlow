@@ -34,6 +34,7 @@ export default function BottomNav({ onMenuOpen }: Props) {
         </button>
       ) : (
         <NavLink to="/add"
+          data-tour="nav-add"
           aria-label="Launch Unified Ingestion Engine"
           className="flex items-center justify-center size-14 rounded-2xl -mt-8 shadow-2xl shadow-primary-500/40 text-white transition-all active:scale-90 border-2 border-white/20 group bg-primary-500 hover:bg-primary-600"
         >
@@ -42,6 +43,7 @@ export default function BottomNav({ onMenuOpen }: Props) {
       )}
 
       <button
+        data-tour="nav-menu"
         onClick={onMenuOpen}
         aria-label="Open navigation menu"
         className="relative flex flex-col items-center justify-center w-20 min-h-[48px] pt-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">

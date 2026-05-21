@@ -18,6 +18,7 @@ export type NavItem = {
   to: string;
   icon: LucideIcon;
   feature: FeatureKey | null;
+  tourId?: string;
 };
 
 export const DASHBOARD_NAV: NavItem = {
@@ -28,7 +29,7 @@ export const DASHBOARD_NAV: NavItem = {
 };
 
 export const OPERATIONS_NAV: NavItem[] = [
-  { label: "Inventory", to: "/inventory", icon: Smartphone, feature: null },
+  { label: "Inventory", to: "/inventory", icon: Smartphone, feature: null, tourId: "sidebar-inventory" },
   {
     label: "Purchase Orders",
     to: "/purchase-orders",
@@ -40,11 +41,12 @@ export const OPERATIONS_NAV: NavItem[] = [
     to: "/orders",
     icon: FileText,
     feature: "trade_orders",
+    tourId: "sidebar-orders",
   },
 ];
 
 export const FINANCE_CRM_NAV: NavItem[] = [
-  { label: "Ledger", to: "/ledger", icon: Banknote, feature: "full_ledger" },
+  { label: "Ledger", to: "/ledger", icon: Banknote, feature: "full_ledger", tourId: "sidebar-ledger" },
   {
     label: "Analytics",
     to: "/analytics",

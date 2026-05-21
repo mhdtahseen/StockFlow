@@ -35,9 +35,13 @@ interface AuthContextType {
   featureFlags: FeatureFlagMap | null;
   fullName: string | null;
   avatarUrl: string | null;
+  role: string | null;
+  /** undefined = still loading; null = not completed; string = ISO timestamp */
+  onboardingCompletedAt: string | null | undefined;
   signOut: () => Promise<void>;
   refreshTenant: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  markOnboardingComplete: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,6 +58,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [featureFlags, setFeatureFlags] = useState<FeatureFlagMap | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  // undefined = not yet fetched; null = fetched but not completed; string = completed timestamp
+  const [onboardingCompletedAt, setOnboardingCompletedAt] = useState<string | null | undefined>(undefined);
   const [isTenantLoading, setIsTenantLoading] = useState(false);
 
   const fetchFeatureFlags = async () => {
@@ -79,17 +86,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshProfile = async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("profiles")
-        .select("full_name, avatar_url")
+        .select("full_name, avatar_url, onboarding_completed_at")
         .eq("id", user.id)
         .single();
       if (data) {
         setFullName(data.full_name);
         setAvatarUrl(data.avatar_url);
+        setOnboardingCompletedAt(data.onboarding_completed_at ?? null);
       }
     } catch (err) {
       console.error("Error refreshing profile:", err);
+    }
+  };
+
+  const markOnboardingComplete = async () => {
+    // Optimistic update first — prevents redirect loop in OnboardingGate
+    const ts = new Date().toISOString();
+    setOnboardingCompletedAt(ts);
+    if (!user) return;
+    try {
+      await supabase
+        .from("profiles")
+        .update({ onboarding_completed_at: ts })
+        .eq("id", user.id);
+    } catch (err) {
+      console.error("Error marking onboarding complete:", err);
     }
   };
 
@@ -159,13 +182,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           localStorage.setItem("finventree_auth", "true");
           const { data: profile } = await supabase
             .from("profiles")
-            .select("role, tenant_id, full_name, avatar_url")
+            .select("role, tenant_id, full_name, avatar_url, onboarding_completed_at")
             .eq("id", s.user.id)
             .single();
 
           if (profile) {
             setFullName(profile.full_name);
             setAvatarUrl(profile.avatar_url);
+            setRole(profile.role);
+            setOnboardingCompletedAt(profile.onboarding_completed_at ?? null);
             setIsSuperAdmin(profile.role === "super-admin");
             setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
             if (profile.tenant_id) await fetchTenant(profile.tenant_id);
@@ -197,6 +222,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setFeatureFlags(null);
           setFullName(null);
           setAvatarUrl(null);
+          setRole(null);
+          setOnboardingCompletedAt(undefined);
           posthog.reset();
         } else if (newSession) {
           // Only show the full-page loading spinner for a fresh sign-in.
@@ -209,13 +236,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           
           const { data: profile } = await supabase
             .from("profiles")
-            .select("role, tenant_id, full_name, avatar_url")
+            .select("role, tenant_id, full_name, avatar_url, onboarding_completed_at")
             .eq("id", newSession.user.id)
             .single();
 
           if (profile) {
             setFullName(profile.full_name);
             setAvatarUrl(profile.avatar_url);
+            setRole(profile.role);
+            setOnboardingCompletedAt(profile.onboarding_completed_at ?? null);
             setIsSuperAdmin(profile.role === "super-admin");
             setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
             const tid = newSession.user.user_metadata.tenant_id || profile.tenant_id;
@@ -301,9 +330,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         featureFlags,
         fullName,
         avatarUrl,
+        role,
+        onboardingCompletedAt,
         signOut,
         refreshTenant,
         refreshProfile,
+        markOnboardingComplete,
       }}
     >
       {children}
