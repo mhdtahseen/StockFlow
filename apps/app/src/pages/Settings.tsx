@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import ExportModal from "@/components/shared/ExportModal";
 import clsx from "clsx";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { HAPTICS_KEY } from "@/hooks/useHaptics";
 import { toast } from "sonner";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 
@@ -26,8 +27,20 @@ export default function Settings() {
     typeof Notification !== 'undefined' && Notification.permission === 'granted'
   );
   const [offlineSyncEnabled, setOfflineSyncEnabled] = useState(true);
-  const [hapticFeedback, setHapticFeedback] = useState(true);
+  const [hapticFeedback, setHapticFeedback] = useState(() => {
+    try {
+      const val = localStorage.getItem(HAPTICS_KEY);
+      return val === null ? true : val === "true";
+    } catch {
+      return true;
+    }
+  });
   const { togglePushNotifications } = usePushNotifications();
+
+  const handleToggleHaptics = (checked: boolean) => {
+    setHapticFeedback(checked);
+    try { localStorage.setItem(HAPTICS_KEY, String(checked)); } catch { /* ignore */ }
+  };
 
   const handleTogglePush = async (checked: boolean) => {
     setNotifsEnabled(checked);
@@ -151,7 +164,7 @@ export default function Settings() {
               </div>
               <Switch
                 checked={hapticFeedback}
-                onCheckedChange={setHapticFeedback}
+                onCheckedChange={handleToggleHaptics}
               />
             </div>
           </div>

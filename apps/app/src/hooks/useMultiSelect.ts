@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from "react";
+import { useHaptics } from "./useHaptics";
 
 export function useMultiSelect<T extends { id: string }>(items: T[]) {
+  const { triggerImpact } = useHaptics();
   const [isMultiSelect, setIsMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,11 +39,11 @@ export function useMultiSelect<T extends { id: string }>(items: T[]) {
     (id: string) => {
       if (isMultiSelect) return;
       longPressTimer.current = setTimeout(() => {
-        navigator.vibrate?.(30);
+        triggerImpact();
         enterMultiSelect(id);
       }, 500);
     },
-    [isMultiSelect, enterMultiSelect],
+    [isMultiSelect, enterMultiSelect, triggerImpact],
   );
 
   /** Attach to onTouchEnd / onMouseUp / onMouseLeave */
