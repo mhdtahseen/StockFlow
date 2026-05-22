@@ -136,6 +136,23 @@ If you upgrade any plugin, upgrade all of them together.
 
 ---
 
+## App Icons and Splash Screens
+
+Capacitor requires specific files and resolutions for app icons and splash screens in the native `android/` and `ios/` folders. We use `@capacitor/assets` to generate all densities and platforms automatically.
+
+### Source Files
+Put your high-quality source image at:
+- `apps/app/assets/logo.png` (or `icon-only.png`)
+
+### Generate command
+```bash
+cd apps/app
+pnpm cap:assets
+```
+This will automatically generate and update all required launcher icon scales and splash screens under the native `android/` and `ios/` platform folders.
+
+---
+
 ## Building a release APK / AAB
 
 For Google Play Store submission:
