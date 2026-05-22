@@ -24,7 +24,7 @@ export const FEATURE_GATES: Record<string, readonly string[]> = {
 
   // ── Enterprise only ───────────────────────────────────────────────────────
   bulk_invoice:    ["enterprise"], // TODO: not yet built
-  trade_network:   ["enterprise"], // TODO: not yet built
+  trade_network:   ["enterprise"],
   unlimited_seats: ["enterprise"],
 } as const;
 
