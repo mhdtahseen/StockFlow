@@ -17,6 +17,7 @@ import { syncActionToSupabase } from "./supabaseApi";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 import { Network } from "@capacitor/network";
+import { App as CapApp } from "@capacitor/app";
 
 export function useOfflineSyncManager() {
   const { session, isLoading: isAuthLoading } = useAuth();
@@ -106,7 +107,36 @@ export function useOfflineSyncManager() {
     }
   }, [dispatch]);
 
-  // 2. PROCESS OUTBOX WHEN ONLINE
+  // 2. APP RESUME — force a data refresh when the app comes back to the foreground.
+  // This covers the TOKEN_REFRESHED case: the Supabase SDK silently refreshes the
+  // access token while the app is backgrounded. Because the user ID doesn't change,
+  // prevUserIdRef stays the same and hasFetchedInitial remains true — no re-fetch
+  // would otherwise happen. Listening to the native resume event (or web
+  // visibilitychange) resets hasFetchedInitial so fresh data is fetched on return.
+  useEffect(() => {
+    if (!session) return;
+
+    const handleResume = () => {
+      setHasFetchedInitial(false);
+    };
+
+    if (Capacitor.isNativePlatform()) {
+      const listenerPromise = CapApp.addListener("resume", handleResume);
+      return () => {
+        listenerPromise.then((handle) => handle.remove());
+      };
+    } else {
+      const handleVisibilityChange = () => {
+        if (!document.hidden) handleResume();
+      };
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      return () => {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
+    }
+  }, [session]);
+
+  // 3. PROCESS OUTBOX WHEN ONLINE
   useEffect(() => {
     if (!isOnline || outbox.length === 0 || !session) return;
     if (isProcessingOutboxRef.current) return;
@@ -219,7 +249,7 @@ export function useOfflineSyncManager() {
     };
   }, [isOnline, outbox, session, dispatch]);
 
-  // 3. INITIAL LOAD (Wait until outbox is empty)
+  // 4. INITIAL LOAD (Wait until outbox is empty)
   useEffect(() => {
     if (isAuthLoading || hasFetchedInitial || !session) {
       if (!isAuthLoading && !session) setIsSyncing(false); // guest user or unauthenticated
@@ -540,7 +570,7 @@ export function useOfflineSyncManager() {
     dispatch,
   ]);
 
-  // 4. REALTIME: counterparty INSERTs — receiving side of a trade connection
+  // 5. REALTIME: counterparty INSERTs — receiving side of a trade connection
   // When another tenant runs connect_by_trade_code, a row is inserted into THIS
   // tenant's counterparties table. Subscribe to that event so it appears
   // immediately without needing an app restart.

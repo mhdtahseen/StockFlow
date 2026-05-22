@@ -88,6 +88,10 @@ serve(async (req) => {
         await handleHalted(supabase, payload.payload);
         break;
       }
+      case "payment.failed": {
+        await handlePaymentFailed(supabase, payload.payload);
+        break;
+      }
       case "subscription.cancelled": {
         await handleCancelled(supabase, payload.payload);
         break;
@@ -245,7 +249,18 @@ async function handleCharged(supabase: SupabaseClient, webhookPayload: Record<st
 
   // Ensure tenant plan is active and expiry extended
   await setTenantPlan(supabase, ts.tenant_id, ts.plan_id, currentEnd);
-  console.log(`[webhook] subscription.charged: tenant ${ts.tenant_id} → plan extended to ${currentEnd}`);
+
+  // Clear any payment failure / grace flags — subscription is healthy again
+  await supabase
+    .from("tenants")
+    .update({
+      payment_failed_at: null,
+      plan_halted_at:    null,
+      updated_at:        new Date().toISOString(),
+    })
+    .eq("id", ts.tenant_id);
+
+  console.log(`[webhook] subscription.charged: tenant ${ts.tenant_id} → plan extended to ${currentEnd}, flags cleared`);
 }
 
 async function handleStatusUpdate(
@@ -271,9 +286,55 @@ async function handleHalted(supabase: SupabaseClient, webhookPayload: Record<str
     .update({ status: "halted", updated_at: new Date().toISOString() })
     .eq("id", ts.id);
 
-  // Expire tenant plan immediately — payment has failed repeatedly
-  await setTenantPlan(supabase, ts.tenant_id, "expired", null);
-  console.log(`[webhook] subscription.halted: tenant ${ts.tenant_id} → expired`);
+  // Start grace period instead of immediately suspending:
+  //   grace (7 days full access) → restricted (7 days read-only) → expired (paywall)
+  //   Cron job run_plan_state_machine() handles the transitions.
+  const { error } = await supabase
+    .from("tenants")
+    .update({
+      plan:           "grace",
+      plan_halted_at: new Date().toISOString(),
+      updated_at:     new Date().toISOString(),
+    })
+    .eq("id", ts.tenant_id);
+  if (error) throw new Error(`handleHalted tenant update failed: ${error.message}`);
+
+  console.log(`[webhook] subscription.halted: tenant ${ts.tenant_id} → grace period started`);
+}
+
+async function handlePaymentFailed(supabase: SupabaseClient, webhookPayload: Record<string, unknown>) {
+  // payment.failed fires for every retry attempt (up to 3).
+  // We only set payment_failed_at on the first failure — idempotent via IS NULL check.
+  const payment = getPayment(webhookPayload);
+  if (!payment?.subscription_id) {
+    console.log("[webhook] payment.failed: no subscription_id, skipping");
+    return;
+  }
+
+  const ts = await getTenantSubscription(supabase, payment.subscription_id);
+
+  // Only record the first failure
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("payment_failed_at")
+    .eq("id", ts.tenant_id)
+    .single();
+
+  if (tenant?.payment_failed_at) {
+    console.log(`[webhook] payment.failed: tenant ${ts.tenant_id} already flagged, skipping`);
+    return;
+  }
+
+  await supabase
+    .from("tenants")
+    .update({
+      payment_failed_at: new Date().toISOString(),
+      updated_at:        new Date().toISOString(),
+    })
+    .eq("id", ts.tenant_id);
+
+  console.log(`[webhook] payment.failed: tenant ${ts.tenant_id} → payment_failed_at set`);
+  // TODO: trigger send-plan-reminder for immediate "payment failed" email
 }
 
 async function handleCancelled(supabase: SupabaseClient, webhookPayload: Record<string, unknown>) {

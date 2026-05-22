@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,12 +16,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Loader2, Store, User } from "lucide-react";
+import { Mail, Lock, Loader2, Store, User, Phone } from "lucide-react";
 
 const signupSchema = z.object({
   shopName: z.string().min(2, "Shop/Organization name is required"),
   fullName: z.string().min(2, "Full name is required"),
   email: z.string().email("Enter a valid email address"),
+  phone: z
+    .string()
+    .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
 });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
@@ -30,6 +33,16 @@ export default function Signup() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const fingerprintRef = useRef<string | null>(null);
+
+  // Capture device fingerprint in background on mount
+  useEffect(() => {
+    import("@fingerprintjs/fingerprintjs")
+      .then((FingerprintJS) => FingerprintJS.default.load())
+      .then((fp) => fp.get())
+      .then((result) => { fingerprintRef.current = result.visitorId; })
+      .catch(() => { /* non-critical, fingerprint stays null */ });
+  }, []);
 
   const {
     register,
@@ -37,42 +50,36 @@ export default function Signup() {
     formState: { errors },
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: {
-      shopName: "",
-      fullName: "",
-      email: "",
-    },
+    defaultValues: { shopName: "", fullName: "", email: "", phone: "" },
   });
 
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
-
     try {
-      const { error } = await supabase.from("tenant_requests").insert({
-        org_name: data.shopName,
-        full_name: data.fullName,
-        email: data.email,
-        status: "pending",
+      const { error } = await supabase.functions.invoke("submit-tenant-request", {
+        body: {
+          org_name:           data.shopName,
+          full_name:          data.fullName,
+          email:              data.email,
+          phone:              data.phone,
+          device_fingerprint: fingerprintRef.current,
+          user_agent:         navigator.userAgent,
+        },
       });
 
       if (error) {
-        toast.error("Request Failed", {
-          description:
-            error.message || "Could not submit your request. Please try again.",
-        });
+        const message = (error as any)?.context?.error || error.message;
+        toast.error("Request Failed", { description: message || "Could not submit your request. Please try again." });
         setIsLoading(false);
         return;
       }
 
       setIsSuccess(true);
       toast.success("Request Submitted", {
-        description:
-          "Your request to join has been recorded. The admin will review it.",
+        description: "Your request to join has been recorded. The admin will review it.",
       });
     } catch (err: any) {
-      toast.error("Error", {
-        description: err.message || "An unexpected error occurred.",
-      });
+      toast.error("Error", { description: err.message || "An unexpected error occurred." });
       setIsLoading(false);
     }
   };
@@ -189,7 +196,27 @@ export default function Signup() {
                 )}
               </div>
 
-
+              <div className="space-y-2">
+                <Label htmlFor="phone">Mobile Number</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="9876543210"
+                    autoComplete="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className={`pl-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 ${errors.phone ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
+                    {...register("phone")}
+                  />
+                </div>
+                {errors.phone && (
+                  <p className="text-xs font-medium text-rose-500 mt-1">
+                    {errors.phone.message}
+                  </p>
+                )}
+              </div>
 
               <Button
                 type="button"

@@ -33,8 +33,12 @@ export type FeatureKey = keyof typeof FEATURE_GATES;
 export function usePlan() {
   const { tenant, featureFlags } = useAuth();
   const plan = tenant?.plan ?? "trial";
-  const now = new Date().getTime();
-  const expired = tenant?.planExpiresAt
+  const now  = Date.now();
+
+  // Client-side fallback ONLY for plan='trial' — prevents an up-to-1hr gap if the cron hasn't
+  // run yet. Intentionally scoped to 'trial' so that grace/restricted plans (whose
+  // plan_expires_at is the old billing date, already in the past) are NOT incorrectly expired.
+  const trialExpired = plan === "trial" && !!tenant?.planExpiresAt
     ? new Date(tenant.planExpiresAt).getTime() < now
     : false;
 
@@ -47,13 +51,36 @@ export function usePlan() {
     return flag.enabled_globally;
   };
 
+  // Graduated expiry states
+  const isGrace      = plan === "grace";
+  const isRestricted = plan === "restricted";
+  const isExpired    = trialExpired || plan === "expired";
+
+  // Payment failed but plan not yet changed (banner only, full access)
+  const isPaymentFailed = !!tenant?.paymentFailedAt && !isGrace && !isRestricted && !isExpired;
+
+  // Countdown helpers for grace/restricted banners
+  const planHaltedMs = tenant?.planHaltedAt ? new Date(tenant.planHaltedAt).getTime() : null;
+  const daysUntilRestricted = planHaltedMs !== null
+    ? Math.max(0, 7  - Math.floor((now - planHaltedMs) / 86400000))
+    : null;
+  const daysUntilSuspended = planHaltedMs !== null
+    ? Math.max(0, 14 - Math.floor((now - planHaltedMs) / 86400000))
+    : null;
+
   return {
     plan,
-    isExpired: expired || plan === "expired",
+    isExpired,
+    isGrace,
+    isRestricted,
+    isPaymentFailed,
+    daysUntilRestricted,
+    daysUntilSuspended,
     canUse: (f: FeatureKey): boolean => {
-      if (expired || plan === "expired") return false;
-      // P4-ENH-35: INTENTIONAL — Trial gives full Enterprise access for 14 days. Do not remove.
-      if (plan === "trial") return isFlagEnabled(f);
+      // Hard locks — no write access
+      if (isExpired || isRestricted) return false;
+      // P4-ENH-35: INTENTIONAL — Trial and Grace both give full Enterprise access. Do not remove.
+      if (plan === "trial" || isGrace) return isFlagEnabled(f);
       if (plan === "enterprise") return isFlagEnabled(f);
 
       const planAllows = FEATURE_GATES[f]?.includes(plan) ?? false;

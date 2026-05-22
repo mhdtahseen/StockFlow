@@ -12,6 +12,7 @@
     "deploy:preview": "next build && wrangler pages deploy out --project-name finventree-web --branch preview"
   },
   "dependencies": {
+    "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.98.0",
     "clsx": "^2.1.1",

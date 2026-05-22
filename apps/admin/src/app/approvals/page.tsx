@@ -4,13 +4,16 @@ import AdminShell from "@/components/AdminShell";
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { CheckCircle, Clock, Loader2, XCircle, RefreshCw } from "lucide-react";
+import { CheckCircle, Clock, Loader2, XCircle, RefreshCw, AlertTriangle, Smartphone, Globe } from "lucide-react";
 
 type TenantRequest = {
   id: string;
   org_name: string;
   full_name: string;
   email: string;
+  phone: string | null;
+  device_fingerprint: string | null;
+  request_ip: string | null;
   status: "pending" | "approved" | "rejected";
   created_at: string;
 };
@@ -62,13 +65,23 @@ function ApprovalsContent() {
         }
       }
 
-      const { error } = await supabase.functions.invoke("approve-tenant", {
+      const { data: result, error } = await supabase.functions.invoke("approve-tenant", {
         body: { requestId: id, redirectTo },
       });
 
       if (error) {
         toast.error("Approval failed", { description: error.message });
         return;
+      }
+
+      // Warn admin if duplicate device fingerprints were detected
+      const warnings: { type: string; tenantName: string }[] = result?.duplicateWarnings ?? [];
+      if (warnings.length > 0) {
+        const names = warnings.map((w: { tenantName: string }) => w.tenantName).join(", ");
+        toast.warning("⚠️ Duplicate device detected", {
+          description: `This device fingerprint matches existing tenant(s): ${names}. Review before proceeding.`,
+          duration: 8000,
+        });
       }
 
       toast.success("Approved & Invited!", {
@@ -152,6 +165,30 @@ function ApprovalsContent() {
                     <span className="text-blue-600 dark:text-blue-400 break-all">
                       {req.email}
                     </span>
+                  </div>
+                  {/* Anti-abuse signals */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    {req.phone && (
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                        <Smartphone size={11} /> {req.phone}
+                      </span>
+                    )}
+                    {req.request_ip && (
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
+                        <Globe size={11} /> {req.request_ip}
+                      </span>
+                    )}
+                    {/* Flag if same IP or fingerprint appears in other requests */}
+                    {req.device_fingerprint && requests.filter(r => r.id !== req.id && r.device_fingerprint === req.device_fingerprint).length > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-md">
+                        <AlertTriangle size={11} /> Same device as another request
+                      </span>
+                    )}
+                    {req.request_ip && requests.filter(r => r.id !== req.id && r.request_ip === req.request_ip).length > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-md">
+                        <AlertTriangle size={11} /> Same IP as another request
+                      </span>
+                    )}
                   </div>
                   <div className="mt-2 text-xs flex items-center gap-1.5 text-slate-400">
                     <Clock size={12} />

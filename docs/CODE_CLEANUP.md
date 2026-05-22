@@ -2,7 +2,8 @@
 
 **Prepared**: June 2025  
 **Branch**: `chore/monorepo-setup`  
-**Scope**: `apps/app/src/`, root `src/`, `scratch/`  
+**Scope**: `apps/app/src/`, root `src/`, `scratch/`, `apps/app/src/utils/`, `apps/app/src/types/`  
+**Updated**: May 2026 — second audit pass added Items 16–21
 **Status**: Documentation pass — no changes applied yet
 
 ---
@@ -21,19 +22,23 @@ Items are grouped by type and ordered by impact/risk (highest priority first wit
 |---|------|----------|---------|----------|
 | 1 | Legacy root `src/` directory | Dead files | `src/` (10 files) | 🔴 High |
 | 2 | `scratch/` developer scratchpad | Dead files | `scratch/` (3 files) | 🔴 High |
-| 3 | `AddPhoneUpdate.tsx` — unrouted page | Dead file | `apps/app/src/pages/` | 🔴 High |
 | 4 | 11× duplicate `formatCurrency` | Redundant utility | 9 page/component files | 🟡 Medium |
 | 5 | Unused billing/purchasing selectors | Dead exports | 2 Redux selector files | 🟡 Medium |
 | 6 | 5 unused icon imports in Dashboard | Unused import | `Dashboard.tsx` | 🟢 Low |
 | 7 | `ArrowDownLeft` in Ledger | Unused import | `Ledger.tsx` | 🟢 Low |
 | 8 | `SearchResult` type in Support | Unused import | `Support.tsx` | 🟢 Low |
-| 9 | Commented sticky-header block — AddPhoneUpdate | Commented code | `AddPhoneUpdate.tsx` | 🟢 Low |
-| 10 | Commented sticky-header block — AddDevices | Commented code | `AddDevices.tsx` | 🟢 Low |
+| 9 | Commented sticky-header block — AddDevices | Commented code | `AddDevices.tsx` | 🟢 Low |
 | 11 | Commented plan-badge block — AppDrawer | Commented code | `AppDrawer.tsx` | 🟢 Low |
 | 12 | Commented table `<thead>` — OrderPrintView | Commented code | `OrderPrintView.tsx` | 🟢 Low |
 | 13 | Orphan `AppGate` comment markers — App.tsx | Commented code | `App.tsx` | 🟢 Low |
 | 14 | Debug `console.log` in PublicView | Debug log | `PublicView.tsx` | 🟢 Low |
 | 15 | Debug `console.log` in usePushNotifications | Debug log | `usePushNotifications.ts` | 🟢 Low |
+| 16 | `dummy.ts` root compile shim | Dead file | `dummy.ts` | 🟢 Low |
+| 17 | `generatePurchaseOrderPDF.tsx` — unused utility | Dead file | `apps/app/src/utils/` | 🟡 Medium |
+| 18 | `imei-dummy.ts` — test fixture in production | Misplaced file | `apps/app/src/utils/` | 🟢 Low |
+| 19 | `supabase.ts` types — generated but unimported | Dead file | `apps/app/src/types/` | 🟡 Medium |
+| 20 | Unused imports across 7 page files | Unused imports | Multiple pages | 🟢 Low |
+| 21 | Unused imports across 5 shared components | Unused imports | Multiple components | 🟢 Low |
 
 > **Note on `console.error` / `console.warn` statements:** 44 other console statements exist in the codebase (auth errors, sync failures, OCR failures, etc.). These are **intentional error-handling logs** — they aid production debugging on mobile where no DevTools are available. They are **not included** in this cleanup plan.
 
@@ -108,30 +113,6 @@ If historical reference value is needed, these are already in Git history.
 - ✅ **Benefit**: Reduces repo size (the old OrderDetail.tsx alone is significant).
 - ⚠️ **Risk**: None. All three files are unreferenced by any build tool, import, or test.
 - 🔗 **No runtime impact**.
-
----
-
-### Item 3 — `AddPhoneUpdate.tsx` — unrouted page
-
-**What it is:**  
-`apps/app/src/pages/AddPhoneUpdate.tsx` (~750 lines) is a full-featured page for updating an existing device record. It handles hybrid payment channels, IMEI editing, tag management, and FK-safe Redux dispatch — identical in pattern to `CreateOrderSheet.tsx`.
-
-**Plan:**  
-Two options:
-1. **Wire it** — add a route in `App.tsx` (e.g. `/inventory/:id/edit`) and link to it from `PhoneDetail.tsx` or `Inventory.tsx`. This is the correct long-term path.
-2. **Delete it** — if editing a device record is handled inline or is not a planned near-term feature.
-
-Before deleting, check whether any `useNavigate("/inventory/:id/edit")` calls exist anywhere. (Audit confirms: none found.)
-
-**Reason:**  
-No `<Route>` exists for this page in `App.tsx`. No `useNavigate`, `<Link>`, or `href` anywhere in the codebase points to it. The file is effectively unreachable at runtime — it is dead code from a user's perspective. Three comments in `CreateOrderSheet.tsx` reference it as a pattern, but those are code-style comments, not imports.
-
-**Consequences:**
-- ✅ **Benefit (delete path)**: Eliminates ~750 lines of unmaintained code that will silently drift out of sync with the data model.
-- ✅ **Benefit (wire path)**: Delivers a completed edit-device flow that currently doesn't exist in the app.
-- ⚠️ **If deleted**: The "edit device" use case has no UI. Users must delete and re-add a device to correct a mistake. This is acceptable only if the feature is explicitly not planned.
-- ⚠️ **If wired**: Needs a review pass — payment state, form validation, and error handling should be tested against the current data model before shipping.
-- 🔗 **No runtime impact** in either case — the page is currently unreachable.
 
 ---
 
@@ -283,24 +264,7 @@ The `SearchResult` type was imported in anticipation of a typed search state var
 
 ## Category E — Commented-Out Code
 
-### Item 9 — Commented sticky header in `AddPhoneUpdate.tsx`
-
-**What it is:**  
-Lines 317–333 of `apps/app/src/pages/AddPhoneUpdate.tsx` contain a JSX block wrapped in `{/* ... */}` — a sticky page header with a back button (`ChevronLeft`), page title, and subtitle. It was the original page-level header, replaced by the app-level `AppHeader` component.
-
-**Plan:**  
-Delete the commented block (lines 317–333).
-
-**Reason:**  
-The `AppHeader` component in `AppLayout.tsx` renders the page title globally. The per-page sticky header was a pre-layout-refactor pattern. The comment serves no documentation purpose — it is dead JSX.
-
-**Consequences:**
-- ✅ **Benefit**: ~17 lines removed from an already dense file. No ambiguity about whether the comment should be re-enabled.
-- 🔗 **No runtime impact** — commented code is never executed.
-
----
-
-### Item 10 — Commented sticky header in `AddDevices.tsx`
+### Item 9 — Commented sticky header in `AddDevices.tsx`
 
 **What it is:**  
 Lines 330–344 of `apps/app/src/pages/AddDevices.tsx` contain an identical sticky page header block to Item 9, also commented out. Same pattern, same reason.
@@ -430,16 +394,155 @@ Non-support for push notifications is a normal, expected condition — it's not 
 
 ---
 
+---
+
+## Category G — Dead Utility Files
+
+### Item 16 — `dummy.ts` root compile shim
+
+**What it is:**  
+A 2-line file at the workspace root:
+```ts
+// Dummy file to satisfy TypeScript compile requirements at root level
+export {};
+```
+It is not imported anywhere. It is only referenced via the `include` array in the root `tsconfig.json`.
+
+**Plan:**  
+Delete `dummy.ts` and remove its entry from the root `tsconfig.json` include array.
+
+**Reason:**  
+This was a workaround to satisfy TypeScript when the root-level `tsconfig.json` had no actual `.ts` source files to compile. Now that `apps/`, `packages/`, and `scripts/` are all part of the workspace, this shim is no longer needed — TypeScript finds real files via the project references.
+
+**Consequences:**
+- ✅ **Benefit**: Removes a confusing file from the root that has no meaningful content.
+- ⚠️ **Risk**: Very low. Run `pnpm exec tsc --noEmit` after removing to confirm no errors.
+- 🔗 **No runtime impact**.
+
+---
+
+### Item 17 — `generatePurchaseOrderPDF.tsx` — unused utility
+
+**What it is:**  
+`apps/app/src/utils/generatePurchaseOrderPDF.tsx` exports a `generatePurchaseOrderPDF()` function that generates a PDF for a purchase order using a print-to-PDF approach. It is never imported anywhere in the codebase.
+
+**Plan:**  
+Delete the file.
+
+**Reason:**  
+PDF/print generation for purchase orders is handled via `PurchaseOrderPrintable.tsx` + `printDocument.tsx` (the same approach used for sales invoices and other documents). `generatePurchaseOrderPDF.tsx` was likely an earlier attempt at a different PDF strategy that was abandoned in favour of the unified print system. It has drifted out of sync with the current data model.
+
+**Consequences:**
+- ✅ **Benefit**: Removes ~130 lines of unmaintained utility code. Avoids confusion about two different PO print strategies.
+- ⚠️ **Risk**: Very low — confirmed zero imports. The live PO print path (`PurchaseOrderPrintable.tsx`) is unaffected.
+- 🔗 **No runtime impact**.
+
+---
+
+### Item 18 — `imei-dummy.ts` — test fixture in production source
+
+**What it is:**  
+`apps/app/src/utils/imei-dummy.ts` exports `DUMMY_IMEIS` — an array of 100 Luhn-valid dummy IMEI strings for testing the inspection and bulk-add flow. It is never imported in any production component or page.
+
+**Plan:**  
+Move to `scripts/` or delete. If kept, rename to `seed_imeis.ts` and place in `scripts/` alongside other seed/test utilities.
+
+**Reason:**  
+Test fixtures do not belong in `src/utils/`. Placing it there implies it is available to production code, which is misleading. If the dummy IMEIs are only used during development/seeding, they belong in `scripts/`.
+
+**Consequences:**
+- ✅ **Benefit (move)**: Correct separation of test data from production source.
+- ✅ **Benefit (delete)**: If the bulk-add flow is now tested with real scan data, the fixture is no longer needed at all.
+- 🔗 **No runtime impact** — never imported.
+
+---
+
+### Item 19 — `supabase.ts` types — generated but unimported
+
+**What it is:**  
+`apps/app/src/types/supabase.ts` is a Supabase-generated TypeScript type file exporting `Json`, `Database`, and `Tables<T>`. It is not imported anywhere in `apps/app/src/`.
+
+**Plan:**  
+Two options:
+1. **Connect it** — replace ad-hoc inline types in `supabaseApi.ts`, `AuthContext.tsx`, etc. with `Tables<"phones">`, `Tables<"orders">`, etc. This is the correct long-term approach for strong database type safety.
+2. **Delete it** — if the team has decided to manage types via Supabase client inference instead.
+
+**Reason:**  
+Having a generated type file that is never used means neither the file nor the inline types are the single source of truth — they will inevitably drift apart as the schema evolves. This was likely generated by `supabase gen types typescript` but was never wired up.
+
+**Consequences:**
+- ✅ **Benefit (connect)**: Strong end-to-end type safety from database schema → TypeScript. Breaking schema changes surface as compile errors.
+- ✅ **Benefit (delete)**: Removes a stale file that will silently drift if schema migrations are not followed by regenerating types.
+- ⚠️ **If connecting**: This is a significant refactor — affects every file that queries Supabase directly. Scope for a dedicated sprint, not a cleanup PR.
+- 🔗 **No runtime impact** in either case.
+
+---
+
+## Category H — Unused Imports (Extended Audit)
+
+> Items 6–8 cover Dashboard, Ledger, and Support. The second audit pass found unused imports across 12 additional files.
+
+### Item 20 — Unused imports across 7 page files
+
+| File | Unused Imports |
+|------|----------------|
+| `apps/app/src/pages/PhoneDetail.tsx` | `markAsSold` (inventory slice action), `ChevronLeft`, `DollarSign`, `Plus`, `Calendar` |
+| `apps/app/src/pages/OrderDetail.tsx` | `CheckCircle2`, `Clock`, `AlertCircle`, `ArrowRight`, `ArrowLeft`, `Circle`, `CheckCircle`, `XCircle`, `AlertTriangle`, `User`, `PhoneCall`, `BadgeCheck`, `BadgeAlert`, `Smartphone`, `Plus` (lucide) + `SiApple`, `SiSamsung`, `SiGoogle`, `SiXiaomi`, `SiMotorola`, `SiOppo`, `SiVivo`, `SiOneplus`, `SiHuawei`, `SiNokia`, `SiAsus`, `SiSony` (si-icons) |
+| `apps/app/src/pages/Analytics.tsx` | `parseISO` (date-fns) |
+| `apps/app/src/pages/Settings.tsx` | `Link` (react-router), `ArrowLeft` (lucide) |
+| `apps/app/src/pages/CustomerDetail.tsx` | `ChevronLeft`, `ShoppingBag`, `ShoppingCart`, `Filter`, `BadgeCheck`, `ExternalLink`, `Link2Off` |
+| `apps/app/src/pages/AddDevices.tsx` | `Camera`, `Info`, `MonitorSmartphone`, `Search`, `HardDrive`, `Palette`, `Fingerprint`, `ChevronDown`, `Check`, `Smartphone`, `ScanBarcode`, `ArrowRight`, `Trash2`, `Wrench` |
+| `apps/app/src/pages/AddPhone.tsx` | `Autocomplete`, `issuesFlatList`, `severityColorMap`, `ChevronLeft`, `Plus`, `ChevronUp`, `ArrowRight` |
+
+**Plan:**  
+Remove each listed name from its import line. Where an import line becomes empty, remove the entire line. Run `pnpm exec tsc --noEmit --skipLibCheck` to confirm no regressions.
+
+**Reason:**  
+Most of these are leftovers from UI iterations — icons from a navigation header that was replaced by `AppHeader`, brand icons for a device brand-badge feature that was redesigned, and a `markAsSold` action that was moved to a different dispatch location. The `OrderDetail.tsx` case (12 brand icons + 15 lucide icons = 27 unused imports) is the most significant, suggesting a substantial UI refactor that was never cleaned up.
+
+**Consequences:**
+- ✅ **Benefit**: Reduces import noise across the largest and most-edited pages in the app.
+- ✅ **Benefit**: Removing the 12 `si-icons` brand imports from `OrderDetail.tsx` may reduce bundle size if tree-shaking cannot eliminate them (icon libraries vary).
+- ⚠️ **Risk**: Very low. TypeScript will error immediately if a name is still actually used.
+- 🔗 **No runtime impact**.
+
+---
+
+### Item 21 — Unused imports in 5 shared components
+
+| File | Unused Imports | Notes |
+|------|----------------|-------|
+| `apps/app/src/components/shared/CreateOrderSheet.tsx` | `Tag` (lucide), `addPhone` (inventory slice action) | `addPhone` was likely used before CreateOrderSheet handled device creation inline |
+| `apps/app/src/components/shared/BulkDeviceEntrySheet.tsx` | `Search`, `TrendingDown`, `Calculator` | All lucide icons from an earlier UI design |
+| `apps/app/src/components/shared/RecordPaymentSheet.tsx` | `addPendingEntry` (ledger slice action) | The sheet now dispatches a different action |
+| `apps/app/src/components/shared/EditSaleOrderSheet.tsx` | `clsx` | The file uses `cn()` from `@/lib/utils` instead |
+| `apps/app/src/components/layout/AppDrawer.tsx` | `Crown` (lucide), `PLAN_LABELS` (local const) | Both only referenced inside the commented-out plan badge (Item 11) — removing the comment also requires removing these |
+
+**Plan:**  
+Remove each listed import. For `AppDrawer.tsx`, the `Crown` import and `PLAN_LABELS` constant must be removed at the same time as the commented JSX block (Item 11) — they have no other usage.
+
+**Reason:**  
+Mixed causes: replaced Redux actions, replaced utility functions (`clsx` → `cn`), and design changes that removed UI elements. `RecordPaymentSheet.tsx`'s `addPendingEntry` is particularly important — the presence of an unused dispatch action import suggests the sheet's save logic was previously different and may warrant a quick logic review to confirm the current dispatch is correct.
+
+**Consequences:**
+- ✅ **Benefit**: Cleaner component files. `EditSaleOrderSheet.tsx` removing `clsx` also removes a redundant dependency (it can rely solely on the canonical `cn` utility).
+- ⚠️ **Action for `RecordPaymentSheet`**: Before removing `addPendingEntry`, confirm the current dispatch path saves the payment correctly — the unused import is a signal worth investigating.
+- 🔗 **No runtime impact**.
+
+---
+
 ## Execution Order Recommendation
 
 For a single focused cleanup PR, apply in this order:
 
-1. **Dead files first** (Items 1–3) — highest impact, zero risk
-2. **Unused imports** (Items 6–8) — two-minute fix, passes TypeScript immediately
-3. **Commented code** (Items 9–13) — mechanical deletes, easy to review
-4. **Debug logs** (Items 14–15) — one line each
+1. **Dead files** (Items 1, 2, 16, 17) — highest impact, zero risk
+2. **Unused imports** (Items 6–8, 20, 21) — mechanical, TypeScript validates immediately
+3. **Commented code** (Items 9, 11, 12, 13) — mechanical deletes
+4. **Debug logs** (Items 14, 15) — one line each
 5. **Unused selectors** (Item 5) — verify with grep before deleting
-6. **Shared `formatCurrency`** (Item 4) — save for a separate PR; touches 11 files across two apps
+6. **`imei-dummy.ts`** (Item 18) — move to `scripts/` before deleting
+7. **`supabase.ts` types** (Item 19) — product/architecture decision first
+8. **Shared `formatCurrency`** (Item 4) — separate PR; touches 11 files across two apps
 
 ---
 
@@ -449,6 +552,6 @@ For a single focused cleanup PR, apply in this order:
 |------|----------------|
 | 44× `console.error` / `console.warn` | Legitimate error-handling logs; valuable for mobile debugging |
 | `bulk_invoice: ["enterprise"] // TODO` | Tracks a real unbuilt feature — keep until shipped |
-| `AddPhoneUpdate.tsx` delete decision | Requires product decision (wire vs. delete) before action |
 | Any refactoring of large pages (Ledger, OrderDetail) | Out of scope for cleanup pass; functional code |
 | `apps/admin/` dead code | Not audited in this pass — separate audit recommended |
+| `supabase.ts` wiring (Item 19) | Connecting generated types is a separate refactor sprint, not cleanup |

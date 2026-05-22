@@ -8,7 +8,8 @@ import DesktopTopBar from "./DesktopTopBar";
 import { Toaster } from "@/components/ui/sonner";
 import { useOfflineSyncManager } from "@/app/useOfflineSyncManager";
 import { usePlan } from "@/hooks/usePlan";
-import TrialExpiredPaywall from "@/components/shared/TrialExpiredPaywall";
+import SubscriptionPaywall from "@/components/shared/SubscriptionPaywall";
+import PaymentBanner from "@/components/shared/PaymentBanner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useAuth } from "@/context/AuthContext";
 import SuspendedScreen from "@/pages/SuspendedScreen";
@@ -33,7 +34,7 @@ export default function AppLayout() {
   // Initialize push notifications
   usePushNotifications();
 
-  const { isExpired } = usePlan();
+  const { isExpired, isGrace, isRestricted, isPaymentFailed } = usePlan();
   const location = useLocation();
   const isLedgerRoute = location.pathname.startsWith('/ledger');
   const { tenant, isSuperAdmin } = useAuth();
@@ -46,7 +47,9 @@ export default function AppLayout() {
     <UpgradeGateProvider>
     <SyncContext.Provider value={{ isSyncing, refetch }}>
     <div className="flex h-[100dvh] overflow-hidden w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
-      {isExpired && !isLedgerRoute && <TrialExpiredPaywall />}
+      {isExpired && !isLedgerRoute && <SubscriptionPaywall />}
+      {/* Payment failure / grace / restricted non-blocking banner */}
+      {(isPaymentFailed || isGrace || isRestricted) && <PaymentBanner />}
       {/* Desktop: persistent sidebar; Mobile: slide-in drawer */}
       {!isMobile && <DesktopSidebar />}
       {isMobile && <AppDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />}

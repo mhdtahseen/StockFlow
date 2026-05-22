@@ -45,13 +45,32 @@ serve(async (req) => {
           slug: slug,
           plan: 'trial',
           plan_expires_at: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
-          is_active: true
+          is_active: true,
+          // Anti-abuse provenance fields from the original signup request
+          signup_phone:              tenantReq.phone              ?? null,
+          signup_device_fingerprint: tenantReq.device_fingerprint ?? null,
+          signup_ip:                 tenantReq.request_ip         ?? null,
         })
         .select()
         .single()
 
       if (tenantError) throw tenantError
       tenantId = newTenant.id
+    }
+
+    // Check for duplicate device fingerprint across existing tenants (abuse signal)
+    const duplicateWarnings: { type: string; tenantName: string }[] = []
+    if (tenantReq.device_fingerprint) {
+      const { data: fpMatches } = await supabaseClient
+        .from('tenants')
+        .select('name')
+        .eq('signup_device_fingerprint', tenantReq.device_fingerprint)
+        .neq('id', tenantId)
+        .limit(3)
+      if (fpMatches?.length) {
+        duplicateWarnings.push(...fpMatches.map((t: { name: string }) => ({ type: 'device', tenantName: t.name })))
+        console.warn(`[approve-tenant] ⚠ Duplicate device fingerprint for ${tenantReq.email} — matches: ${fpMatches.map((t: { name: string }) => t.name).join(', ')}`)
+      }
     }
 
     const redirectTo = customRedirect || "https://finventree.com/activate"
@@ -123,7 +142,7 @@ serve(async (req) => {
       .eq('id', requestId)
 
     return new Response(
-      JSON.stringify({ success: true, tenantId, redirectTo }),
+      JSON.stringify({ success: true, tenantId, redirectTo, duplicateWarnings }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 

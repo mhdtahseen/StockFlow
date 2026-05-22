@@ -50,6 +50,7 @@
     "@capacitor/status-bar": "^8.0.2",
     "@dicebear/collection": "^9.3.2",
     "@dicebear/core": "^9.3.2",
+    "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@finventree/shared": "workspace:*",
     "@finventree/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
