@@ -24,10 +24,10 @@ const config: CapacitorConfig = {
       backgroundColor: '#ffffff', // white — matches light-mode AppHeader bg
     },
     Keyboard: {
-      // resize: 'body' → only the <body> shrinks when the keyboard appears.
-      // Fixed elements (AppHeader, BottomNav) stay pinned in place.
-      // The scrollable <main> area shrinks so the focused input is reachable.
-      resize: 'body',
+      // resize: 'native' → resizes the entire WKWebView frame on iOS, identical to Android.
+      // This ensures that the webview automatically scrolls focused inputs into view.
+      resize: 'native',
+      resizeOnFullScreen: true,
       // style: 'dark' → keyboard appearance matches the current theme (set dynamically)
       style: 'light',
     },
