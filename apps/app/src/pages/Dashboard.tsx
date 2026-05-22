@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { useAppSelector } from "../app/hooks";
 import { selectWalletBuckets } from "../features/wallet/selectors";
 import { selectInventoryMetrics } from "../features/analytics/selectors";
@@ -37,6 +37,10 @@ import clsx from "clsx";
 import ExportModal from "../components/shared/ExportModal";
 import ComingSoonModal from "../components/shared/ComingSoonModal";
 import NotificationsPopover from "../components/shared/NotificationsPopover";
+import { useSyncState } from "@/context/SyncContext";
+import { DashboardSkeleton } from "@/components/shared/SkeletonScreens";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PtrIndicator } from "@/components/shared/PtrIndicator";
 import {
   SiApple,
   SiSamsung,
@@ -89,10 +93,13 @@ export default function Dashboard() {
   const { session, isAdmin, tenant } = useAuth();
   const { canUse } = usePlan();
   const { showUpgrade } = useUpgradeGate();
+  const { isSyncing, refetch } = useSyncState();
   const [showExportModal, setShowExportModal] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
-  const mainRef = useRef<HTMLElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  const { containerRef: mainRef, pullDistance, isTriggered, threshold, ptrHandlers } =
+    usePullToRefresh(refetch, isSyncing);
 
   const handleScroll = (e: React.UIEvent<HTMLElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -142,8 +149,14 @@ export default function Dashboard() {
       <main
         ref={mainRef}
         onScroll={handleScroll}
+        {...ptrHandlers}
         className="flex-1 overflow-y-auto px-4 md:px-8 pb-12"
+        style={{ overscrollBehaviorY: "contain" }}
       >
+        <PtrIndicator pullDistance={pullDistance} isTriggered={isTriggered} threshold={threshold} isSyncing={isSyncing} />
+        {isSyncing && phones.length === 0 ? (
+          <DashboardSkeleton />
+        ) : (
         <div className="md:max-w-5xl md:mx-auto">
         {isProfileIncomplete && (
           <div
@@ -428,6 +441,7 @@ export default function Dashboard() {
           </section>
         )}
         </div>
+        )}
       </main>
 
       {showScrollTop && (

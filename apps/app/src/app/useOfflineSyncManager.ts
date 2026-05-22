@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -603,5 +603,10 @@ export function useOfflineSyncManager() {
     };
   }, [session, hasFetchedInitial, dispatch]);
 
-  return { isSyncing };
+  /** Force a fresh server-sync — safe to call only when outbox is empty. */
+  const refetch = useCallback(() => {
+    if (!isSyncing) setHasFetchedInitial(false);
+  }, [isSyncing]);
+
+  return { isSyncing, refetch };
 }

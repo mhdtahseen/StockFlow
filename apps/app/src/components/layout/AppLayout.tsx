@@ -18,13 +18,14 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { UpgradeGateProvider } from "@/context/UpgradeGateContext";
 import CoachMarks from "@/components/onboarding/CoachMarks";
 import FeatureTour from "@/components/onboarding/FeatureTour";
+import { SyncContext } from "@/context/SyncContext";
 
 export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  // Initialize offline background syncing
-  useOfflineSyncManager();
+  // Initialize offline background syncing — capture isSyncing for context
+  const { isSyncing, refetch } = useOfflineSyncManager();
 
   // Scroll focused inputs into view when keyboard opens (iOS + Android)
   useKeyboard();
@@ -43,6 +44,7 @@ export default function AppLayout() {
 
   return (
     <UpgradeGateProvider>
+    <SyncContext.Provider value={{ isSyncing, refetch }}>
     <div className="flex h-[100dvh] overflow-hidden w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
       {isExpired && !isLedgerRoute && <TrialExpiredPaywall />}
       {/* Desktop: persistent sidebar; Mobile: slide-in drawer */}
@@ -67,6 +69,7 @@ export default function AppLayout() {
       <CoachMarks />
       <FeatureTour />
     </div>
+    </SyncContext.Provider>
     </UpgradeGateProvider>
   );
 }

@@ -28,6 +28,11 @@ import {
 } from "date-fns";
 import { CreateOrderSheet } from "../components/shared/CreateOrderSheet";
 import HeaderActions from "@/components/layout/HeaderActions";
+import { useHaptics } from "@/hooks/useHaptics";
+import { useSyncState } from "@/context/SyncContext";
+import { InventorySkeleton } from "@/components/shared/SkeletonScreens";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PtrIndicator } from "@/components/shared/PtrIndicator";
 
 export type TabOption = PhoneStatus | "ALL";
 const VALID_TABS: TabOption[] = ["ALL", "IN_STOCK", "PENDING", "SOLD"];
@@ -35,6 +40,10 @@ const VALID_TABS: TabOption[] = ["ALL", "IN_STOCK", "PENDING", "SOLD"];
 type SortOption = "newest" | "oldest" | "price_high" | "price_low" | "brand_az";
 
 export default function Inventory() {
+  const { triggerImpact } = useHaptics();
+  const { isSyncing, refetch } = useSyncState();
+  const { containerRef: inventoryMainRef, pullDistance, isTriggered, threshold, ptrHandlers } =
+    usePullToRefresh(refetch, isSyncing);
   const { phones } = useAppSelector((state) => state.inventory);
   const ledgerEntries = useAppSelector((state) => state.ledger.entries);
   const navigate = useNavigate();
@@ -72,7 +81,7 @@ export default function Inventory() {
   const handleTouchStart = (phone: Phone) => {
     if (phone.status !== "IN_STOCK") return;
     const timer = setTimeout(() => {
-      navigator.vibrate?.(30);
+      triggerImpact();
       setIsMultiSelect(true);
       setSelectedIds([phone.id]);
     }, 500);
@@ -89,7 +98,7 @@ export default function Inventory() {
   const handleMouseDown = (phone: Phone) => {
     if (phone.status !== "IN_STOCK") return;
     const timer = setTimeout(() => {
-      navigator.vibrate?.(30);
+      triggerImpact();
       setIsMultiSelect(true);
       setSelectedIds([phone.id]);
     }, 500);
@@ -443,7 +452,17 @@ export default function Inventory() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-4 pb-24 md:pb-12 z-10 w-full max-w-lg md:max-w-none mx-auto md:mx-0 space-y-5">
+      <main
+        ref={inventoryMainRef}
+        {...ptrHandlers}
+        className="flex-1 overflow-y-auto px-4 md:px-8 pt-4 pb-24 md:pb-12 z-10 w-full max-w-lg md:max-w-none mx-auto md:mx-0 space-y-5"
+        style={{ overscrollBehaviorY: "contain" }}
+      >
+        <PtrIndicator pullDistance={pullDistance} isTriggered={isTriggered} threshold={threshold} isSyncing={isSyncing} />
+        {isSyncing && phones.length === 0 ? (
+          <InventorySkeleton />
+        ) : (
+        <>
         {/* Active search/filter indicator */}
         {(debouncedQuery || filterBrand) && (
           <div className="flex items-center gap-2 flex-wrap">
@@ -784,6 +803,8 @@ export default function Inventory() {
             )}
           </div>
         </section>
+        </>
+        )}
       </main>
 
       {/* Multi-select bottom bar */}
