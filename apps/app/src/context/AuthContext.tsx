@@ -302,20 +302,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [session, tenant?.id, tenant?.plan]);
 
   const signOut = async () => {
-    // Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
-    const supabaseApi = await import('@/app/supabaseApi');
-    supabaseApi.clearTenantCache?.();
-    // 1. Reset in-memory Redux state immediately (prevents old tenant data showing)
-    store.dispatch({ type: RESET_STORE });
-    // 2. Purge the persisted store (covers web/localforage + native/@capacitor/preferences)
-    await persistor.purge();
-    localStorage.removeItem("finventree_auth");
-    localStorage.removeItem("persist:finventree-root");
-    // Clear the React Query persisted cache so the next user doesn't see
-    // stale data from a previous session (default key used by createSyncStoragePersister).
-    localStorage.removeItem("REACT_QUERY_OFFLINE_CACHE");
-    await supabase.auth.signOut();
+    // 1. Reset local React State immediately to trigger re-render and router navigation instantly
+    try {
+      setSession(null);
+      setUser(null);
+      setIsSuperAdmin(false);
+      setIsAdmin(false);
+      setTenant(null);
+      setFeatureFlags(null);
+      setFullName(null);
+      setAvatarUrl(null);
+      setRole(null);
+      setOnboardingCompletedAt(undefined);
+      posthog.reset();
+    } catch (err) {
+      console.warn("Failed to reset auth state locally:", err);
+    }
+
+    // 2. Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
+    try {
+      const supabaseApi = await import('@/app/supabaseApi');
+      supabaseApi.clearTenantCache?.();
+    } catch (err) {
+      console.warn("Failed to clear tenant cache:", err);
+    }
+
+    // 3. Reset in-memory Redux state immediately (prevents old tenant data showing)
+    try {
+      store.dispatch({ type: RESET_STORE });
+    } catch (err) {
+      console.warn("Failed to reset Redux store:", err);
+    }
+
+    // 4. Clear auth flags, React Query cache, and all Supabase local storage keys immediately
+    try {
+      localStorage.removeItem("finventree_auth");
+      localStorage.removeItem("persist:finventree-root");
+      localStorage.removeItem("REACT_QUERY_OFFLINE_CACHE");
+      
+      // Clean up all Supabase auth keys from localStorage to prevent auto-login on restart
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("sb-")) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to clear localStorage items:", err);
+    }
+
+    // 5. Clear Capacitor Preferences store directly (covers native platform storage)
+    try {
+      const { Preferences } = await import("@capacitor/preferences");
+      await Preferences.remove({ key: "persist:finventree-root" });
+    } catch (err) {
+      console.warn("Failed to clear Capacitor preferences:", err);
+    }
+
+    // 6. Purge the Redux persistor (runs, but failure does not block signout flow)
+    try {
+      await persistor.purge();
+    } catch (err) {
+      console.warn("Failed to purge persistor:", err);
+    }
+
+    // 7. Sign out from Supabase (revokes session token)
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Failed to sign out from Supabase:", err);
+    }
   };
+
 
 
   return (
