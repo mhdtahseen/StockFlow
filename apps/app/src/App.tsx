@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
+import { SplashScreen as CapSplashScreen } from "@capacitor/splash-screen";
+import { Keyboard as CapKeyboard } from "@capacitor/keyboard";
 import posthog from "@/lib/posthog";
 
 // Capacitor serves files via capacitor:// — BrowserRouter needs a server to
@@ -125,6 +127,32 @@ function App() {
   const handleSplashFinished = useCallback(() => {
     setShowSplash(false);
   }, []);
+
+  useEffect(() => {
+    let showListenerPromise: Promise<any> | undefined;
+
+    if (Capacitor.isNativePlatform()) {
+      CapSplashScreen.hide().catch((err) => {
+        console.warn("Failed to hide native splash screen:", err);
+      });
+
+      // Handle iOS keyboard covering inputs: scroll active input/textarea into view
+      showListenerPromise = CapKeyboard.addListener("keyboardDidShow", () => {
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) {
+          // Smoothly scroll the focused input into the center of the viewport
+          activeEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    }
+
+    return () => {
+      if (showListenerPromise) {
+        showListenerPromise.then((handle) => handle.remove());
+      }
+    };
+  }, []);
+
 
   return (
     <TooltipProvider>
