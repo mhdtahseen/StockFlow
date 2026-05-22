@@ -1,3 +1,5 @@
+import MiniSearch from "minisearch";
+import { stemmer } from "stemmer";
 import faqData from "@/data/faq.json";
 
 interface FaqItem {
@@ -10,83 +12,114 @@ interface FaqItem {
 
 const FAQ: FaqItem[] = faqData as FaqItem[];
 
+// ─── Stop words ──────────────────────────────────────────────────────────────
+
 const STOPWORDS = new Set([
   "a","an","the","is","it","in","on","at","to","for","of","and","or","but",
   "how","what","why","when","where","do","does","can","i","my","me","we",
   "you","your","this","that","with","from","be","was","are","have","has",
   "not","no","so","if","up","out","get","go","by","as","its","into","please",
-  "help","tell","show","give","want","need","using","use",
+  "help","tell","show","give","want","need","using","use","about","explain",
+  "would","could","should","just","really","very","also","like",
 ]);
 
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !STOPWORDS.has(w));
+// ─── MiniSearch index (built once at module load) ────────────────────────────
+
+function processTerm(term: string): string | null {
+  const lower = term.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!lower || lower.length < 2 || STOPWORDS.has(lower)) return null;
+  return stemmer(lower);
 }
 
-/** Returns the best-matching FAQ item if score >= threshold, else null. */
-export function findLocalAnswer(question: string): FaqItem | null {
+const miniSearch = new MiniSearch<FaqItem>({
+  fields: ["question", "keywordsText"],
+  storeFields: ["id", "question", "answer", "category", "keywords"],
+  processTerm,
+  searchOptions: {
+    prefix: true,
+    fuzzy: 0.2,
+    boost: { keywordsText: 2, question: 1 },
+    combineWith: "OR",
+  },
+});
+
+// Index FAQ items — flatten keywords into a text field for MiniSearch
+miniSearch.addAll(
+  FAQ.map((item) => ({
+    ...item,
+    keywordsText: item.keywords.join(" "),
+  }))
+);
+
+// ─── Public API ──────────────────────────────────────────────────────────────
+
+export interface SearchResult {
+  item: FaqItem;
+  score: number;
+}
+
+/**
+ * Finds the best FAQ match(es) for a user question using BM25 + stemming.
+ * Returns up to `maxResults` items above the score threshold, or null if none qualify.
+ */
+export function findLocalAnswer(
+  question: string,
+  maxResults = 2
+): SearchResult[] | null {
   if (!question.trim()) return null;
 
-  const tokens = new Set(tokenize(question));
-  if (tokens.size === 0) return null;
+  const results = miniSearch.search(question);
+  if (results.length === 0) return null;
 
-  let best: FaqItem | null = null;
-  let bestScore = 0;
+  // MiniSearch returns results sorted by score descending.
+  // Take top results that are above a meaningful threshold.
+  const topScore = results[0].score;
+  const threshold = topScore * 0.4; // include results within 40% of top score
 
-  for (const item of FAQ) {
-    const kwSet = new Set(item.keywords);
-    let hits = 0;
-    for (const t of tokens) {
-      if (kwSet.has(t)) hits++;
-    }
-    // Jaccard-like: hits / union size
-    const union = new Set([...tokens, ...kwSet]).size;
-    const score = hits / union;
-    if (score > bestScore) {
-      bestScore = score;
-      best = item;
-    }
-  }
+  const qualified = results
+    .filter((r) => r.score >= threshold)
+    .slice(0, maxResults)
+    .map((r) => ({
+      item: FAQ.find((f) => f.id === r.id)!,
+      score: r.score,
+    }));
 
-  // Also check question title similarity
-  if (best === null || bestScore < 0.08) {
-    // Try substring match on question text
-    const lq = question.toLowerCase();
-    for (const item of FAQ) {
-      if (item.question.toLowerCase().split(" ").some((w) => lq.includes(w) && w.length > 4)) {
-        const titleTokens = new Set(tokenize(item.question));
-        let hits = 0;
-        for (const t of tokens) {
-          if (titleTokens.has(t)) hits++;
-        }
-        const union = new Set([...tokens, ...titleTokens]).size;
-        const score = hits / union;
-        if (score > bestScore) {
-          bestScore = score;
-          best = item;
-        }
-      }
-    }
-  }
+  // Only return if the top result has a meaningful absolute score
+  // (low absolute scores mean very weak matches)
+  if (qualified.length === 0 || qualified[0].score < 1.5) return null;
 
-  return bestScore >= 0.08 ? best : null;
+  return qualified;
 }
 
-/** Filter FAQ items whose question or keywords match a search query. */
+/**
+ * Returns the single best match (for backwards compatibility with the chat flow).
+ */
+export function findBestAnswer(question: string): FaqItem | null {
+  const results = findLocalAnswer(question, 1);
+  return results?.[0]?.item ?? null;
+}
+
+/** Search FAQ items (for the FAQ sheet search bar). */
 export function searchFaq(query: string): FaqItem[] {
   if (!query.trim()) return FAQ;
-  const tokens = tokenize(query);
-  if (tokens.size === 0) return FAQ;
 
-  const lq = query.toLowerCase();
-  return FAQ.filter((item) => {
-    if (item.question.toLowerCase().includes(lq)) return true;
-    if (item.category.toLowerCase().includes(lq)) return true;
-    return tokens.some((t) => item.keywords.includes(t));
+  const results = miniSearch.search(query, {
+    prefix: true,
+    fuzzy: 0.3,
+    combineWith: "OR",
   });
+
+  if (results.length === 0) {
+    // Fallback: simple substring match on question text
+    const lq = query.toLowerCase();
+    return FAQ.filter(
+      (item) =>
+        item.question.toLowerCase().includes(lq) ||
+        item.category.toLowerCase().includes(lq)
+    );
+  }
+
+  return results.map((r) => FAQ.find((f) => f.id === r.id)!);
 }
 
 /** Returns all FAQ items grouped by category. */

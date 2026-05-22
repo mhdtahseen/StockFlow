@@ -278,5 +278,145 @@
     "question": "How do I contact support?",
     "keywords": ["contact", "support", "help", "email", "human", "person", "team"],
     "answer": "Email us at **support@finventree.com** — we typically respond within 24 hours. You can also use the **Email Support** button at the bottom of this page."
+  },
+  {
+    "id": "faq-41",
+    "category": "Trade Network",
+    "question": "What is the Trade Network?",
+    "keywords": ["trade", "network", "connect", "business", "dealer", "partner"],
+    "answer": "The **Trade Network** lets you connect with other Finventree shops (suppliers, buyers, retailers). Once connected, you can create transfer orders that sync between both parties. Available on the Enterprise plan."
+  },
+  {
+    "id": "faq-42",
+    "category": "Trade Network",
+    "question": "How do I find my trade code?",
+    "keywords": ["trade", "code", "find", "where", "my", "share", "profile"],
+    "answer": "Your unique 6-character trade code is on your **Profile page**. You can copy it, share a connect link, or display your QR code for others to scan."
+  },
+  {
+    "id": "faq-43",
+    "category": "Trade Network",
+    "question": "How do I connect with another shop?",
+    "keywords": ["connect", "shop", "scan", "qr", "code", "link", "supplier", "buyer"],
+    "answer": "Go to **Customers page → tap the violet QR button** to scan their QR code. Or tap **Connect** and type their 6-character trade code manually. Choose the relationship type and confirm."
+  },
+  {
+    "id": "faq-44",
+    "category": "Billing & Plans",
+    "question": "What plans are available?",
+    "keywords": ["plans", "pricing", "tiers", "subscription", "options", "available"],
+    "answer": "Finventree offers **Starter** (1 user, 100 phones), **Pro** (10 users, unlimited phones, scanner + analytics), and **Enterprise** (unlimited users, trade network, bulk invoices). All start with a 6-month free trial."
+  },
+  {
+    "id": "faq-45",
+    "category": "Billing & Plans",
+    "question": "How long is the free trial?",
+    "keywords": ["trial", "free", "duration", "long", "days", "months"],
+    "answer": "The free trial lasts **6 months** with full feature access. After it expires, choose a paid plan (Starter, Pro, or Enterprise) to continue."
+  },
+  {
+    "id": "faq-46",
+    "category": "Billing & Plans",
+    "question": "What happens when my trial expires?",
+    "keywords": ["trial", "expired", "ended", "over", "access", "blocked"],
+    "answer": "You'll see a paywall screen. Your data is still safe, but you can't create new orders or add phones until you choose a paid plan from **Menu → Upgrade Plan**."
+  },
+  {
+    "id": "faq-47",
+    "category": "Team & Account",
+    "question": "What roles can team members have?",
+    "keywords": ["roles", "team", "admin", "manager", "associate", "permissions"],
+    "answer": "Three roles: **Admin** (full access + billing), **Manager** (most operations except settings/billing), **Associate** (day-to-day tasks — cannot view profit or analytics)."
+  },
+  {
+    "id": "faq-48",
+    "category": "Team & Account",
+    "question": "How many team members can I have?",
+    "keywords": ["seat", "limit", "team", "members", "how", "many", "maximum"],
+    "answer": "**Starter** = 1 user, **Pro** = up to 10 users, **Enterprise** = unlimited. Hit your limit? You'll see an upgrade prompt when trying to invite more members."
+  },
+  {
+    "id": "faq-49",
+    "category": "Payments",
+    "question": "What is advance credit?",
+    "keywords": ["advance", "credit", "overpayment", "customer", "balance", "extra"],
+    "answer": "When a customer overpays, the extra amount is stored as **advance credit**. This credit auto-applies to their next order, reducing what they owe."
+  },
+  {
+    "id": "faq-50",
+    "category": "Payments",
+    "question": "How do I split a payment across multiple orders?",
+    "keywords": ["split", "payment", "multiple", "orders", "allocation", "distribute"],
+    "answer": "When recording a customer payment, the **Payment Allocation Sheet** lets you split it across multiple outstanding orders. Enter how much to apply to each order."
+  },
+  {
+    "id": "faq-51",
+    "category": "Orders",
+    "question": "How do I return a sold phone?",
+    "keywords": ["return", "sold", "phone", "refund", "reverse", "undo"],
+    "answer": "Open the Sales Order → tap **Process Return** (available on settled orders). A refund entry is auto-created in the ledger, and the phone returns to available inventory."
+  },
+  {
+    "id": "faq-52",
+    "category": "Orders",
+    "question": "What are transfer orders?",
+    "keywords": ["transfer", "order", "inter", "tenant", "linked", "sync"],
+    "answer": "Transfer orders are auto-created when you sell to a connected Trade Network partner. The order syncs between both shops — your sale appears as their purchase."
+  },
+  {
+    "id": "faq-53",
+    "category": "Inventory",
+    "question": "How do I track repairs on a phone?",
+    "keywords": ["repair", "track", "log", "cost", "fix", "issue"],
+    "answer": "Open the phone detail → scroll to Repairs → tap **Add Repair**. Enter the issue, cost, and notes. The repair cost auto-deducts from that phone's profit margin."
+  },
+  {
+    "id": "faq-54",
+    "category": "Finance",
+    "question": "What is the Watchtower?",
+    "keywords": ["watchtower", "automatic", "ledger", "how", "works", "financial"],
+    "answer": "The Watchtower auto-creates ledger entries for every business action — purchases, sales, repairs, refunds. You never need to manually enter financial data."
+  },
+  {
+    "id": "faq-55",
+    "category": "Finance",
+    "question": "How do I export ledger data to Excel?",
+    "keywords": ["export", "ledger", "excel", "download", "xlsx", "spreadsheet"],
+    "answer": "On the Ledger page, tap **Export** (top right). Choose your date range and filters, then tap Export to Excel. An XLSX file is generated instantly."
+  },
+  {
+    "id": "faq-56",
+    "category": "Getting Started",
+    "question": "What is the + button for?",
+    "keywords": ["plus", "button", "blue", "circle", "center", "fab", "add"],
+    "answer": "The **+ button** (large blue circle, bottom center) is a quick-add shortcut from any screen. Tap it to open the Add Phone form directly without navigating to Inventory."
+  },
+  {
+    "id": "faq-57",
+    "category": "Troubleshooting",
+    "question": "I see a yellow badge on the menu icon",
+    "keywords": ["yellow", "badge", "menu", "icon", "warning", "sync", "stuck"],
+    "answer": "The yellow ! badge means data hasn't synced to the cloud yet. Go to **Profile → Developer Tools** to see stuck items and retry them. Usually happens after extended offline use."
+  },
+  {
+    "id": "faq-58",
+    "category": "Troubleshooting",
+    "question": "Is my data safe if I lose my phone?",
+    "keywords": ["data", "safe", "lost", "phone", "backup", "cloud", "recover"],
+    "answer": "Yes — all data syncs to the cloud automatically. Install Finventree on a new device, log in with the same email, and everything is restored."
+  },
+  {
+    "id": "faq-59",
+    "category": "Orders",
+    "question": "How do I inspect items in a purchase order?",
+    "keywords": ["inspect", "item", "po", "purchase", "accept", "reject"],
+    "answer": "Open the Purchase Order → each item has an inspection badge. Tap an item to mark it **Accepted** or **Rejected**. Rejected items auto-create a refund-due entry in the ledger."
+  },
+  {
+    "id": "faq-60",
+    "category": "Customers",
+    "question": "How do I see what a customer owes me?",
+    "keywords": ["customer", "owes", "outstanding", "receivable", "due", "balance"],
+    "answer": "Go to **Menu → Customers** and tap any customer. Their detail page shows total sales, total paid, and **balance due**. The list also shows AR balance next to each name."
   }
 ]

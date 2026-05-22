@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { KNOWLEDGE_BASE } from "./knowledge-base.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,32 +8,20 @@ const corsHeaders = {
 };
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
-const SYSTEM_PROMPT = `You are a support assistant for Finventree (also called StockFlow), a mobile phone inventory management app used by small mobile shops in India.
+const SYSTEM_PROMPT = `You are a support assistant for Finventree, a mobile phone inventory management app for electronics shops in India.
 
-The app helps shop owners:
-- Track phone inventory with IMEI, brand, model, purchase price, and status (In Stock / Pending / Sold)
-- Create Purchase Orders (buying from suppliers) and Sales Orders (selling to customers)
-- Manage customers and suppliers with full ledger balances
-- View analytics, profit margins, and financial reports
-- Works as a PWA on mobile and has a native Android/iOS app via Capacitor
-
-Key UI elements:
-- Dashboard: net cash flow, purchases, sales, avg profit, stock count
-- + button (large blue circle, bottom center): quickly add a phone from anywhere
-- ☰ hamburger icon (top left): opens full navigation drawer
-- Bottom navigation: Dashboard (left) | + FAB (center) | Inventory (right)
-- Navigation drawer sections: Operations (Inventory, Purchase Orders, Sales Orders), Finance & CRM (Ledger, Analytics, Customers), Account (Profile, Team, Settings)
-
-Rules:
+INSTRUCTIONS:
+- Answer ONLY based on the documentation below. Do not invent features.
+- If the answer is not in the documentation, respond exactly: "I'm not sure about that. Please email support@finventree.com and we'll help you within 24 hours."
+- Do not answer questions unrelated to the Finventree app (weather, general knowledge, etc.). Respond: "I can only help with Finventree app questions."
 - Answer in 2-4 sentences maximum. Be concise and practical.
 - Use simple language — users may not be tech-savvy.
 - Use **bold** for UI element names (e.g. **+ button**, **Menu**, **Inventory**).
-- If the question is about billing or plans, direct to Menu → Upgrade Plan.
-- If you genuinely don't know, respond: "I'm not sure about that. Please email support@finventree.com and we'll help you within 24 hours."
-- Never invent features that don't exist.
-- Do not respond to questions unrelated to the app.`;
+
+DOCUMENTATION:
+${KNOWLEDGE_BASE}`;
 
 // Extract meaningful keywords from a question string
 function extractKeywords(text: string): string[] {
@@ -47,6 +36,24 @@ function extractKeywords(text: string): string[] {
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
     .filter((w) => w.length > 2 && !stopwords.has(w));
+}
+
+/**
+ * Quality gate: answers that should NOT be cached.
+ */
+function isLowQualityAnswer(answer: string): boolean {
+  if (answer.length < 20) return true;
+  const lower = answer.toLowerCase();
+  const refusalPatterns = [
+    "i'm not sure",
+    "i can only help with finventree",
+    "email support@finventree.com and we'll help",
+    "please email support",
+    "i don't have information",
+    "i cannot help with that",
+    "not related to finventree",
+  ];
+  return refusalPatterns.some((p) => lower.includes(p));
 }
 
 serve(async (req) => {
@@ -71,13 +78,10 @@ serve(async (req) => {
     const q = question.trim().slice(0, 400); // cap input length
     const keywords = extractKeywords(q);
 
-    // ── 1. Check response cache ─────────────────────────────────────────────
+    // ── 1. Full-text search in support_responses (with stemming + ranking) ──
     if (keywords.length > 0) {
       const { data: cached } = await supabase
-        .from("support_responses")
-        .select("id, answer")
-        .overlaps("keywords", keywords)
-        .order("hit_count", { ascending: false })
+        .rpc("support_fts_search", { search_query: q })
         .limit(1)
         .single();
 
@@ -85,7 +89,7 @@ serve(async (req) => {
         // Increment hit counter (fire-and-forget)
         supabase
           .from("support_responses")
-          .update({ hit_count: supabase.rpc("increment", { row_id: cached.id }) })
+          .update({ hit_count: (cached.hit_count ?? 0) + 1 })
           .eq("id", cached.id)
           .then(() => {});
 
@@ -132,7 +136,7 @@ serve(async (req) => {
       }
     }
 
-    // ── 3. Call Gemini ──────────────────────────────────────────────────────
+    // ── 3. Call Gemini (grounded on knowledge base) ────────────────────────
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
@@ -142,7 +146,7 @@ serve(async (req) => {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ role: "user", parts: [{ text: q }] }],
-        generationConfig: { maxOutputTokens: 200, temperature: 0.3 },
+        generationConfig: { maxOutputTokens: 300, temperature: 0.2 },
       }),
     });
 
@@ -157,13 +161,32 @@ serve(async (req) => {
       geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ??
       "I'm not sure about that. Please email support@finventree.com and we'll help you within 24 hours.";
 
-    // ── 4. Cache the answer ─────────────────────────────────────────────────
-    if (keywords.length > 0) {
-      await supabase.from("support_responses").insert({
-        question_pattern: q,
-        keywords,
-        answer,
-      });
+    // ── 4. Quality gate + deduplication before caching ──────────────────────
+    const shouldCache = keywords.length > 0 && !isLowQualityAnswer(answer);
+
+    if (shouldCache) {
+      // Check for existing similar answer (deduplication via FTS)
+      const { data: existing } = await supabase
+        .rpc("support_fts_search", { search_query: q })
+        .limit(1)
+        .single();
+
+      if (existing?.id) {
+        // Similar answer exists — just bump hit_count
+        await supabase
+          .from("support_responses")
+          .update({ hit_count: (existing.hit_count ?? 0) + 1 })
+          .eq("id", existing.id);
+      } else {
+        // New unique answer — insert with gemini source
+        await supabase.from("support_responses").insert({
+          question_pattern: q,
+          keywords,
+          answer,
+          source: "gemini",
+          verified: false,
+        });
+      }
     }
 
     return new Response(

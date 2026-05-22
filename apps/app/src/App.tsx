@@ -143,7 +143,6 @@ function App() {
             }
           />
           <Route path="/auth/handoff" element={<AuthHandoff />} />
-          <Route path="/support" element={<Support />} />
           <Route path="/public/view/:token" element={<PublicView />} />
           {/* Trade Network connect deep link: /connect/:code → redirect to /customers?connect=CODE */}
           <Route
@@ -187,6 +186,7 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
             <Route path="about" element={<AboutApp />} />
+            <Route path="support" element={<Support />} />
           </Route>
         </Routes>
         {/* </AppGate> */}
