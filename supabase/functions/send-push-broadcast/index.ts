@@ -5,6 +5,7 @@ import { WebPush } from 'https://esm.sh/web-push@3.6.6'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 // ── FCM Auth: exchange service account JSON for a short-lived OAuth2 token ───
@@ -95,25 +96,64 @@ async function sendFcmMessage(
 }
 
 serve(async (req) => {
+  // Handle CORS preflight — must return 200 before any auth check
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { status: 200, headers: corsHeaders })
   }
 
   try {
-    const supabaseClient = createClient(
+    // ── Custom auth: validate the caller's JWT and check they are a super-admin
+    // (verify_jwt is disabled on this function so the OPTIONS preflight succeeds,
+    //  but we still protect POST requests ourselves using the caller's bearer token)
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Verify the caller's JWT using the anon key client (no service role needed here)
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } },
+    )
+    const { data: { user }, error: userErr } = await callerClient.auth.getUser()
+    if (userErr || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Check role via service role client (bypasses RLS for the lookup)
+    const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
+    const { data: profile } = await serviceClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || profile.role !== 'super-admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden: super-admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     const { title, message, url, target_role, platform: targetPlatform } = await req.json()
 
     // 1. Fetch subscriptions, filtered by role if requested
-    let query = supabaseClient
+    let query = serviceClient
       .from('user_push_subscriptions')
       .select('user_id, platform, native_token, subscription')
 
     if (target_role && target_role !== 'all') {
-      const { data: usersWithRole, error: roleError } = await supabaseClient
+      const { data: usersWithRole, error: roleError } = await serviceClient
         .from('profiles')
         .select('id')
         .eq('role', target_role)
@@ -133,7 +173,7 @@ serve(async (req) => {
 
     if (!subscriptions || subscriptions.length === 0) {
       return new Response(
-        JSON.stringify({ message: 'No subscriptions found', breakdown: { web: { success: 0, failed: 0 }, native: { success: 0, failed: 0 } } }),
+        JSON.stringify({ message: 'No subscriptions found', successCount: 0, failureCount: 0, breakdown: { web: { success: 0, failed: 0 }, native: { success: 0, failed: 0 } } }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
       )
     }
@@ -216,7 +256,7 @@ serve(async (req) => {
 
     // 5. Clean up expired / unregistered tokens
     for (const { user_id, platform } of expiredTokens) {
-      await supabaseClient
+      await serviceClient
         .from('user_push_subscriptions')
         .delete()
         .eq('user_id', user_id)
@@ -241,5 +281,3 @@ serve(async (req) => {
     })
   }
 })
-
-
