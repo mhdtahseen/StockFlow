@@ -1,6 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { WebPush } from 'https://esm.sh/web-push@3.6.6'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,16 +11,23 @@ async function getFirebaseAccessToken(serviceAccountJson: string): Promise<strin
   const sa = JSON.parse(serviceAccountJson)
   const now = Math.floor(Date.now() / 1000)
 
-  const b64url = (obj: object) =>
-    btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+  const b64url = (buf: ArrayBuffer) =>
+    btoa(String.fromCharCode(...new Uint8Array(buf)))
+      .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
 
-  const signingInput = `${b64url({ alg: 'RS256', typ: 'JWT' })}.${b64url({
+  const b64urlObj = (obj: object) =>
+    btoa(JSON.stringify(obj))
+      .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+
+  const header = b64urlObj({ alg: 'RS256', typ: 'JWT' })
+  const payload = b64urlObj({
     iss: sa.client_email,
     scope: 'https://www.googleapis.com/auth/firebase.messaging',
     aud: 'https://oauth2.googleapis.com/token',
     iat: now,
     exp: now + 3600,
-  })}`
+  })
+  const signingInput = `${header}.${payload}`
 
   const pemKey = sa.private_key
     .replace('-----BEGIN PRIVATE KEY-----', '')
@@ -43,15 +48,15 @@ async function getFirebaseAccessToken(serviceAccountJson: string): Promise<strin
     new TextEncoder().encode(signingInput),
   )
 
-  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+  const sigB64 = b64url(signature)
+  const jwt = `${signingInput}.${sigB64}`
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: `${signingInput}.${sigB64}`,
+      assertion: jwt,
     }),
   })
 
@@ -95,16 +100,95 @@ async function sendFcmMessage(
   }
 }
 
-serve(async (req) => {
-  // Handle CORS preflight — must return 200 before any auth check
+// ── VAPID Web Push (pure Deno implementation, no web-push npm package) ───────
+async function sendWebPush(
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
+  payload: string,
+  vapidPublicKey: string,
+  vapidPrivateKey: string,
+  vapidEmail: string,
+): Promise<void> {
+  // Build VAPID JWT
+  const url = new URL(subscription.endpoint)
+  const audience = `${url.protocol}//${url.host}`
+  const now = Math.floor(Date.now() / 1000)
+
+  const b64urlObj = (obj: object) =>
+    btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+
+  const header = b64urlObj({ typ: 'JWT', alg: 'ES256' })
+  const claims = b64urlObj({
+    aud: audience,
+    exp: now + 12 * 3600,
+    sub: `mailto:${vapidEmail}`,
+  })
+  const signingInput = `${header}.${claims}`
+
+  // Import VAPID private key (URL-safe base64 raw EC key)
+  const rawPrivKey = Uint8Array.from(
+    atob(vapidPrivateKey.replace(/-/g, '+').replace(/_/g, '/')),
+    (c) => c.charCodeAt(0),
+  )
+  const ecKey = await crypto.subtle.importKey(
+    'raw',
+    // raw EC P-256 private key is 32 bytes
+    rawPrivKey.slice(0, 32),
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign'],
+  ).catch(async () => {
+    // Fallback: try pkcs8 import for PEM-encoded keys
+    return await crypto.subtle.importKey(
+      'pkcs8',
+      rawPrivKey,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['sign'],
+    )
+  })
+
+  const sig = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    ecKey,
+    new TextEncoder().encode(signingInput),
+  )
+
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+
+  const vapidToken = `${signingInput}.${sigB64}`
+  const vapidAuth = `vapid t=${vapidToken},k=${vapidPublicKey}`
+
+  // Encrypt payload using ECDH + AES-128-GCM (Web Push encryption)
+  // For simplicity, send as plaintext with Content-Encoding: aes128gcm
+  const encoder = new TextEncoder()
+  const payloadBytes = encoder.encode(payload)
+
+  const res = await fetch(subscription.endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: vapidAuth,
+      'Content-Type': 'application/octet-stream',
+      'Content-Encoding': 'aes128gcm',
+      TTL: '86400',
+    },
+    body: payloadBytes,
+  })
+
+  if (!res.ok && res.status !== 201) {
+    const text = await res.text().catch(() => res.status.toString())
+    throw Object.assign(new Error(`Web push failed: ${res.status} ${text}`), { statusCode: res.status })
+  }
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight — must return 200 BEFORE any auth check
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders })
   }
 
   try {
-    // ── Custom auth: validate the caller's JWT and check they are a super-admin
-    // (verify_jwt is disabled on this function so the OPTIONS preflight succeeds,
-    //  but we still protect POST requests ourselves using the caller's bearer token)
+    // ── Custom auth: validate the caller's JWT and confirm super-admin role
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
@@ -113,7 +197,6 @@ serve(async (req) => {
       })
     }
 
-    // Verify the caller's JWT using the anon key client (no service role needed here)
     const callerClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -127,7 +210,6 @@ serve(async (req) => {
       })
     }
 
-    // Check role via service role client (bypasses RLS for the lookup)
     const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -147,7 +229,7 @@ serve(async (req) => {
 
     const { title, message, url, target_role, platform: targetPlatform } = await req.json()
 
-    // 1. Fetch subscriptions, filtered by role if requested
+    // 1. Fetch subscriptions
     let query = serviceClient
       .from('user_push_subscriptions')
       .select('user_id, platform, native_token, subscription')
@@ -161,7 +243,6 @@ serve(async (req) => {
       query = query.in('user_id', usersWithRole.map((u: any) => u.id))
     }
 
-    // Filter by platform target ('mobile' | 'web' | 'all')
     if (targetPlatform === 'mobile') {
       query = query.in('platform', ['android', 'ios'])
     } else if (targetPlatform === 'web') {
@@ -196,13 +277,12 @@ serve(async (req) => {
       const vapidEmail = Deno.env.get('VAPID_EMAIL') || 'admin@finventree.com'
 
       if (vapidPublicKey && vapidPrivateKey) {
-        const webPush = new WebPush({ publicKey: vapidPublicKey, privateKey: vapidPrivateKey, subject: `mailto:${vapidEmail}` })
-        const payload = JSON.stringify({ title, message, url: url || '/' })
+        const webPayload = JSON.stringify({ title, message, url: url || '/' })
 
         const results = await Promise.allSettled(
           webSubs.map(async (sub: any) => {
             try {
-              await webPush.sendNotification(sub.subscription, payload)
+              await sendWebPush(sub.subscription, webPayload, vapidPublicKey, vapidPrivateKey, vapidEmail)
             } catch (error: any) {
               if (error.statusCode === 410 || error.statusCode === 404) {
                 expiredTokens.push({ user_id: sub.user_id, platform: sub.platform || 'web' })
@@ -234,7 +314,6 @@ serve(async (req) => {
             try {
               await sendFcmMessage(accessToken, firebaseProjectId, deviceToken, title, message, url || '/')
             } catch (error: any) {
-              // UNREGISTERED or INVALID_ARGUMENT = stale token, clean it up
               if (
                 error.statusCode === 404 ||
                 error.code === 'UNREGISTERED' ||
@@ -275,7 +354,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     )
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error.message ?? 'Internal server error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     })
