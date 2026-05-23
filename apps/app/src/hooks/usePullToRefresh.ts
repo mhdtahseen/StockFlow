@@ -34,7 +34,18 @@ export function usePullToRefresh(onRefresh: () => void, disabled = false) {
         return;
       }
       const delta = e.touches[0].clientY - startYRef.current;
-      if (delta <= 0) return;
+      // Negative delta = upward swipe (scrolling into content) — bail out
+      // so iOS can handle it natively for this touch sequence.
+      if (delta <= 0) {
+        startYRef.current = null;
+        return;
+      }
+      // Only commit to PTR once the pull is clearly intentional (>8px).
+      // On iOS WKWebView, calling preventDefault() on ANY touchmove in a
+      // sequence hijacks the entire gesture — even future upward moves in
+      // the same touch won't scroll. Waiting for 8px avoids blocking normal
+      // scrolls that start with a brief downward wobble.
+      if (delta < 8) return;
       e.preventDefault(); // suppress native overscroll while pulling
       setPullDistance(Math.min(Math.sqrt(delta) * 7, MAX_PULL));
     };
