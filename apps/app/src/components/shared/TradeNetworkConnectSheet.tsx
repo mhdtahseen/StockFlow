@@ -12,6 +12,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  SheetDescription,
 } from "@/components/ui/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,7 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<CustomerType | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
 
   // Reset when sheet opens/closes
@@ -103,6 +105,7 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
       setLookupError(null);
       setSelectedType(null);
       setConnecting(false);
+      setConnectError(null);
       setLookingUp(false); // always reset — prevents stuck spinner if a previous RPC hung
       // Auto-lookup if pre-filled
       if (initialCode && initialCode.length === 6) {
@@ -145,9 +148,18 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
   const handleConnect = async () => {
     if (!resolvedName || !selectedType || connecting) return;
     setConnecting(true);
+    setConnectError(null);
     try {
+      // Same as lookup: camera can suspend JS timers long enough for token to expire.
+      await supabase.auth.getSession();
+
       const inverseType = INVERSE_TYPE[selectedType] ?? "RETAILER";
-      const result = await connectByTradeCode(code, selectedType, inverseType);
+      const result = await Promise.race([
+        connectByTradeCode(code, selectedType, inverseType),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Connection timed out. Tap Retry to try again.")), 15_000)
+        ),
+      ]);
 
       if (result.alreadyConnected) {
         toast.info(`Already connected to "${result.theirName}"`);
@@ -179,7 +191,7 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
       toast.success(`Connected with "${result.theirName}"! They now appear in your contacts.`);
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(err.message || "Connection failed");
+      setConnectError(err.message || "Connection failed. Tap Retry to try again.");
     } finally {
       setConnecting(false);
     }
@@ -190,6 +202,7 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-3xl px-0 pb-safe-area-inset-bottom max-h-[90vh] overflow-y-auto">
         <SheetTitle className="sr-only">Connect with a Business</SheetTitle>
+        <SheetDescription className="sr-only">Enter a 6-character Trade Code or scan a QR code to connect with another Finventree business.</SheetDescription>
 
         <div className="px-5 pb-8 pt-4 space-y-6">
           {/* Header */}
@@ -313,6 +326,19 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Connect error with retry */}
+          {connectError && (
+            <div className="flex items-center gap-3 px-3 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+              <p className="text-xs text-red-700 dark:text-red-400 flex-1">{connectError}</p>
+              <button
+                onClick={handleConnect}
+                className="text-xs font-bold text-red-600 dark:text-red-400 underline shrink-0"
+              >
+                Retry
+              </button>
             </div>
           )}
 
