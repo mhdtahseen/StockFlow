@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { addCustomer, updateCustomerLink } from "@/features/customers/slice";
 import { lookupTenantByTradeCode, connectByTradeCode } from "@/app/supabaseApi";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import {
   Building2,
@@ -88,6 +89,7 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
   const [resolvedName, setResolvedName] = useState<string | null>(null);
   const [resolvedTenantId, setResolvedTenantId] = useState<string | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<CustomerType | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -98,6 +100,7 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
       setCode(initialCode ?? "");
       setResolvedName(null);
       setResolvedTenantId(null);
+      setLookupError(null);
       setSelectedType(null);
       setConnecting(false);
       setLookingUp(false); // always reset — prevents stuck spinner if a previous RPC hung
@@ -114,21 +117,26 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
     setLookingUp(true);
     setResolvedName(null);
     setResolvedTenantId(null);
+    setLookupError(null);
     try {
+      // The QR scanner / camera can suspend JS timers long enough for the
+      // access token to silently expire. Force a refresh before the lookup.
+      await supabase.auth.getSession();
+
       const result = await Promise.race([
         lookupTenantByTradeCode(lookupCode),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Request timed out. Check your connection.")), 10000)
+          setTimeout(() => reject(new Error("Request timed out. Check your connection and try again.")), 10000)
         ),
       ]);
       if (result.found) {
         setResolvedName(result.name ?? null);
         setResolvedTenantId(result.tenant_id ?? null);
       } else {
-        toast.error("No Finventree business found with that Trade Code");
+        setLookupError("No Finventree business found with that Trade Code.");
       }
     } catch (err: any) {
-      toast.error(err.message || "Lookup failed");
+      setLookupError(err.message || "Lookup failed. Tap Retry to try again.");
     } finally {
       setLookingUp(false);
     }
@@ -213,6 +221,7 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
                   if (v.length < 6) {
                     setResolvedName(null);
                     setResolvedTenantId(null);
+                    setLookupError(null);
                   }
                 }}
                 placeholder="AB3K7Z"
@@ -257,6 +266,19 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
                   </p>
                 </div>
                 <Building2 size={14} className="text-emerald-500 ml-auto shrink-0" />
+              </div>
+            )}
+
+            {/* Inline error with retry button */}
+            {lookupError && !resolvedName && (
+              <div className="flex items-center gap-3 px-3 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+                <p className="text-xs text-red-700 dark:text-red-400 flex-1">{lookupError}</p>
+                <button
+                  onClick={() => handleLookup(code)}
+                  className="text-xs font-bold text-red-600 dark:text-red-400 underline shrink-0"
+                >
+                  Retry
+                </button>
               </div>
             )}
           </div>
