@@ -338,7 +338,7 @@ export default function ImeiScannerModal({
         </div>
 
         <div className="relative aspect-[4/3] bg-black mx-4 my-3 rounded-2xl overflow-hidden shadow-inner">
-          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+          <video ref={videoRef} autoPlay playsInline muted className={`absolute inset-0 w-full h-full object-cover ${isLoading ? 'opacity-0' : 'opacity-100'}`} />
           <canvas ref={canvasRef} className="hidden" />
 
           {!isLoading && !error && (

@@ -177,7 +177,8 @@ export default function ProfilePage() {
         }
 
         // Normalize to 10-digit local number — strip +91, 0, or spaces
-        const raw = session.user.user_metadata?.phone || "";
+        // Fall back to tenants.phone if auth metadata was never populated (e.g. phone captured during signup/onboarding)
+        const raw = session.user.user_metadata?.phone || tenant?.phone || "";
         setPhone(raw.replace(/^\+91|^0/, "").replace(/\D/g, "").slice(0, 10));
         loadedForUserRef.current = session.user.id;
       } catch (err: any) {
@@ -202,6 +203,11 @@ export default function ProfilePage() {
       setStoreName(tenant.name || session?.user.user_metadata?.org_name || "");
       setStoreAddress(tenant.address || "");
       setStoreGSTIN(tenant.gstin || "");
+      // Populate phone from tenant if auth metadata has no phone
+      if (!session?.user.user_metadata?.phone && tenant.phone) {
+        const raw = tenant.phone;
+        setPhone(raw.replace(/^\+91|^0/, "").replace(/\D/g, "").slice(0, 10));
+      }
     }
   }, [tenant]);
 

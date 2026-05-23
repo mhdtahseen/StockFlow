@@ -171,10 +171,10 @@ export default function QrScannerModal({
       </div>
 
       {/* Camera feed */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden bg-black">
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
+          className={`absolute inset-0 w-full h-full object-cover ${isLoading ? 'opacity-0' : 'opacity-100'}`}
           playsInline
           muted
           autoPlay

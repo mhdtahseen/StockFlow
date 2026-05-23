@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useAppSelector } from "@/app/hooks";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Package, Search, ChevronRight, Plus } from "lucide-react";
+import { Package, Search, ChevronRight, Plus, CheckSquare } from "lucide-react";
 import { parseISO, format } from "date-fns";
 import clsx from "clsx";
 import { SaleOrder } from "@/features/billing/types";
@@ -116,7 +116,7 @@ export default function Orders() {
             />
           </div>
 
-          {/* Filter Chips */}
+          {/* Filter Chips + Select toggle */}
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-0.5">
             {(['ALL', 'OPEN', 'PARTIAL', 'SETTLED', 'RETURNED'] as const).map((filter) => (
               <button
@@ -132,42 +132,32 @@ export default function Orders() {
                 {filter === 'ALL' ? 'All Orders' : filter.replace('_', ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
               </button>
             ))}
+            <FeatureGate feature="bulk_invoice" badge>
+              <button
+                onClick={() => multi.isMultiSelect ? multi.exitMultiSelect() : multi.enterMultiSelect()}
+                className={clsx(
+                  "px-4 py-2.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all border shrink-0 flex items-center gap-1.5",
+                  multi.isMultiSelect
+                    ? "bg-primary-500 text-white border-primary-500"
+                    : "bg-white dark:bg-slate-900 text-primary-500 border-primary-300 dark:border-primary-800"
+                )}
+              >
+                <CheckSquare size={12} />
+                {multi.isMultiSelect ? "Cancel" : "Select"}
+              </button>
+            </FeatureGate>
           </div>
         </div>
       </div>
 
       {/* Orders List */}
       <div className="px-4">
-        {/* Section header */}
-        <div className="flex justify-between items-center mt-6 mb-1.5 px-1">
-          <h2 className="font-bold tracking-tight text-xs uppercase text-slate-800 dark:text-slate-200">
-            Orders
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800/50 px-2 py-0.5 rounded">
-              {filteredOrders.length} {filteredOrders.length === 1 ? "order" : "orders"}
-            </span>
-            <FeatureGate feature="bulk_invoice" badge>
-              <button
-                onClick={() => multi.isMultiSelect ? multi.exitMultiSelect() : multi.enterMultiSelect()}
-                className={clsx(
-                  "text-[10px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg transition-all active:scale-95 shadow-sm",
-                  multi.isMultiSelect
-                    ? "bg-primary-500 text-white"
-                    : "text-primary-500 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800",
-                )}
-              >
-                {multi.isMultiSelect ? "Cancel" : "Select"}
-              </button>
-            </FeatureGate>
-          </div>
-        </div>
         <AnimatePresence mode="popLayout" initial={false}>
           {filteredOrders.length === 0 ? (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="text-center flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 mx-2 shadow-sm"
+              className="text-center flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 mt-6 mx-2 shadow-sm"
             >
               <div className="size-16 rounded-3xl bg-slate-50 dark:bg-slate-950 flex items-center justify-center mb-4 text-slate-300 dark:text-slate-700">
                 <Package size={32} />
@@ -178,7 +168,7 @@ export default function Orders() {
               </p>
             </motion.div>
           ) : (
-            <div className="space-y-3.5 md:space-y-0 mt-2 px-1 md:grid md:grid-cols-2 md:gap-4">
+            <div className="space-y-3.5 md:space-y-0 mt-6 px-1 md:grid md:grid-cols-2 md:gap-4">
               {filteredOrders.map((order, index) => (
                 <motion.div
                   key={order.id}
@@ -198,24 +188,24 @@ export default function Orders() {
                   onMouseUp={multi.cancelLongPress}
                   onMouseLeave={multi.cancelLongPress}
                   className={clsx(
-                    "p-5 rounded-[24px] border shadow-[0_4px_12px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-2xl hover:shadow-primary-500/10 transition-all cursor-pointer group active:scale-[0.985] relative",
+                    "p-5 rounded-[24px] border shadow-[0_4px_12px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-2xl hover:shadow-primary-500/10 transition-all cursor-pointer group active:scale-[0.985] relative overflow-hidden",
                     multi.isMultiSelect && multi.selectedIds.includes(order.id)
-                      ? "border-primary-500 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-500"
+                      ? "bg-primary-50 dark:bg-primary-900/20 border-primary-400 dark:border-primary-600"
                       : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/80 hover:border-primary-400/30"
                   )}
                 >
                   {/* Checkbox overlay */}
                   {multi.isMultiSelect && (
-                    <div className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 z-10 shadow-sm rounded-lg">
+                    <div className="absolute top-3 right-3 z-10">
                       <div className={clsx(
-                        "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
+                        "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors",
                         multi.selectedIds.includes(order.id)
                           ? "bg-primary-500 border-primary-500"
                           : "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
                       )}>
                         {multi.selectedIds.includes(order.id) && (
-                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                            <path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
                       </div>

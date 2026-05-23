@@ -46,7 +46,9 @@ serve(async (req) => {
           plan: 'trial',
           plan_expires_at: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
           is_active: true,
-          // Anti-abuse provenance fields from the original signup request
+          // Populate the operational phone from signup so onboarding/profile shows it pre-filled
+          phone:                     tenantReq.phone              ?? null,
+          // Anti-abuse provenance fields from the original signup request (immutable record)
           signup_phone:              tenantReq.phone              ?? null,
           signup_device_fingerprint: tenantReq.device_fingerprint ?? null,
           signup_ip:                 tenantReq.request_ip         ?? null,
