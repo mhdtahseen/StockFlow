@@ -287,6 +287,7 @@ export function EditSaleOrderSheet({ open, onOpenChange, order }: Props) {
                 value={dueDateStr}
                 onChange={(e) => setDueDateStr(e.target.value)}
                 disabled={isLocked}
+                className="uppercase [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
             <div className="space-y-2">

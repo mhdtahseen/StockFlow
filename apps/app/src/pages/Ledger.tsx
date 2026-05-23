@@ -346,7 +346,7 @@ export default function Ledger() {
                           value={dateFrom}
                           onChange={(e) => setDateFrom(e.target.value)}
                           max={dateTo || undefined}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500 uppercase [color-scheme:light] dark:[color-scheme:dark]"
                         />
                       </div>
                       <div>
@@ -358,7 +358,7 @@ export default function Ledger() {
                           value={dateTo}
                           onChange={(e) => setDateTo(e.target.value)}
                           min={dateFrom || undefined}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500"
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-[#064a98] dark:focus:border-blue-500 uppercase [color-scheme:light] dark:[color-scheme:dark]"
                         />
                       </div>
                       <button

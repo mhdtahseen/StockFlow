@@ -1079,7 +1079,7 @@ export function CreateOrderSheet({
                         value={dueDateStr}
                         onChange={(e) => setDueDateStr(e.target.value)}
                         min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-                        className="w-full h-11 px-3 rounded-xl border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:border-amber-500 outline-none transition-colors"
+                        className="w-full h-11 px-3 rounded-xl border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:border-amber-500 outline-none transition-colors uppercase [color-scheme:light] dark:[color-scheme:dark]"
                       />
                     </div>
                   )}

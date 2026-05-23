@@ -581,7 +581,7 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
                     value={dueDateStr}
                     onChange={(e) => setDueDateStr(e.target.value)}
                     disabled={isLocked}
-                    className="h-11 font-semibold rounded-xl"
+                  className="h-11 font-semibold rounded-xl uppercase [color-scheme:light] dark:[color-scheme:dark]"
                   />
                 </div>
                 <div>

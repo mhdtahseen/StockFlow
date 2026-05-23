@@ -1011,7 +1011,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
                             type="date"
                             value={dueDateStr}
                             onChange={(e) => setDueDateStr(e.target.value)}
-                            className="h-12 font-black border-2 border-amber-100 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 rounded-xl"
+                            className="h-12 font-black border-2 border-amber-100 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 rounded-xl uppercase [color-scheme:light] dark:[color-scheme:dark]"
                           />
                         </div>
                       </div>
