@@ -34,6 +34,14 @@ export function useOfflineSyncManager() {
 
   const [isSyncing, setIsSyncing] = useState(true);
   const [hasFetchedInitial, setHasFetchedInitial] = useState(false);
+  // Tracks whether we've successfully fetched from the server at least once this session.
+  // Distinguishes "offline cold start with cached data" from "actually synced".
+  const hasRemoteFetchedRef = useRef(false);
+  // On native, defer fetch until Network.getStatus() resolves — navigator.onLine is unreliable.
+  const [networkReady, setNetworkReady] = useState(!Capacitor.isNativePlatform());
+  // Retry tracking for initial fetch failures
+  const fetchRetryCountRef = useRef(0);
+  const fetchRetryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Reset the fetch flag whenever the logged-in user changes so the new
   // user's tenant data is fetched fresh rather than showing the previous
@@ -55,6 +63,10 @@ export function useOfflineSyncManager() {
   useEffect(() => {
     const handleOnline = () => {
       dispatch(setOnlineStatus(true));
+      // If we started offline and never fetched remotely, trigger a fresh fetch now
+      if (!hasRemoteFetchedRef.current && hasFetchedInitial) {
+        setHasFetchedInitial(false);
+      }
       clearTimeout(toastTimerRef.current);
       toastTimerRef.current = setTimeout(() => {
         toast.success("System Online", {
@@ -79,6 +91,7 @@ export function useOfflineSyncManager() {
       // Use @capacitor/network for reliable connectivity detection on native
       Network.getStatus().then((status) => {
         dispatch(setOnlineStatus(status.connected));
+        setNetworkReady(true); // Signal that native network state is now known
       });
 
       const listenerPromise = Network.addListener('networkStatusChange', (status) => {
@@ -105,22 +118,52 @@ export function useOfflineSyncManager() {
         window.removeEventListener("offline", handleOffline);
       };
     }
-  }, [dispatch]);
+  }, [dispatch, hasFetchedInitial]);
 
-  // 2. APP RESUME — force a data refresh when the app comes back to the foreground.
-  // This covers the TOKEN_REFRESHED case: the Supabase SDK silently refreshes the
-  // access token while the app is backgrounded. Because the user ID doesn't change,
-  // prevUserIdRef stays the same and hasFetchedInitial remains true — no re-fetch
-  // would otherwise happen. Listening to the native resume event (or web
-  // visibilitychange) resets hasFetchedInitial so fresh data is fetched on return.
+  // 2. APP RESUME (warm start) — force a data refresh when the app comes back
+  // to the foreground. Also re-checks network state and handles expired sessions.
   useEffect(() => {
     if (!session) return;
 
     const handleResume = async () => {
+      // Re-check connectivity first — it may have changed while backgrounded
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const { connected } = await Network.getStatus();
+          dispatch(setOnlineStatus(connected));
+          if (!connected) return; // Still offline, nothing to do
+        } catch {
+          // Network plugin failed — proceed optimistically
+        }
+      }
+
       // On Android/iOS, JS is suspended while backgrounded — the SDK's auto-refresh
-      // setInterval never fires. Call getSession() to force a token refresh check
-      // BEFORE resetting hasFetchedInitial, so data is fetched with a valid token.
-      await supabase.auth.getSession();
+      // setInterval never fires. Call getSession() with a timeout to force a token
+      // refresh check BEFORE resetting hasFetchedInitial.
+      try {
+        const result = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 8_000)),
+        ]);
+
+        if (!result) {
+          // Timeout on resume — don't reset fetch flag, user keeps seeing cached data
+          console.warn("Resume: getSession timed out, using cached data");
+          return;
+        }
+
+        // If session is now null (refresh token expired while backgrounded),
+        // the onAuthStateChange listener will fire SIGNED_OUT and handle cleanup.
+        if (!result.data.session) {
+          console.warn("Resume: session expired while backgrounded");
+          return;
+        }
+      } catch (err) {
+        console.warn("Resume: getSession failed, using cached data", err);
+        return;
+      }
+
+      // Token is valid — trigger a fresh data fetch
       setHasFetchedInitial(false);
     };
 
@@ -138,7 +181,7 @@ export function useOfflineSyncManager() {
         document.removeEventListener("visibilitychange", handleVisibilityChange);
       };
     }
-  }, [session]);
+  }, [session, dispatch]);
 
   // 3. PROCESS OUTBOX WHEN ONLINE
   useEffect(() => {
@@ -255,7 +298,7 @@ export function useOfflineSyncManager() {
 
   // 4. INITIAL LOAD (Wait until outbox is empty)
   useEffect(() => {
-    if (isAuthLoading || hasFetchedInitial || !session) {
+    if (isAuthLoading || hasFetchedInitial || !session || !networkReady) {
       if (!isAuthLoading && !session) setIsSyncing(false); // guest user or unauthenticated
       return;
     }
@@ -359,8 +402,18 @@ export function useOfflineSyncManager() {
           }
         }
 
-        if (session?.user?.user_metadata?.tenant_id) {
-          const tenantId = session.user.user_metadata.tenant_id;
+        // Resolve tenant_id — prefer user_metadata, fall back to profiles table
+        let tenantId = session?.user?.user_metadata?.tenant_id;
+        if (!tenantId && session?.user?.id) {
+          const { data: profileRow } = await supabase
+            .from("profiles")
+            .select("tenant_id")
+            .eq("id", session.user.id)
+            .single();
+          tenantId = profileRow?.tenant_id ?? null;
+        }
+
+        if (tenantId) {
           
           // Customers (counterparties) — join tenants to get linked tenant name
           const { data: cpData } = await supabase
@@ -542,10 +595,25 @@ export function useOfflineSyncManager() {
         }
       } catch (err) {
         console.error("Error fetching initial data from Supabase:", err);
+        // Retry with exponential backoff: 5s, 10s, 20s — then give up
+        if (mounted && fetchRetryCountRef.current < 3) {
+          const delay = [5_000, 10_000, 20_000][fetchRetryCountRef.current] ?? 20_000;
+          fetchRetryCountRef.current += 1;
+          console.warn(`Initial fetch failed, retrying in ${delay / 1000}s (attempt ${fetchRetryCountRef.current}/3)`);
+          fetchRetryTimerRef.current = setTimeout(() => {
+            if (mounted) setHasFetchedInitial(false); // re-trigger the effect
+          }, delay);
+          setIsSyncing(false);
+          return; // Do NOT mark hasFetchedInitial — allow retry
+        }
+        // Max retries exhausted — mark complete so user can still use cached data
+        console.error("Initial fetch failed after 3 retries, using cached data");
       } finally {
         if (mounted) {
           setHasFetchedInitial(true);
           setIsSyncing(false);
+          hasRemoteFetchedRef.current = true;
+          fetchRetryCountRef.current = 0; // reset for next session/resume cycle
         }
       }
     }
@@ -556,7 +624,8 @@ export function useOfflineSyncManager() {
       if (isOnline) {
         fetchInitialData();
       } else {
-        // Offline on start: trust local persist, don't fetch
+        // Offline on start: trust local persist, don't fetch.
+        // hasRemoteFetchedRef stays false so connectivity-restore handler will trigger fetch.
         setHasFetchedInitial(true);
         setIsSyncing(false);
       }
@@ -564,6 +633,7 @@ export function useOfflineSyncManager() {
 
     return () => {
       mounted = false;
+      clearTimeout(fetchRetryTimerRef.current);
     };
   }, [
     isAuthLoading,
@@ -571,6 +641,7 @@ export function useOfflineSyncManager() {
     hasFetchedInitial,
     pendingCount,  // tracks non-stuck items only — drops when items are synced OR marked stuck
     isOnline,
+    networkReady,
     dispatch,
   ]);
 

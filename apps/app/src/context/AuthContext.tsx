@@ -182,7 +182,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     async function initializeAuth() {
       try {
-        const { data: { session: s } } = await supabase.auth.getSession();
+        // Wrap getSession in a 10s timeout — on native cold starts the WebView
+        // networking stack may not be ready, causing an indefinite hang.
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
+        ]);
+
+        if (!sessionResult) {
+          // Timeout: treat as no session — user will land on login
+          console.warn("Auth init: getSession timed out after 10s");
+          localStorage.removeItem("finventree_auth");
+          localStorage.removeItem("persist:finventree-root");
+          setSession(null);
+          setUser(null);
+          return;
+        }
+
+        const s = sessionResult.data.session;
         setSession(s);
         setUser(s?.user || null);
 
@@ -210,6 +227,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       } catch (error) {
         console.error("Auth init error:", error);
+        // On failure (network error, etc.) clear auth flags so user isn't stuck
+        localStorage.removeItem("finventree_auth");
       } finally {
         setIsLoading(false);
       }

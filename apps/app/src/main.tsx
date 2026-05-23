@@ -41,10 +41,18 @@ if (Capacitor.isNativePlatform()) {
       const tokenHash = urlObj.searchParams.get('token_hash');
       if (tokenHash) {
         const type = urlObj.searchParams.get('type') || 'magiclink';
-        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as any });
-        if (!error) {
-          localStorage.setItem("finventree_auth", "true");
-          window.location.hash = '#/';
+        try {
+          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as any });
+          if (!error) {
+            localStorage.setItem("finventree_auth", "true");
+            window.location.hash = '#/';
+          } else {
+            console.error("Deep link verifyOtp error:", error.message);
+            window.location.hash = '#/login';
+          }
+        } catch (err) {
+          console.error("Deep link verifyOtp failed:", err);
+          window.location.hash = '#/login';
         }
         return;
       }
@@ -52,7 +60,12 @@ if (Capacitor.isNativePlatform()) {
       // Auth deep links: extract PKCE code and exchange for session
       const code = urlObj.searchParams.get('code');
       if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
+        try {
+          await supabase.auth.exchangeCodeForSession(code);
+        } catch (err) {
+          console.error("Deep link exchangeCodeForSession failed:", err);
+          window.location.hash = '#/login';
+        }
       }
     }
   });
