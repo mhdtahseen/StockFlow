@@ -13,8 +13,11 @@ import { FeatureGate } from "../components/shared/FeatureGate";
 import { BulkInvoiceSheet } from "../components/shared/BulkInvoiceSheet";
 import { useMultiSelect } from "../hooks/useMultiSelect";
 import { useAuth } from "../context/AuthContext";
+import { useFreshFetch } from "../hooks/useFreshFetch";
 
 export default function PurchaseOrders() {
+  useFreshFetch("purchaseOrders");
+
   const navigate = useNavigate();
   const { tenant } = useAuth();
   const purchaseOrders = useAppSelector((state) => state.purchasing.orders);

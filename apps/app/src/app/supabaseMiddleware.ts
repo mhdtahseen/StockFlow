@@ -63,7 +63,12 @@ export const supabaseMiddleware: Middleware<{}, RootState> =
         const isPOLinkedPhone = 
           type === "inventory/addPhone" && action.payload?.purchaseOrderId;
 
-        if (!isTrackable || ignoredHydrationTypes.includes(type) || isTransactionSegment || isPOLinkedPhone) return;
+        // 2c. Prevent double-sync for counterparties created by connect_by_trade_code RPC
+        // (the RPC already created the record server-side — outbox INSERT causes 409)
+        const isRPCCreatedCustomer =
+          type === "customers/addCustomer" && action.payload?.linkedTenantId;
+
+        if (!isTrackable || ignoredHydrationTypes.includes(type) || isTransactionSegment || isPOLinkedPhone || isRPCCreatedCustomer) return;
 
         const state = store.getState();
 

@@ -12,6 +12,7 @@ import QrScannerModal from "@/components/shared/QrScannerModal";
 import { usePlan } from "@/hooks/usePlan";
 import { CustomerType } from "@/features/customers/types";
 import { isValidGstin } from "@/utils/gstCalc";
+import { useFreshFetch } from "@/hooks/useFreshFetch";
 import {
   Select,
   SelectContent,
@@ -36,6 +37,9 @@ const TYPE_BAR: Record<CustomerType, string> = {
 };
 
 export default function Customers() {
+  // Fetch fresh counterparties from DB on mount (shows cached Redux data immediately)
+  useFreshFetch("customers");
+
   const customers = useAppSelector(selectCustomers);
   const allSaleOrders = useAppSelector((state) => state.billing.orders) || [];
   const allPurchaseOrders = useAppSelector((state) => state.purchasing.orders) || [];

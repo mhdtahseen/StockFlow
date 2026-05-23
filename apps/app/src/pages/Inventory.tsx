@@ -33,6 +33,7 @@ import { useSyncState } from "@/context/SyncContext";
 import { InventorySkeleton } from "@/components/shared/SkeletonScreens";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PtrIndicator } from "@/components/shared/PtrIndicator";
+import { useFreshFetch } from "@/hooks/useFreshFetch";
 
 export type TabOption = PhoneStatus | "ALL";
 const VALID_TABS: TabOption[] = ["ALL", "IN_STOCK", "PENDING", "SOLD"];
@@ -40,6 +41,8 @@ const VALID_TABS: TabOption[] = ["ALL", "IN_STOCK", "PENDING", "SOLD"];
 type SortOption = "newest" | "oldest" | "price_high" | "price_low" | "brand_az";
 
 export default function Inventory() {
+  useFreshFetch("inventory");
+
   const { triggerImpact } = useHaptics();
   const { isSyncing, refetch } = useSyncState();
   const { containerRef: inventoryMainRef, pullDistance, isTriggered, threshold, ptrHandlers } =

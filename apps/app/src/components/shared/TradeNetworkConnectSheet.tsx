@@ -16,10 +16,10 @@ import {
 } from "@/components/ui/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { addCustomer, updateCustomerLink } from "@/features/customers/slice";
+import { useAppDispatch } from "@/app/hooks";
 import { lookupTenantByTradeCode, connectByTradeCode } from "@/app/supabaseApi";
 import { supabase } from "@/lib/supabase";
+import { fetchCounterparties } from "@/hooks/useFreshFetch";
 import { toast } from "sonner";
 import {
   Building2,
@@ -84,7 +84,6 @@ interface Props {
 
 export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Props) {
   const dispatch = useAppDispatch();
-  const existingCustomers = useAppSelector((s) => s.customers.customers);
 
   const [code, setCode] = useState(initialCode ?? "");
   const [resolvedName, setResolvedName] = useState<string | null>(null);
@@ -122,14 +121,14 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
     setResolvedTenantId(null);
     setLookupError(null);
     try {
-      // The QR scanner / camera can suspend JS timers long enough for the
-      // access token to silently expire. Force a refresh before the lookup.
-      await supabase.auth.getSession();
-
       const result = await Promise.race([
-        lookupTenantByTradeCode(lookupCode),
+        (async () => {
+          // Force token refresh — camera/backgrounding can silently expire the JWT
+          await supabase.auth.getSession();
+          return lookupTenantByTradeCode(lookupCode);
+        })(),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Request timed out. Check your connection and try again.")), 10000)
+          setTimeout(() => reject(new Error("Request timed out. Check your connection and try again.")), 10_000)
         ),
       ]);
       if (result.found) {
@@ -150,12 +149,13 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
     setConnecting(true);
     setConnectError(null);
     try {
-      // Same as lookup: camera can suspend JS timers long enough for token to expire.
-      await supabase.auth.getSession();
-
       const inverseType = INVERSE_TYPE[selectedType] ?? "RETAILER";
       const result = await Promise.race([
-        connectByTradeCode(code, selectedType, inverseType),
+        (async () => {
+          // Force token refresh — camera/backgrounding can silently expire the JWT
+          await supabase.auth.getSession();
+          return connectByTradeCode(code, selectedType, inverseType);
+        })(),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Connection timed out. Tap Retry to try again.")), 15_000)
         ),
@@ -167,26 +167,9 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
         return;
       }
 
-      // Check if this counterparty is already in Redux (was unlinked and just re-linked)
-      const existing = existingCustomers.find((c) => c.id === result.counterpartyId);
-      
-      if (existing) {
-        dispatch(updateCustomerLink({
-          id: result.counterpartyId,
-          linkedTenantId: resolvedTenantId ?? undefined,
-          linkedTenantName: result.theirName
-        }));
-      } else {
-        // Add the new counterparty to Redux so it appears immediately
-        dispatch(addCustomer({
-          id: result.counterpartyId,
-          name: result.theirName,
-          type: selectedType,
-          linkedTenantId: resolvedTenantId ?? undefined,
-          linkedTenantName: result.theirName,
-          createdAt: new Date().toISOString(),
-        }));
-      }
+      // Fetch fresh counterparties from DB and update Redux (the RPC already
+      // created the record server-side — no need for addCustomer + outbox).
+      fetchCounterparties(dispatch);
 
       toast.success(`Connected with "${result.theirName}"! They now appear in your contacts.`);
       onOpenChange(false);
