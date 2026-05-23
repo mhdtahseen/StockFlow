@@ -116,7 +116,11 @@ export function useOfflineSyncManager() {
   useEffect(() => {
     if (!session) return;
 
-    const handleResume = () => {
+    const handleResume = async () => {
+      // On Android/iOS, JS is suspended while backgrounded — the SDK's auto-refresh
+      // setInterval never fires. Call getSession() to force a token refresh check
+      // BEFORE resetting hasFetchedInitial, so data is fetched with a valid token.
+      await supabase.auth.getSession();
       setHasFetchedInitial(false);
     };
 
