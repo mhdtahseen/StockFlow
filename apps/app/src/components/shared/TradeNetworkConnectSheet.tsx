@@ -100,6 +100,7 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
       setResolvedTenantId(null);
       setSelectedType(null);
       setConnecting(false);
+      setLookingUp(false); // always reset — prevents stuck spinner if a previous RPC hung
       // Auto-lookup if pre-filled
       if (initialCode && initialCode.length === 6) {
         handleLookup(initialCode);
@@ -114,7 +115,12 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
     setResolvedName(null);
     setResolvedTenantId(null);
     try {
-      const result = await lookupTenantByTradeCode(lookupCode);
+      const result = await Promise.race([
+        lookupTenantByTradeCode(lookupCode),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Request timed out. Check your connection.")), 10000)
+        ),
+      ]);
       if (result.found) {
         setResolvedName(result.name ?? null);
         setResolvedTenantId(result.tenant_id ?? null);
