@@ -3,6 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { Share as ShareIcon } from "@capacitor/share";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/app/hooks";
+import { useFreshFetch } from "@/hooks/useFreshFetch";
 import {
   Popover,
   PopoverContent,
@@ -61,6 +62,8 @@ import { toast } from "sonner";
 type Tab = "orders" | "payments" | "timeline";
 
 export default function CustomerDetail() {
+  useFreshFetch("customers");
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();

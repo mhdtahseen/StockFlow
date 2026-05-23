@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAppSelector } from "../app/hooks";
+import { useFreshFetch } from "../hooks/useFreshFetch";
 import { selectWalletBuckets } from "../features/wallet/selectors";
 import { selectInventoryMetrics } from "../features/analytics/selectors";
 import { useAuth } from "../context/AuthContext";
@@ -85,6 +86,8 @@ const BrandIcon = ({ brand }: { brand: string }) => {
 };
 
 export default function Dashboard() {
+  useFreshFetch("inventory");
+
   const navigate = useNavigate();
   const buckets = useAppSelector(selectWalletBuckets);
   const metrics = useAppSelector(selectInventoryMetrics);

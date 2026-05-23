@@ -4,6 +4,7 @@ import { Share } from "@capacitor/share";
 import { useParams, useNavigate } from "react-router-dom";
 import CurrencyInput from "../components/ui/CurrencyInput";
 import { useAppSelector, useAppDispatch } from "../app/hooks";
+import { useFreshFetch } from "../hooks/useFreshFetch";
 import { useAuth } from "../context/AuthContext";
 import {
   markAsSold,
@@ -48,6 +49,8 @@ import HeaderActions from "@/components/layout/HeaderActions";
 import { issuesFlatList, severityColorMap } from "../data/issueCatalog";
 
 export default function PhoneDetail() {
+  useFreshFetch("inventory");
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();

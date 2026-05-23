@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppSelector, useAppDispatch } from "../app/hooks";
+import { useFreshFetch } from "../hooks/useFreshFetch";
 import {
   selectLedgerEntries,
   selectWalletBuckets,
@@ -52,6 +53,8 @@ import { parseStructuredNote } from "@/utils/financeUtils";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 
 export default function Ledger() {
+  useFreshFetch("ledger");
+
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const buckets = useAppSelector(selectWalletBuckets);

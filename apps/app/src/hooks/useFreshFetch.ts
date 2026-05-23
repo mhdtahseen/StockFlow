@@ -145,6 +145,28 @@ export async function fetchInventory(dispatch: AppDispatch) {
   }
 }
 
+export async function fetchLedger(dispatch: AppDispatch) {
+  const { data } = await supabase
+    .from("ledger")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (data) {
+    dispatch({
+      type: "ledger/setEntries",
+      payload: data.map((e: any) => ({
+        id: e.id, type: e.type, referenceId: e.reference_id ?? undefined,
+        amount: Number(e.amount), paymentMode: e.payment_mode ?? undefined,
+        note: e.note ?? undefined, settlementCount: e.settlement_count ?? undefined,
+        customerPaymentId: e.customer_payment_id ?? undefined,
+        supplierPaymentId: e.supplier_payment_id ?? undefined,
+        saleOrderId: e.sale_order_id ?? undefined,
+        purchaseOrderId: e.purchase_order_id ?? undefined, createdAt: e.created_at,
+      })),
+    });
+  }
+}
+
 // ── Map of fetch functions by slice name ─────────────────────────────────────
 
 const FETCHERS: Record<string, (dispatch: AppDispatch) => Promise<void>> = {
@@ -152,6 +174,7 @@ const FETCHERS: Record<string, (dispatch: AppDispatch) => Promise<void>> = {
   orders: fetchSaleOrders,
   purchaseOrders: fetchPurchaseOrders,
   inventory: fetchInventory,
+  ledger: fetchLedger,
 };
 
 // ── Hook ─────────────────────────────────────────────────────────────────────

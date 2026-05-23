@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Share as ShareIcon } from "@capacitor/share";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useFreshFetch } from "@/hooks/useFreshFetch";
 import {
   CheckCircle2,
   Package,
@@ -99,6 +100,9 @@ function buildEditDescription(diff: Record<string, any>): string {
 }
 
 export default function OrderDetail() {
+  useFreshFetch("orders");
+  useFreshFetch("purchaseOrders");
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
