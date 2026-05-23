@@ -17,13 +17,19 @@
     "cap:add:ios": "npx cap add ios",
     "cap:run:android": "pnpm build:capacitor && npx cap sync && npx cap run android",
     "cap:run:ios": "pnpm build:capacitor && npx cap sync && npx cap run ios",
-    "cap:assets": "npx @capacitor/assets generate"
+    "cap:assets": "npx @capacitor/assets generate",
+    "perf:bundle": "ANALYZE=true vite build --mode production",
+    "perf:lighthouse": "npx @lhci/cli autorun",
+    "test:load": "k6 run ../../tests/load/full-suite.js",
+    "test:load:quick": "k6 run ../../tests/load/scenarios/inventory-listing.js --vus 10 --duration 30s"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.3.3",
+    "@lhci/cli": "^0.15.1",
     "@tailwindcss/vite": "^4.2.1",
     "autoprefixer": "^10.4.27",
+    "rollup-plugin-visualizer": "^7.0.1",
     "shadcn": "^3.8.5",
     "supabase": "^2.76.15",
     "tailwindcss": "^4.2.1",
