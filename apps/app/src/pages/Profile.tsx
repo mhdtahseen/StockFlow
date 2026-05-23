@@ -230,12 +230,23 @@ export default function ProfilePage() {
 
     setIsSaving(true);
     try {
+      // Refresh session token before DB writes — on native the token may have
+      // expired silently (after backgrounding / camera use). An expired token
+      // makes auth.uid() return null inside RLS policies, causing the update
+      // to be rejected with a policy-violation error.
+      await supabase.auth.getSession();
+
+      const resolvedTenantId =
+        tenant?.id ||
+        session.user.user_metadata?.tenant_id ||
+        null;
+
       // Use upsert to ensure the profile record exists
       const { error } = await supabase
         .from("profiles")
         .upsert({
           id: session.user.id,
-          tenant_id: tenant?.id || session.user.user_metadata.tenant_id,
+          ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
           full_name: trimmedFullName,
           avatar_url: avatarUrl,
           updated_at: new Date().toISOString(),
