@@ -314,231 +314,167 @@ export function useOfflineSyncManager() {
         !store.getState().sync.outbox.some((i) => !i.stuck);
 
       try {
-        // Fetch Phones
-        const { data: phonesData } = await supabase
-          .from("phones")
-          .select("*")
-          .order("created_at", { ascending: false });
+        // ── Phase 1: Fetch core data + resolve tenant_id in parallel ──
+        // These are all independent — firing concurrently cuts total time by ~3x
+        const [phonesResult, ledgerResult, masterResult, tenantIdResult] = await Promise.all([
+          supabase.from("phones").select("*").order("created_at", { ascending: false }),
+          supabase.from("ledger").select("*").order("created_at", { ascending: false }),
+          supabase.from("master_data").select("*"),
+          // Resolve tenant_id: prefer user_metadata, fall back to profiles table
+          (async () => {
+            const tid = session?.user?.user_metadata?.tenant_id;
+            if (tid) return tid;
+            if (!session?.user?.id) return null;
+            const { data } = await supabase
+              .from("profiles").select("tenant_id").eq("id", session.user.id).single();
+            return data?.tenant_id ?? null;
+          })(),
+        ]);
 
-        if (phonesData && mounted) {
-          const phones: Phone[] = phonesData.map((p) => ({
-            id: p.id,
-            brand: p.brand,
-            model: p.model,
-            storage: p.storage,
-            ram: p.ram,
-            color: p.color,
-            imeis: p.imeis || [],
-            purchasePrice: Number(p.purchase_price),
-            salePrice: p.sale_price ? Number(p.sale_price) : undefined,
-            status: p.status as any,
-            issueTags: p.issue_tags,
-            createdAt: p.created_at,
-          }));
-          if (noPendingMutations()) {
-            dispatch({ type: "inventory/setPhones", payload: phones });
-          }
-        }
+        if (!mounted) return;
 
-        // Fetch Ledger
-        const { data: ledgerData } = await supabase
-          .from("ledger")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (ledgerData && mounted) {
-          const entries: LedgerEntry[] = ledgerData.map((e) => ({
-            id: e.id,
-            type: e.type as any,
-            referenceId: e.reference_id ?? undefined,
-            amount: Number(e.amount),
-            paymentMode: e.payment_mode ?? undefined,
-            note: e.note ?? undefined,
-            settlementCount: e.settlement_count ?? undefined,
-            customerPaymentId: e.customer_payment_id ?? undefined,
-            supplierPaymentId: e.supplier_payment_id ?? undefined,
-            saleOrderId: e.sale_order_id ?? undefined,
-            purchaseOrderId: e.purchase_order_id ?? undefined,
-            createdAt: e.created_at,
-          }));
-          if (noPendingMutations()) {
-            dispatch({ type: "ledger/setEntries", payload: entries });
-          }
-        }
-
-        // Fetch Master Data
-        const { data: masterData } = await supabase
-          .from("master_data")
-          .select("*");
-
-        if (masterData && mounted) {
-          const categorized: Record<string, string[]> = {
-            brand: [],
-            model: [],
-            ram: [],
-            storage: [],
-            color: [],
-            issue_tag: [],
-          };
-
-          masterData.forEach((row) => {
-            if (categorized[row.category]) {
-              categorized[row.category].push(row.value);
-            }
+        // ── Dispatch Phase 1 results ──
+        const { data: phonesData } = phonesResult;
+        if (phonesData && noPendingMutations()) {
+          dispatch({
+            type: "inventory/setPhones",
+            payload: phonesData.map((p) => ({
+              id: p.id, brand: p.brand, model: p.model, storage: p.storage,
+              ram: p.ram, color: p.color, imeis: p.imeis || [],
+              purchasePrice: Number(p.purchase_price),
+              salePrice: p.sale_price ? Number(p.sale_price) : undefined,
+              status: p.status as any, issueTags: p.issue_tags, createdAt: p.created_at,
+            })) as Phone[],
           });
-
-          if (noPendingMutations()) {
-            dispatch({
-              type: "masterData/setAll",
-              payload: {
-                brands: categorized.brand,
-                models: categorized.model,
-                ramOptions: categorized.ram,
-                storageOptions: categorized.storage,
-                colorOptions: categorized.color,
-                issueTags: categorized.issue_tag,
-              },
-            });
-          }
         }
 
-        // Resolve tenant_id — prefer user_metadata, fall back to profiles table
-        let tenantId = session?.user?.user_metadata?.tenant_id;
-        if (!tenantId && session?.user?.id) {
-          const { data: profileRow } = await supabase
-            .from("profiles")
-            .select("tenant_id")
-            .eq("id", session.user.id)
-            .single();
-          tenantId = profileRow?.tenant_id ?? null;
+        const { data: ledgerData } = ledgerResult;
+        if (ledgerData && noPendingMutations()) {
+          dispatch({
+            type: "ledger/setEntries",
+            payload: ledgerData.map((e) => ({
+              id: e.id, type: e.type as any, referenceId: e.reference_id ?? undefined,
+              amount: Number(e.amount), paymentMode: e.payment_mode ?? undefined,
+              note: e.note ?? undefined, settlementCount: e.settlement_count ?? undefined,
+              customerPaymentId: e.customer_payment_id ?? undefined,
+              supplierPaymentId: e.supplier_payment_id ?? undefined,
+              saleOrderId: e.sale_order_id ?? undefined,
+              purchaseOrderId: e.purchase_order_id ?? undefined, createdAt: e.created_at,
+            })) as LedgerEntry[],
+          });
         }
 
-        if (tenantId) {
-          
-          // Customers (counterparties) — join tenants to get linked tenant name
-          const { data: cpData } = await supabase
-            .from("counterparties")
-            .select("*, linked_tenant:tenants!counterparties_linked_tenant_id_fkey(name)")
-            .eq("tenant_id", tenantId)
-            .order("name");
-          if (cpData && mounted && noPendingMutations()) {
+        const { data: masterData } = masterResult;
+        if (masterData && noPendingMutations()) {
+          const categorized: Record<string, string[]> = {
+            brand: [], model: [], ram: [], storage: [], color: [], issue_tag: [],
+          };
+          masterData.forEach((row) => {
+            if (categorized[row.category]) categorized[row.category].push(row.value);
+          });
+          dispatch({
+            type: "masterData/setAll",
+            payload: {
+              brands: categorized.brand, models: categorized.model,
+              ramOptions: categorized.ram, storageOptions: categorized.storage,
+              colorOptions: categorized.color, issueTags: categorized.issue_tag,
+            },
+          });
+        }
+
+        // ── Phase 2: Tenant-scoped data in parallel ──
+        const tenantId = tenantIdResult;
+        if (tenantId && mounted) {
+          const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+
+          const [cpResult, soResult, poResult, cpPayResult, spPayResult, editsResult] = await Promise.all([
+            supabase.from("counterparties")
+              .select("*, linked_tenant:tenants!counterparties_linked_tenant_id_fkey(name)")
+              .eq("tenant_id", tenantId).order("name"),
+            supabase.from("sale_orders").select("*, sale_order_items(*)")
+              .eq("tenant_id", tenantId).is("deleted_at", null)
+              .gte("created_at", ninetyDaysAgo).order("created_at", { ascending: false }),
+            supabase.from("purchase_orders").select("*, purchase_order_items(*)")
+              .eq("tenant_id", tenantId).is("deleted_at", null)
+              .in("status", ["AWAITING_RECEIPT", "RECEIVED", "PARTIAL", "SETTLED", "CANCELLED"])
+              .order("created_at", { ascending: false }),
+            supabase.from("customer_payments").select("*, payment_allocations(*)")
+              .eq("tenant_id", tenantId).gte("received_at", ninetyDaysAgo)
+              .order("received_at", { ascending: false }),
+            supabase.from("supplier_payments").select("*, supplier_allocations(*)")
+              .eq("tenant_id", tenantId).gte("paid_at", ninetyDaysAgo)
+              .order("paid_at", { ascending: false }),
+            supabase.from("order_edits").select("*")
+              .eq("tenant_id", tenantId).gte("created_at", ninetyDaysAgo)
+              .order("created_at", { ascending: false }),
+          ]);
+
+          if (!mounted) return;
+
+          const { data: cpData } = cpResult;
+          if (cpData && noPendingMutations()) {
             dispatch({
               type: "customers/setAll",
               payload: cpData.map((c: any) => ({
-                id: c.id,
-                name: c.name,
-                type: c.type,
-                phone: c.phone,
-                email: c.email,
-                platformName: c.platform_name,
-                linkedTenantId: c.linked_tenant_id,
+                id: c.id, name: c.name, type: c.type, phone: c.phone, email: c.email,
+                platformName: c.platform_name, linkedTenantId: c.linked_tenant_id,
                 linkedTenantName: c.linked_tenant?.name ?? undefined,
-                notes: c.notes,
-                gstin: c.gstin ?? undefined,
-                state: c.state ?? undefined,
+                notes: c.notes, gstin: c.gstin ?? undefined, state: c.state ?? undefined,
                 createdAt: c.created_at,
               })),
             });
           }
 
-          // All recent sale orders (all statuses, last 90 days to avoid huge payloads)
-          const ninetyDaysAgo = new Date(
-            Date.now() - 90 * 24 * 3600 * 1000,
-          ).toISOString();
-          const { data: soData } = await supabase
-            .from("sale_orders")
-            .select("*, sale_order_items(*)")
-            .eq("tenant_id", tenantId)
-            .is("deleted_at", null)
-            .gte("created_at", ninetyDaysAgo)
-            .order("created_at", { ascending: false });
-          if (soData && mounted && noPendingMutations()) {
+          const { data: soData } = soResult;
+          if (soData && noPendingMutations()) {
             dispatch({ type: "billing/setOrders", payload: soData.map((o: any) => ({
               id: o.id, counterpartyId: o.counterparty_id, orderType: o.order_type,
               totalAmount: o.total_amount, amountPaid: o.amount_paid,
               status: o.status, paymentMode: o.payment_mode, dueDate: o.due_date,
               notes: o.notes, createdAt: o.created_at,
-              // ── GST fields ──
-              gstEnabled: o.gst_enabled ?? false,
-              gstType: o.gst_type ?? undefined,
-              gstRate: o.gst_rate ?? undefined,
-              subtotal: o.subtotal ?? undefined,
-              cgstAmount: o.cgst_amount ?? undefined,
-              sgstAmount: o.sgst_amount ?? undefined,
-              igstAmount: o.igst_amount ?? undefined,
-              buyerGstin: o.buyer_gstin ?? undefined,
+              gstEnabled: o.gst_enabled ?? false, gstType: o.gst_type ?? undefined,
+              gstRate: o.gst_rate ?? undefined, subtotal: o.subtotal ?? undefined,
+              cgstAmount: o.cgst_amount ?? undefined, sgstAmount: o.sgst_amount ?? undefined,
+              igstAmount: o.igst_amount ?? undefined, buyerGstin: o.buyer_gstin ?? undefined,
               items: o.sale_order_items.map((i: any) => ({
                 id: i.id, saleOrderId: i.sale_order_id, phoneId: i.phone_id,
                 salePrice: i.sale_price, discountAmount: i.discount_amount,
                 effectivePrice: i.sale_price - i.discount_amount,
                 imeiSnapshot: i.imei_snapshot || [], brandSnapshot: i.brand_snapshot,
-                modelSnapshot: i.model_snapshot, storageSnapshot: i.storage_snapshot, colorSnapshot: i.color_snapshot,
-                hsnCode: i.hsn_code ?? undefined,
+                modelSnapshot: i.model_snapshot, storageSnapshot: i.storage_snapshot,
+                colorSnapshot: i.color_snapshot, hsnCode: i.hsn_code ?? undefined,
               }))
             })) });
           }
 
-          // All non-archived purchase orders (all active statuses including SETTLED/CANCELLED)
-          const { data: poData } = await supabase
-            .from("purchase_orders")
-            .select("*, purchase_order_items(*)")
-            .eq("tenant_id", tenantId)
-            .is("deleted_at", null)
-            .in("status", ["AWAITING_RECEIPT", "RECEIVED", "PARTIAL", "SETTLED", "CANCELLED"])
-            .order("created_at", { ascending: false });
-          if (poData && mounted && noPendingMutations()) {
+          const { data: poData } = poResult;
+          if (poData && noPendingMutations()) {
             dispatch({
               type: "purchasing/setPurchaseOrders",
               payload: poData.map((o: any) => ({
-                id: o.id,
-                counterpartyId: o.counterparty_id,
-                acquisitionChannel: o.acquisition_channel,
-                platformFee: o.platform_fee,
-                phonesOrdered: o.phones_ordered,
-                phonesReceived: o.phones_received,
-                totalAmount: o.total_amount,
-                amountPaid: o.amount_paid,
-                status: o.status,
-                paymentMode: o.payment_mode,
-                dueDate: o.due_date,
-                notes: o.notes,
-                createdAt: o.created_at,
-                // ── GST fields ──
-                gstEnabled: o.gst_enabled ?? false,
-                gstType: o.gst_type ?? undefined,
-                gstRate: o.gst_rate ?? undefined,
-                subtotal: o.subtotal ?? undefined,
-                cgstAmount: o.cgst_amount ?? undefined,
-                sgstAmount: o.sgst_amount ?? undefined,
-                igstAmount: o.igst_amount ?? undefined,
-                sellerGstin: o.seller_gstin ?? undefined,
+                id: o.id, counterpartyId: o.counterparty_id,
+                acquisitionChannel: o.acquisition_channel, platformFee: o.platform_fee,
+                phonesOrdered: o.phones_ordered, phonesReceived: o.phones_received,
+                totalAmount: o.total_amount, amountPaid: o.amount_paid,
+                status: o.status, paymentMode: o.payment_mode, dueDate: o.due_date,
+                notes: o.notes, createdAt: o.created_at,
+                gstEnabled: o.gst_enabled ?? false, gstType: o.gst_type ?? undefined,
+                gstRate: o.gst_rate ?? undefined, subtotal: o.subtotal ?? undefined,
+                cgstAmount: o.cgst_amount ?? undefined, sgstAmount: o.sgst_amount ?? undefined,
+                igstAmount: o.igst_amount ?? undefined, sellerGstin: o.seller_gstin ?? undefined,
                 items: o.purchase_order_items.map((i: any) => ({
-                  id: i.id,
-                  purchaseOrderId: i.purchase_order_id,
-                  phoneId: i.phone_id,
-                  purchasePrice: i.purchase_price,
-                  status: i.status,
-                  rejectionReason: i.rejection_reason,
-                  brand: i.brand,
-                  model: i.model,
-                  storage: i.storage,
-                  ram: i.ram,
-                  color: i.color,
-                  imei: i.imei,
+                  id: i.id, purchaseOrderId: i.purchase_order_id, phoneId: i.phone_id,
+                  purchasePrice: i.purchase_price, status: i.status,
+                  rejectionReason: i.rejection_reason, brand: i.brand, model: i.model,
+                  storage: i.storage, ram: i.ram, color: i.color, imei: i.imei,
                   hsnCode: i.hsn_code ?? undefined,
                 }))
               })),
             });
           }
 
-          // Customer payments (last 90 days — aligned with order window)
-          const { data: cpPayData } = await supabase
-            .from("customer_payments")
-            .select("*, payment_allocations(*)")
-            .eq("tenant_id", tenantId)
-            .gte("received_at", ninetyDaysAgo)
-            .order("received_at", { ascending: false });
-          if (cpPayData && mounted && noPendingMutations()) {
+          const { data: cpPayData } = cpPayResult;
+          if (cpPayData && noPendingMutations()) {
             dispatch({
               type: "customers/setPayments",
               payload: cpPayData.map((p: any) => ({
@@ -551,14 +487,8 @@ export function useOfflineSyncManager() {
             });
           }
 
-          // Supplier payments (last 90 days — aligned with order window)
-          const { data: spPayData } = await supabase
-            .from("supplier_payments")
-            .select("*, supplier_allocations(*)")
-            .eq("tenant_id", tenantId)
-            .gte("paid_at", ninetyDaysAgo)
-            .order("paid_at", { ascending: false });
-          if (spPayData && mounted && noPendingMutations()) {
+          const { data: spPayData } = spPayResult;
+          if (spPayData && noPendingMutations()) {
             dispatch({
               type: "purchasing/setPayments",
               payload: spPayData.map((p: any) => ({
@@ -571,24 +501,14 @@ export function useOfflineSyncManager() {
             });
           }
 
-          // Order edits audit log (last 90 days — drives timeline EDIT entries)
-          const { data: editsData } = await supabase
-            .from("order_edits")
-            .select("*")
-            .eq("tenant_id", tenantId)
-            .gte("created_at", ninetyDaysAgo)
-            .order("created_at", { ascending: false });
-          if (editsData && mounted && noPendingMutations()) {
+          const { data: editsData } = editsResult;
+          if (editsData && noPendingMutations()) {
             dispatch({
               type: "orderEdits/setOrderEdits",
               payload: editsData.map((e: any) => ({
-                id: e.id,
-                orderId: e.order_id,
-                orderType: e.order_type,
-                editedBy: e.edited_by,
-                editedByName: e.edited_by_name,
-                diff: e.diff,
-                createdAt: e.created_at,
+                id: e.id, orderId: e.order_id, orderType: e.order_type,
+                editedBy: e.edited_by, editedByName: e.edited_by_name,
+                diff: e.diff, createdAt: e.created_at,
               })),
             });
           }
