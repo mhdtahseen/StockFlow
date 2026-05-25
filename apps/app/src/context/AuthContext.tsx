@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { Capacitor } from "@capacitor/core";
 import posthog from "@/lib/posthog";
 import { toast } from "sonner";
 import { persistor, store, RESET_STORE } from "@/app/store";
@@ -175,6 +176,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  /**
+   * Purge ALL persisted state — localStorage flags, React Query cache, Redux
+   * persist, Capacitor Preferences, and Supabase auth keys. Prevents stale
+   * data from a prior login from causing infinite-loading bugs on native.
+   */
+  const purgeAllPersistedState = async () => {
+    localStorage.removeItem("finventree_auth");
+    localStorage.removeItem("persist:finventree-root");
+    localStorage.removeItem("REACT_QUERY_OFFLINE_CACHE");
+
+    // Remove all Supabase auth keys
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("sb-")) {
+        localStorage.removeItem(key);
+      }
+    }
+
+    // Clear Capacitor Preferences (native persisted Redux store)
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Preferences } = await import("@capacitor/preferences");
+        await Preferences.remove({ key: "persist:finventree-root" });
+      } catch {
+        // Preferences plugin may not be available
+      }
+    }
+  };
+
   const initialized = React.useRef(false);
   useEffect(() => {
     if (initialized.current) return;
@@ -192,8 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!sessionResult) {
           // Timeout: treat as no session — user will land on login
           console.warn("Auth init: getSession timed out after 10s");
-          localStorage.removeItem("finventree_auth");
-          localStorage.removeItem("persist:finventree-root");
+          await purgeAllPersistedState();
           setSession(null);
           setUser(null);
           return;
@@ -222,13 +251,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await fetchFeatureFlags();
           }
         } else {
-          localStorage.removeItem("finventree_auth");
-          localStorage.removeItem("persist:finventree-root");
+          // No valid session — purge ALL persisted state (Redux, React Query, outbox)
+          // to prevent stale data from a previous login from blocking the app.
+          await purgeAllPersistedState();
         }
       } catch (error) {
         console.error("Auth init error:", error);
         // On failure (network error, etc.) clear auth flags so user isn't stuck
-        localStorage.removeItem("finventree_auth");
+        await purgeAllPersistedState();
       } finally {
         setIsLoading(false);
       }
@@ -238,53 +268,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        if (event === 'SIGNED_OUT') {
-          localStorage.removeItem("finventree_auth");
-          localStorage.removeItem("persist:finventree-root");
-          setSession(null);
-          setUser(null);
-          setIsSuperAdmin(false);
-          setIsAdmin(false);
-          setTenant(null);
-          setFeatureFlags(null);
-          setFullName(null);
-          setAvatarUrl(null);
-          setRole(null);
-          setOnboardingCompletedAt(undefined);
-          posthog.reset();
-        } else if (newSession) {
-          // Only show the full-page loading spinner for a fresh sign-in.
-          // TOKEN_REFRESHED / USER_UPDATED events carry a session but should
-          // not block the UI — the profile is already loaded.
-          if (event === 'SIGNED_IN') setIsLoading(true);
-          setSession(newSession);
-          setUser(newSession.user);
-          localStorage.setItem("finventree_auth", "true");
-          
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role, tenant_id, full_name, avatar_url, onboarding_completed_at")
-            .eq("id", newSession.user.id)
-            .single();
+        try {
+          if (event === 'SIGNED_OUT') {
+            localStorage.removeItem("finventree_auth");
+            localStorage.removeItem("persist:finventree-root");
+            setSession(null);
+            setUser(null);
+            setIsSuperAdmin(false);
+            setIsAdmin(false);
+            setTenant(null);
+            setFeatureFlags(null);
+            setFullName(null);
+            setAvatarUrl(null);
+            setRole(null);
+            setOnboardingCompletedAt(undefined);
+            posthog.reset();
+          } else if (newSession) {
+            // Only show the full-page loading spinner for a fresh sign-in.
+            // TOKEN_REFRESHED / USER_UPDATED events carry a session but should
+            // not block the UI — the profile is already loaded.
+            if (event === 'SIGNED_IN') setIsLoading(true);
+            setSession(newSession);
+            setUser(newSession.user);
+            localStorage.setItem("finventree_auth", "true");
+            
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("role, tenant_id, full_name, avatar_url, onboarding_completed_at")
+              .eq("id", newSession.user.id)
+              .single();
 
-          if (profile) {
-            setFullName(profile.full_name);
-            setAvatarUrl(profile.avatar_url);
-            setRole(profile.role);
-            setOnboardingCompletedAt(profile.onboarding_completed_at ?? null);
-            setIsSuperAdmin(profile.role === "super-admin");
-            setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
-            const tid = newSession.user.user_metadata.tenant_id || profile.tenant_id;
-            if (tid) await fetchTenant(tid);
-            await fetchFeatureFlags();
-            posthog.identify(newSession.user.id, {
-              email: newSession.user.email,
-              role: profile.role,
-              tenant_id: tid ?? null,
-            });
+            if (profile) {
+              setFullName(profile.full_name);
+              setAvatarUrl(profile.avatar_url);
+              setRole(profile.role);
+              setOnboardingCompletedAt(profile.onboarding_completed_at ?? null);
+              setIsSuperAdmin(profile.role === "super-admin");
+              setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
+              const tid = newSession.user.user_metadata.tenant_id || profile.tenant_id;
+              if (tid) await fetchTenant(tid);
+              await fetchFeatureFlags();
+              posthog.identify(newSession.user.id, {
+                email: newSession.user.email,
+                role: profile.role,
+                tenant_id: tid ?? null,
+              });
+            }
           }
+        } catch (err) {
+          console.error("onAuthStateChange error:", err);
+        } finally {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       },
     );
 

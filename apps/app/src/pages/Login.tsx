@@ -71,6 +71,9 @@ export default function Login() {
           description: "Welcome back to Finventree.",
         });
         navigate("/");
+      } else {
+        // signInWithPassword returned no error but also no session — edge case
+        setIsLoading(false);
       }
     } catch (err: any) {
       toast.error("Error", {

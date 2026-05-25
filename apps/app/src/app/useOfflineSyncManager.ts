@@ -10,6 +10,7 @@ import {
   incrementRetry,
   setOnlineStatus,
   markStuck,
+  purgeExpiredItems,
 } from "@/features/sync/slice";
 import { addCustomer } from "@/features/customers/slice";
 import { removePendingEntryById } from "@/features/ledger/slice";
@@ -42,6 +43,17 @@ export function useOfflineSyncManager() {
   // Retry tracking for initial fetch failures
   const fetchRetryCountRef = useRef(0);
   const fetchRetryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // ─── OUTBOX EXPIRY ──────────────────────────────────────────────────────────
+  // Purge outbox items older than 7 days on mount. Prevents stale items from a
+  // previous session/login from blocking the initial data fetch indefinitely.
+  const hasPurgedRef = useRef(false);
+  useEffect(() => {
+    if (!hasPurgedRef.current) {
+      hasPurgedRef.current = true;
+      dispatch(purgeExpiredItems(undefined));
+    }
+  }, [dispatch]);
 
   // Reset the fetch flag whenever the logged-in user changes so the new
   // user's tenant data is fetched fresh rather than showing the previous

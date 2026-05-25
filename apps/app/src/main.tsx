@@ -105,6 +105,10 @@ if (!Capacitor.isNativePlatform()) {
 }
 
 // Setup React Query Client with Offline Persistence
+// Bump this string whenever the query cache shape changes (e.g. new columns, renamed keys).
+// This forces all clients to discard stale React Query cache on next app load.
+const QUERY_CACHE_VERSION = "v1";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -123,7 +127,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <PersistGate loading={null} persistor={reduxPersistor}>
         <PersistQueryClientProvider
           client={queryClient}
-          persistOptions={{ persister }}
+          persistOptions={{ persister, buster: QUERY_CACHE_VERSION }}
         >
           <ThemeProvider>
             <AuthProvider>

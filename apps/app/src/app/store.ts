@@ -8,6 +8,7 @@ import {
   PERSIST,
   PURGE,
   REGISTER,
+  createMigrate,
 } from "redux-persist";
 import localforage from "localforage";
 import { Capacitor } from "@capacitor/core";
@@ -69,7 +70,24 @@ const resettableRootReducer: typeof rootReducer = (state, action) => {
 const persistConfig = {
   key: "finventree-root",
   storage: storageEngine,
-  version: 2,
+  version: 3,
+  migrate: createMigrate({
+    // v2 → v3: Clear stale outbox items that could block data fetching forever.
+    // This runs once on upgrade for existing installs with old persisted state.
+    3: (state: any) => {
+      if (state?.sync?.outbox?.length) {
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        return {
+          ...state,
+          sync: {
+            ...state.sync,
+            outbox: state.sync.outbox.filter((i: any) => i.timestamp > cutoff),
+          },
+        };
+      }
+      return state;
+    },
+  } as any, { debug: false }),
 };
 
 const persistedReducer = persistReducer(persistConfig, resettableRootReducer);

@@ -66,10 +66,24 @@ const syncSlice = createSlice({
         item.nextAttemptAt = Date.now() + backoffMs;
       }
     },
+    /** Purge outbox items older than maxAgeMs (default 7 days).
+     *  Called on app startup to prevent stale items from prior sessions
+     *  blocking data fetches indefinitely. */
+    purgeExpiredItems: (state, action: PayloadAction<number | undefined>) => {
+      const maxAgeMs = action.payload ?? 7 * 24 * 60 * 60 * 1000; // 7 days default
+      const cutoff = Date.now() - maxAgeMs;
+      const before = state.outbox.length;
+      state.outbox = state.outbox.filter((i) => i.timestamp > cutoff);
+      if (state.outbox.length < before) {
+        console.warn(
+          `[sync] Purged ${before - state.outbox.length} expired outbox items (older than ${Math.round(maxAgeMs / 86400000)}d)`,
+        );
+      }
+    },
   },
 });
 
-export const { setOnlineStatus, queueAction, removeAction, markStuck, incrementRetry } =
+export const { setOnlineStatus, queueAction, removeAction, markStuck, incrementRetry, purgeExpiredItems } =
   syncSlice.actions;
 
 export default syncSlice.reducer;
