@@ -207,7 +207,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const initialized = React.useRef(false);
   const initDone = React.useRef(false);
-  const signingOut = React.useRef(false);
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
@@ -273,7 +272,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       async (event, newSession) => {
         try {
           if (event === 'SIGNED_OUT') {
-            signingOut.current = false;
             localStorage.removeItem("finventree_auth");
             localStorage.removeItem("persist:finventree-root");
             setSession(null);
@@ -292,9 +290,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // Skip here to prevent a race where both paths fetch the profile
             // concurrently and toggle isLoading unpredictably.
             if (event === 'SIGNED_IN' && !initDone.current) return;
-            // If we're in the middle of a sign-out, ignore any auth events
-            // (e.g. a concurrent token refresh) that would restore the session.
-            if (signingOut.current) return;
             // Only show the full-page loading spinner for a fresh sign-in
             // (after init). TOKEN_REFRESHED / USER_UPDATED events should not
             // block the UI — the profile is already loaded.
@@ -395,9 +390,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // 2. Reset local React State to trigger re-render and router redirect.
     // setIsLoading(false) is critical: if a SIGNED_IN handler was mid-flight
     // (fetching profile on Android), isLoading would be true. With hasLocalFlag
-    // now cleared in step 1, ProtectedRoute would show the spinner indefinitely
-    // (until the hanging network request finishes). Force it off here.
-    signingOut.current = true;
+    // cleared in step 1, ProtectedRoute would show the spinner indefinitely.
     try {
       setIsLoading(false);
       setSession(null);
@@ -415,7 +408,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to reset auth state locally:", err);
     }
 
-    // 3. Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
+    // 3. Sign out from Supabase immediately after state reset.
+    // This fires SIGNED_OUT locally (clearing the Supabase client session)
+    // BEFORE any async cleanup, preventing a concurrent token refresh from
+    // restoring the session during cleanup steps 4–6.
+    // Wrapped in a 5s timeout so a slow/offline network can't block cleanup.
+    try {
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+      ]);
+    } catch (err) {
+      console.error("Failed to sign out from Supabase:", err);
+    }
+
+    // 4. Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
     try {
       const supabaseApi = await import('@/app/supabaseApi');
       supabaseApi.clearTenantCache?.();
@@ -423,14 +430,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to clear tenant cache:", err);
     }
 
-    // 4. Reset in-memory Redux state immediately (prevents old tenant data showing)
+    // 5. Reset in-memory Redux state immediately (prevents old tenant data showing)
     try {
       store.dispatch({ type: RESET_STORE });
     } catch (err) {
       console.warn("Failed to reset Redux store:", err);
     }
 
-    // 5. Clear Capacitor Preferences store directly (covers native platform storage)
+    // 6. Clear Capacitor Preferences store directly (covers native platform storage)
     try {
       const { Preferences } = await import("@capacitor/preferences");
       await Preferences.remove({ key: "persist:finventree-root" });
@@ -438,19 +445,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to clear Capacitor preferences:", err);
     }
 
-    // 6. Purge the Redux persistor (runs, but failure does not block signout flow)
+    // 7. Purge the Redux persistor
     try {
       await persistor.purge();
     } catch (err) {
       console.warn("Failed to purge persistor:", err);
     }
 
-    // 7. Sign out from Supabase (revokes session token)
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.error("Failed to sign out from Supabase:", err);
-    }
+    // (supabase.auth.signOut() already called in step 3)
   };
 
 
