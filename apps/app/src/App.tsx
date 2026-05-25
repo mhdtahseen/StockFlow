@@ -15,6 +15,7 @@ const Router = Capacitor.isNativePlatform()
 import { Loader2 } from "lucide-react";
 import SplashScreen from "@/components/SplashScreen";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import AppLayout from "@/components/layout/AppLayout";
 
 // Auth pages
@@ -57,9 +58,13 @@ const ConnectRedirect = () => {
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
-  const hasLocalFlag = localStorage.getItem("finventree_auth") === "true";
 
-  if (isLoading && !hasLocalFlag) {
+  // isLoading is true during:
+  //   1. Cold start (initializeAuth fetching session/profile/tenant)
+  //   2. Fresh login (SIGNED_IN handler fetching profile/tenant)
+  // In both cases, children should NOT render until full context is ready.
+  // This prevents the white-screen caused by Dashboard rendering with null tenant.
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
         <Loader2 className="h-8 w-8 animate-spin text-primary-500 dark:text-blue-500" />
@@ -67,7 +72,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!session && !hasLocalFlag) {
+  if (!session) {
     return <Navigate to="/login" replace />;
   }
 
@@ -156,6 +161,8 @@ function App() {
 
   return (
     <TooltipProvider>
+      {/* Toaster mounted at root so toasts show on login page and all routes */}
+      <Toaster />
       <Router>
         <PageViewTracker />
         {/* <AppGate> */}
