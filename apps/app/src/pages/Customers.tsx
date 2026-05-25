@@ -86,17 +86,23 @@ export default function Customers() {
 
 
   const fuse = new Fuse(customers, {
-    keys: ["name", "phone"],
+    keys: ["name", "phone", "tags"],
     threshold: 0.3,
   });
+
+  const [filterTag, setFilterTag] = useState<string>("ALL");
+
+  const allTags = useMemo(
+    () => [...new Set(customers.flatMap((c) => c.tags || []))].sort(),
+    [customers],
+  );
 
   const searched = search.trim()
     ? fuse.search(search).map((r) => r.item)
     : customers;
 
-  const filtered = filterType === "ALL"
-    ? searched
-    : searched.filter(c => c.type === filterType);
+  const filtered = (filterType === "ALL" ? searched : searched.filter((c) => c.type === filterType))
+    .filter((c) => filterTag === "ALL" || (c.tags ?? []).includes(filterTag));
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
@@ -158,6 +164,26 @@ export default function Customers() {
         {/* A7: result count */}
         {search.trim() && (
           <p className="text-[11px] font-bold text-slate-400 mt-2 px-1">Showing {filtered.length} of {customers.length}</p>
+        )}
+
+        {/* Tag filter pills — only shown when at least one customer has tags */}
+        {allTags.length > 0 && (
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5 scrollbar-hide">
+            {["ALL", ...allTags].map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setFilterTag(tag)}
+                className={`shrink-0 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wide transition-all ${
+                  filterTag === tag
+                    ? "bg-primary-500 text-white shadow-sm shadow-primary-500/30"
+                    : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                {tag === "ALL" ? "All Tags" : tag}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
@@ -232,6 +258,23 @@ export default function Customers() {
                         </>
                       )}
                     </div>
+                    {c.tags && c.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {c.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-1.5 py-0.5 rounded-md bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800/40 text-[9px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-wide"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {c.tags.length > 3 && (
+                          <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[9px] font-bold text-slate-400">
+                            +{c.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-3 mt-1.5">
                       {orderCount > 0 && (
                         <span className="text-[10px] font-bold text-slate-400">
