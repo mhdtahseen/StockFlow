@@ -48,22 +48,22 @@ const CUSTOMER_TYPES: {
   {
     value: "CUSTOMER",
     label: "Customer — Direct",
-    description: "Individual retail buyer",
+    description: "End-user buying for personal use",
   },
   {
     value: "RETAILER",
     label: "Customer — Retailer",
-    description: "Shop owner buying for resale",
+    description: "Shop/dealer buying to resell locally",
   },
   {
     value: "WHOLESALER",
     label: "Customer — Wholesaler",
-    description: "Bulk B2B buyer",
+    description: "Bulk buyer — distributes to retailers",
   },
   {
     value: "PLATFORM",
     label: "Platform",
-    description: "Online marketplace (Amazon, Flipkart…)",
+    description: "Online marketplace (Cashify, OLX, Amazon…)",
   },
 ];
 

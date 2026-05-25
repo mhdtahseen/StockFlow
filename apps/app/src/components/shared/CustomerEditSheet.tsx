@@ -22,13 +22,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapPin, Trash2, AlertTriangle, Link2, Receipt } from "lucide-react";
+import { MapPin, Trash2, AlertTriangle, Link2, Receipt, Tag } from "lucide-react";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { useAppDispatch } from "@/app/hooks";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { updateCustomer, removeCustomer } from "@/features/customers/slice";
+import { selectCustomers } from "@/features/customers/selectors";
 import { Customer, CustomerType } from "@/features/customers/types";
 import { AadhaarInput } from "@/components/ui/AadhaarInput";
+import { TagsInput } from "@/components/ui/TagsInput";
 import { isValidGstin } from "@/utils/gstCalc";
 
 interface Props {
@@ -45,24 +47,25 @@ const CUSTOMER_TYPES: {
   {
     value: "CUSTOMER",
     label: "Customer — Direct",
-    description: "Individual retail buyer",
+    description: "End-user buying for personal use",
   },
   {
     value: "RETAILER",
     label: "Customer — Retailer",
-    description: "Shop owner buying for resale",
+    description: "Shop/dealer buying to resell locally",
   },
   {
     value: "WHOLESALER",
     label: "Customer — Wholesaler",
-    description: "Bulk B2B buyer",
+    description: "Bulk buyer — distributes to retailers",
   },
-  { value: "PLATFORM", label: "Platform", description: "E-commerce or listing platform" },
+  { value: "PLATFORM", label: "Platform", description: "Online marketplace (Cashify, OLX, Amazon…)" },
 ];
 
 export function CustomerEditSheet({ open, onOpenChange, customer }: Props) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const allCustomers = useAppSelector(selectCustomers);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [name, setName] = useState(customer.name);
@@ -71,8 +74,15 @@ export function CustomerEditSheet({ open, onOpenChange, customer }: Props) {
   const [type, setType] = useState<CustomerType>(customer.type);
   const [address, setAddress] = useState(customer.address || "");
   const [gstin, setGstin] = useState(customer.gstin || "");
+  const [tags, setTags] = useState<string[]>(customer.tags || []);
   const [aadhaar, setAadhaar] = useState("");
   const [aadhaarValid, setAadhaarValid] = useState(false);
+
+  // Derive suggestions from all customers' tags (same tenant)
+  const tagSuggestions = React.useMemo(
+    () => [...new Set(allCustomers.flatMap((c) => c.tags || []))].sort(),
+    [allCustomers],
+  );
 
   useEffect(() => {
     if (open) {
@@ -82,6 +92,7 @@ export function CustomerEditSheet({ open, onOpenChange, customer }: Props) {
       setType(customer.type);
       setAddress(customer.address || "");
       setGstin(customer.gstin || "");
+      setTags(customer.tags || []);
       setAadhaar("");
       setAadhaarValid(false);
     }
@@ -107,6 +118,7 @@ export function CustomerEditSheet({ open, onOpenChange, customer }: Props) {
       type,
       address: address.trim() || undefined,
       gstin: gstin.trim().toUpperCase() || undefined,
+      tags: tags.length > 0 ? tags : undefined,
       ...updatedAadhaarProps,
     };
 
@@ -303,6 +315,22 @@ export function CustomerEditSheet({ open, onOpenChange, customer }: Props) {
                   ? <p className="text-[11px] text-amber-500 font-semibold mt-1">Invalid GSTIN format</p>
                   : null
             )}
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block flex items-center gap-1.5">
+              <Tag size={12} /> Tags
+              <span className="text-slate-400 font-medium normal-case tracking-normal">
+                (Optional)
+              </span>
+            </label>
+            <TagsInput
+              value={tags}
+              onChange={setTags}
+              suggestions={tagSuggestions}
+              placeholder="VIP, Cash-only, Inter-state…"
+            />
           </div>
 
           <div className="mt-auto grid grid-cols-2 gap-3 pt-4">
