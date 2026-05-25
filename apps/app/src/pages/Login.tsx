@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useNavigate, Link, Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import {
   Card,
@@ -33,16 +32,8 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const navigate = useNavigate();
-  const { session } = useAuth();
+  const { session, signIn } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-
-  // Declarative redirect: if session already exists (onAuthStateChange set it),
-  // navigate to dashboard. This handles the Android race where the imperative
-  // navigate("/") below gets eaten by concurrent React re-renders.
-  if (session) {
-    return <Navigate to="/" replace />;
-  }
 
   const {
     register,
@@ -56,40 +47,24 @@ export default function Login() {
     },
   });
 
+  // Declarative redirect: if session already exists (onAuthStateChange set it),
+  // navigate to dashboard. Placed AFTER all hooks to satisfy Rules of Hooks.
+  if (session) {
+    return <Navigate to="/" replace />;
+  }
+
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
 
-    try {
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
-
-      if (error) {
-        toast.error("Authentication Failed", {
-          description:
-            error.message || "Invalid email or password. Please try again.",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (authData.session) {
-        localStorage.setItem("finventree_auth", "true");
-        toast.success("Login Successful", {
-          description: "Welcome back to Finventree.",
-        });
-        navigate("/");
-      } else {
-        // signInWithPassword returned no error but also no session — edge case
-        setIsLoading(false);
-      }
-    } catch (err: any) {
-      toast.error("Error", {
-        description: err.message || "An unexpected error occurred.",
+    const { error } = await signIn(data.email, data.password);
+    if (error) {
+      toast.error("Authentication Failed", {
+        description: error,
       });
       setIsLoading(false);
     }
+    // On success: signIn sets session in context → re-render triggers
+    // the `if (session)` redirect above. No manual navigation needed.
   };
 
   return (

@@ -43,6 +43,7 @@ interface AuthContextType {
   role: string | null;
   /** undefined = still loading; null = not completed; string = ISO timestamp */
   onboardingCompletedAt: string | null | undefined;
+  signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   refreshTenant: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -123,11 +124,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchTenant = async (tenantId: string) => {
     setIsTenantLoading(true);
+    // Abort after 8s — on Android resume the network stack may not be ready
+    // and fetch() hangs indefinitely, leaving isTenantLoading=true forever.
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 8_000);
     try {
       const { data: tenantData } = await supabase
         .from("tenants")
         .select("id, name, plan, plan_expires_at, address, gstin, phone, logo_url, state_code, is_active, suspended_until, trade_code, payment_failed_at, plan_halted_at")
         .eq("id", tenantId)
+        .abortSignal(controller.signal)
         .single();
       if (tenantData) {
         setTenant({
@@ -148,8 +154,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       }
     } catch (err) {
-      console.error("Error fetching tenant:", err);
+      if ((err as any)?.name !== 'AbortError') {
+        console.error("Error fetching tenant:", err);
+      }
     } finally {
+      clearTimeout(abortTimer);
       setIsTenantLoading(false);
     }
   };
@@ -207,6 +216,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const initialized = React.useRef(false);
   const initDone = React.useRef(false);
+  // Tracks the last access_token we fully loaded profile/tenant for.
+  // Used in onAuthStateChange to deduplicate SIGNED_IN events without
+  // relying on the stale `session` closure (useEffect has [] deps).
+  const lastLoadedTokenRef = React.useRef<string | null>(null);
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
@@ -251,6 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             if (profile.tenant_id) await fetchTenant(profile.tenant_id);
             await fetchFeatureFlags();
           }
+          lastLoadedTokenRef.current = s.access_token;
         } else {
           // No valid session — purge ALL persisted state (Redux, React Query, outbox)
           // to prevent stale data from a previous login from blocking the app.
@@ -290,9 +304,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // Skip here to prevent a race where both paths fetch the profile
             // concurrently and toggle isLoading unpredictably.
             if (event === 'SIGNED_IN' && !initDone.current) return;
-            // Only show the full-page loading spinner for a fresh sign-in
-            // (after init). TOKEN_REFRESHED / USER_UPDATED events should not
-            // block the UI — the profile is already loaded.
+            // If signIn() or initializeAuth already loaded this session, skip to avoid double-fetch.
+            if (event === 'SIGNED_IN' && lastLoadedTokenRef.current === newSession.access_token) return;
+            // TOKEN_REFRESHED / USER_UPDATED: only update the session token.
+            // Profile/tenant data doesn't change on a refresh. Re-fetching here
+            // causes the infinite loader on Android resume — the network stack
+            // isn't ready yet and fetchTenant hangs even with our AbortController.
+            if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+              setSession(newSession);
+              setUser(newSession.user);
+              return; // finally still runs → setIsLoading(false)
+            }
+            // Only show the full-page loading spinner for a fresh SIGNED_IN.
             if (event === 'SIGNED_IN') setIsLoading(true);
             setSession(newSession);
             setUser(newSession.user);
@@ -368,6 +391,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     );
     return () => clearInterval(interval);
   }, [session, tenant?.id, tenant?.plan]);
+
+  /**
+   * Direct sign-in method that bypasses onAuthStateChange entirely.
+   * On Android WebView, the onAuthStateChange listener can be unreliable
+   * after a signOut cycle (event not firing or firing too late).
+   * This method calls signInWithPassword, then loads profile+tenant directly,
+   * guaranteeing that session/tenant/profile are all set before isLoading=false.
+   */
+  const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
+    setIsLoading(true);
+    try {
+      const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setIsLoading(false);
+        return { error: error.message || "Invalid email or password." };
+      }
+      if (!authData.session) {
+        setIsLoading(false);
+        return { error: "Could not establish a session." };
+      }
+
+      const s = authData.session;
+      setSession(s);
+      setUser(s.user);
+      lastLoadedTokenRef.current = s.access_token;
+      localStorage.setItem("finventree_auth", "true");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, tenant_id, full_name, avatar_url, onboarding_completed_at")
+        .eq("id", s.user.id)
+        .single();
+
+      if (profile) {
+        setFullName(profile.full_name);
+        setAvatarUrl(profile.avatar_url);
+        setRole(profile.role);
+        setOnboardingCompletedAt(profile.onboarding_completed_at ?? null);
+        setIsSuperAdmin(profile.role === "super-admin");
+        setIsAdmin(profile.role === "admin" || profile.role === "super-admin");
+        const tid = s.user.user_metadata.tenant_id || profile.tenant_id;
+        if (tid) await fetchTenant(tid);
+        await fetchFeatureFlags();
+        posthog.identify(s.user.id, {
+          email: s.user.email,
+          role: profile.role,
+          tenant_id: tid ?? null,
+        });
+      }
+
+      return {};
+    } catch (err: any) {
+      return { error: err.message || "An unexpected error occurred." };
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const signOut = async () => {
     // 1. Clear localStorage auth flag FIRST — ProtectedRoute reads this synchronously.
@@ -471,6 +551,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         avatarUrl,
         role,
         onboardingCompletedAt,
+        signIn,
         signOut,
         refreshTenant,
         refreshProfile,
