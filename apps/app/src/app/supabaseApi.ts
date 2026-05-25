@@ -604,6 +604,11 @@ export const syncActionToSupabase = async (
           notes: payload.notes ?? null,
           gstin: payload.gstin ?? null,
           state: payload.state ?? null,
+          address: payload.address ?? null,
+          pincode: payload.pincode ?? null,
+          aadhaar_encrypted: payload.aadhaarEncrypted ?? null,
+          aadhaar_last4: payload.aadhaarLast4 ?? null,
+          tags: payload.tags ?? [],
           created_at: payload.createdAt,
         });
         if (error) throw error;
@@ -624,6 +629,11 @@ export const syncActionToSupabase = async (
             notes: payload.notes ?? null,
             gstin: payload.gstin ?? null,
             state: payload.state ?? null,
+            address: payload.address ?? null,
+            pincode: payload.pincode ?? null,
+            aadhaar_encrypted: payload.aadhaarEncrypted ?? null,
+            aadhaar_last4: payload.aadhaarLast4 ?? null,
+            tags: payload.tags ?? [],
             updated_at: new Date().toISOString(),
           })
           .eq("id", payload.id)
