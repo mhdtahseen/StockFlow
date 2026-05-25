@@ -282,17 +282,20 @@ const ledgerSlice = createSlice({
 
     // 4. SALE RETURN AUTOMATION
     builder.addCase(returnOrder, (state, action) => {
-      const orderId = action.payload;
-      state.pendingEntries.push({
-        id: `v-so-return-${orderId}`,
-        type: "CUSTOMER_PAYMENT",
-        saleOrderId: orderId,
-        referenceId: orderId,
-        amount: 0, // Virtual shell; actual amount normally comes from thunk/backend
-        note: `RETURN - SALE (#${orderId.slice(0, 8).toUpperCase()}) : Full Return (Refund Processing)`,
-        createdAt: new Date().toISOString(),
-        recordedBy: "system",
-      });
+      const { orderId, refundAmount, paymentMode } = action.payload;
+      if (refundAmount > 0) {
+        state.pendingEntries.push({
+          id: `v-so-return-${orderId}`,
+          type: "CUSTOMER_PAYMENT",
+          saleOrderId: orderId,
+          referenceId: orderId,
+          amount: -refundAmount,
+          paymentMode: paymentMode as any,
+          note: `REFUND - SALE (#${orderId.slice(0, 8).toUpperCase()}) : Full Return`,
+          createdAt: new Date().toISOString(),
+          recordedBy: "system",
+        });
+      }
     });
 
     // 5. PO REJECTION AUTOMATION (Refund Due)

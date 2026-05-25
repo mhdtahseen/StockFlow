@@ -27,8 +27,11 @@ const billingSlice = createSlice({
         o.status = a.payload.status;
       }
     },
-    returnOrder: (s, a: PayloadAction<string>) => {
-      const o = s.orders.find((o) => o.id === a.payload);
+    returnOrder: (
+      s,
+      a: PayloadAction<{ orderId: string; refundAmount: number; paymentMode: string }>,
+    ) => {
+      const o = s.orders.find((o) => o.id === a.payload.orderId);
       if (o) o.status = "RETURNED";
     },
     updateOrder: (

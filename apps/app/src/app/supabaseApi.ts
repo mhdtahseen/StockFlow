@@ -287,7 +287,9 @@ export const syncActionToSupabase = async (
       }
       case "billing/returnOrder": {
         const { error } = await supabase.rpc("return_order", {
-          p_order_id: payload,
+          p_order_id: payload.orderId,
+          p_refund_amount: payload.refundAmount ?? 0,
+          p_payment_mode: payload.paymentMode ?? "CASH",
         });
         if (error) throw error;
         break;

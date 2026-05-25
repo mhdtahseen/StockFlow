@@ -38,6 +38,7 @@ export const selectWalletBuckets = createSelector(
     let profitWithdrawals = 0;
 
     entries.forEach((entry) => {
+      if (entry.isVoided) return; // Skip voided entries (deleted orders)
       switch (entry.type) {
         case "MONEY_ADDED":
         case "CAPITAL_INJECTION":

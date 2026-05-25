@@ -204,6 +204,9 @@ export default function OrderDetail() {
   const [isSharing, setIsSharing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReturning, setIsReturning] = useState(false);
+  const [showReturnSheet, setShowReturnSheet] = useState(false);
+  const [returnRefundAmount, setReturnRefundAmount] = useState("");
+  const [returnPaymentMode, setReturnPaymentMode] = useState("CASH");
   const [fetchFailed, setFetchFailed] = useState(false);
 
   // Order edits for timeline
@@ -853,39 +856,41 @@ export default function OrderDetail() {
 
   const handleReturn = () => {
     if (isReturning) return;
-    if (
-      window.confirm(
-        "Are you sure you want to process a full return for this order? This will restock all devices and record a negative sale entry.",
-      )
-    ) {
-      if (isPurchaseOrder) {
-        // Full PO returns are handled via item rejection or manual adjustments.
-        // If a full logic exists for PO return status, it should trigger here.
-        toast.info("PO Return", {
-          description:
-            "Use individual item rejections for partial PO reconciliation.",
-        });
-      } else {
-        // Handle sale order return - WATCHTOWER will auto-log the refund entry
-        dispatch(returnOrder(order.id));
-
-        // Restock phones
-        order.items.forEach((item) => {
-          if (item.phoneId) {
-            dispatch(
-              markAsInStock({
-                id: item.phoneId,
-                finalPrice: (item as any).effectivePrice,
-              }),
-            );
-          }
-        });
-        setIsReturning(true);
-        toast.success("Order Returned", {
-          description: "Devices restocked and refund initiated.",
-        });
-      }
+    if (isPurchaseOrder) {
+      toast.info("PO Return", {
+        description:
+          "Use individual item rejections for partial PO reconciliation.",
+      });
+    } else {
+      // Pre-fill refund amount with what the customer has paid
+      setReturnRefundAmount(String(order.amountPaid || 0));
+      setReturnPaymentMode("CASH");
+      setShowReturnSheet(true);
     }
+  };
+
+  const confirmReturn = () => {
+    const refundAmount = parseFloat(returnRefundAmount) || 0;
+    dispatch(returnOrder({ orderId: order.id, refundAmount, paymentMode: returnPaymentMode }));
+
+    // Restock phones
+    order.items.forEach((item) => {
+      if (item.phoneId) {
+        dispatch(
+          markAsInStock({
+            id: item.phoneId,
+            finalPrice: (item as any).effectivePrice,
+          }),
+        );
+      }
+    });
+    setIsReturning(true);
+    setShowReturnSheet(false);
+    toast.success("Order Returned", {
+      description: refundAmount > 0
+        ? `Devices restocked. Refund of ₹${refundAmount.toLocaleString("en-IN")} recorded.`
+        : "Devices restocked. No refund recorded.",
+    });
   };
 
   const generateInvoice = async () => {
@@ -1641,6 +1646,72 @@ export default function OrderDetail() {
           onOpenChange={setShowFullEditSheet}
           order={order as any}
         />
+      )}
+
+      {/* Return Confirmation Sheet */}
+      {showReturnSheet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowReturnSheet(false)}>
+          <div
+            className="w-full max-w-lg rounded-t-2xl bg-white dark:bg-slate-900 p-6 pb-8 space-y-4 animate-in slide-in-from-bottom"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Process Return</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              This will restock all devices. Enter the refund amount to record in the ledger.
+            </p>
+
+            <div>
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1 block">Refund Amount (₹)</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base text-slate-900 dark:text-white"
+                value={returnRefundAmount}
+                onChange={(e) => setReturnRefundAmount(e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Customer paid: ₹{(order.amountPaid || 0).toLocaleString("en-IN")}. Enter 0 for no refund.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1 block">Payment Mode</label>
+              <div className="flex gap-2">
+                {["CASH", "UPI", "BANK_TRANSFER"].map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setReturnPaymentMode(mode)}
+                    className={clsx(
+                      "flex-1 rounded-lg py-2 text-xs font-medium border transition-colors",
+                      returnPaymentMode === mode
+                        ? "bg-primary-50 dark:bg-primary-900/30 border-primary-300 dark:border-primary-600 text-primary-700 dark:text-primary-300"
+                        : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
+                    )}
+                  >
+                    {mode === "BANK_TRANSFER" ? "Bank" : mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowReturnSheet(false)}
+                className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReturn}
+                className="flex-1 rounded-lg bg-red-500 py-2.5 text-sm font-semibold text-white"
+              >
+                Confirm Return
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
