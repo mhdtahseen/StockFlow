@@ -207,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const initialized = React.useRef(false);
   const initDone = React.useRef(false);
+  const signingOut = React.useRef(false);
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
@@ -272,6 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       async (event, newSession) => {
         try {
           if (event === 'SIGNED_OUT') {
+            signingOut.current = false;
             localStorage.removeItem("finventree_auth");
             localStorage.removeItem("persist:finventree-root");
             setSession(null);
@@ -290,6 +292,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // Skip here to prevent a race where both paths fetch the profile
             // concurrently and toggle isLoading unpredictably.
             if (event === 'SIGNED_IN' && !initDone.current) return;
+            // If we're in the middle of a sign-out, ignore any auth events
+            // (e.g. a concurrent token refresh) that would restore the session.
+            if (signingOut.current) return;
             // Only show the full-page loading spinner for a fresh sign-in
             // (after init). TOKEN_REFRESHED / USER_UPDATED events should not
             // block the UI — the profile is already loaded.
@@ -387,8 +392,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to clear localStorage items:", err);
     }
 
-    // 2. Reset local React State to trigger re-render and router redirect
+    // 2. Reset local React State to trigger re-render and router redirect.
+    // setIsLoading(false) is critical: if a SIGNED_IN handler was mid-flight
+    // (fetching profile on Android), isLoading would be true. With hasLocalFlag
+    // now cleared in step 1, ProtectedRoute would show the spinner indefinitely
+    // (until the hanging network request finishes). Force it off here.
+    signingOut.current = true;
     try {
+      setIsLoading(false);
       setSession(null);
       setUser(null);
       setIsSuperAdmin(false);
