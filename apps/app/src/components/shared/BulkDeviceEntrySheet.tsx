@@ -27,12 +27,11 @@ import {
   Search,
   Plus,
   Trash2,
-  Smartphone,
   TrendingDown,
-  Info,
-  Calculator,
   LayoutGrid,
   Receipt,
+  DollarSign,
+  Check,
 } from "lucide-react";
 import CurrencyInput from "@/components/ui/CurrencyInput";
 import clsx from "clsx";
@@ -92,6 +91,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
     "CASH" | "UPI" | "BANK_TRANSFER"
   >("CASH");
   const [dueDateStr, setDueDateStr] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
   // ── GST (purchase input tax) ───────────────────────────────────────────────────────
   const [gstEnabled, setGstEnabled] = useState(false);
   const [gstInclusive, setGstInclusive] = useState(true);
@@ -127,7 +127,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
         try {
-          const { rows: savedRows, bulkPriceStr: savedBulk, supplier: savedSup, channel: savedChan } = JSON.parse(saved);
+          const { rows: savedRows, bulkPriceStr: savedBulk, supplier: savedSup, channel: savedChan, notes: savedNotes } = JSON.parse(saved);
           // Migrate old drafts that had 'imei' string instead of 'imeis' array
           const migratedRows = savedRows.map((r: any) => ({
             ...r,
@@ -137,6 +137,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
           setBulkPriceStr(savedBulk);
           if (savedSup) setSupplier(savedSup);
           if (savedChan) setChannel(savedChan);
+          if (savedNotes) setNotes(savedNotes);
         } catch (e) {
           console.error("Failed to load draft", e);
         }
@@ -150,6 +151,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
         setBankAmountStr("0");
         setSelectedTab("CASH");
         setDueDateStr("");
+        setNotes("");
         setRows([
           {
             id: crypto.randomUUID(),
@@ -174,10 +176,10 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
   // Save draft on change
   useEffect(() => {
     if (open && rows.length > 0) {
-      const draft = { rows, bulkPriceStr, supplier, channel };
+      const draft = { rows, bulkPriceStr, supplier, channel, notes };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }
-  }, [rows, bulkPriceStr, supplier, channel, open]);
+  }, [rows, bulkPriceStr, supplier, channel, notes, open]);
 
   const updateRow = (id: string, updates: Partial<DeviceRow>) => {
     setRows((prev) => {
@@ -447,7 +449,10 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
       phonesReceived: 0,
       // P3-BUG-24: Store raw date string — avoid .toISOString() which shifts timezone in IST+5:30
       dueDate: isCredit ? dueDateStr : undefined,
-      notes: channel === "PLATFORM" ? `Source: ${selectedPlatform}` : undefined,
+      notes: [
+        channel === "PLATFORM" ? `Source: ${selectedPlatform}` : null,
+        notes.trim() || null,
+      ].filter(Boolean).join(" · ") || undefined,
       createdAt: new Date().toISOString(),
       ...(gstEnabled && gstBreakdown
         ? {
@@ -478,24 +483,19 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="h-[95vh] flex flex-col p-0 rounded-t-[2.5rem] border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-hidden"
+        className="h-[92vh] flex flex-col p-0 rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-hidden"
       >
-        <SheetHeader className="px-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-4 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex justify-between items-center">
+        <SheetHeader className="px-4 py-3 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 mt-2">
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-xl bg-primary-500/10 flex items-center justify-center">
+              <TrendingDown size={18} className="text-primary-500" strokeWidth={2.5} />
+            </div>
             <div>
-              <SheetTitle className="text-2xl font-black">
+              <SheetTitle className="text-base font-black text-slate-900 dark:text-slate-100 leading-tight">
                 Purchase Order
               </SheetTitle>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                Add to Stock
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] font-black text-primary-500 dark:text-blue-400">
-                TOTAL VALUE
-              </span>
-              <p className="text-xl font-black text-slate-900 dark:text-slate-100 italic">
-                ₹{totalAmount.toLocaleString()}
+              <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                Add devices to stock
               </p>
             </div>
           </div>
@@ -511,7 +511,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
             <section className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-6">
               <div className="flex-1">
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-3 block">
-                  1. {channel === "DIRECT" ? "Supplier" : "Platform"}
+                  {channel === "DIRECT" ? "Supplier" : "Platform"}
                 </label>
                 {channel === "DIRECT" ? (
                   <CustomerPicker
@@ -530,7 +530,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
               </div>
               <div className="w-full sm:w-64">
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-3 block">
-                  2. Channel
+                  Channel
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {["DIRECT", "PLATFORM"].map((c) => (
@@ -884,7 +884,7 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
               {channel === "PLATFORM" && (
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
                   <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-4 block">
-                    3. Fees
+                    Fees
                   </label>
                   <div className="space-y-4">
                     <div>
@@ -906,129 +906,134 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
                 </div>
               )}
 
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 bg-primary-500 h-full" />
-                <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-4 block">
-                  {channel === "PLATFORM" ? "4. Payment" : "3. Payment"}
-                </label>
-                <div className="space-y-6">
-                  {/* Mode Tabs */}
-                  <div className="flex gap-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                    {(["CASH", "UPI", "BANK_TRANSFER"] as const).map((mode) => {
-                      const val =
-                        mode === "CASH"
-                          ? cashPaid
-                          : mode === "UPI"
-                            ? upiPaid
-                            : bankPaid;
-                      return (
-                        <button
-                          key={mode}
-                          type="button"
-                          onClick={() => setSelectedTab(mode)}
-                          className={clsx(
-                            "flex-1 py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all relative flex flex-col items-center gap-1",
-                            selectedTab === mode
-                              ? "bg-white dark:bg-slate-800 text-primary-500 shadow-sm border border-slate-100 dark:border-slate-700"
-                              : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200",
-                          )}
-                        >
-                          {mode.replace("_", " ")}
-                          {val > 0 && (
-                            <span className="text-[8px] px-1.5 py-0.5 bg-primary-500 text-white rounded-full leading-none">
-                              ₹{val.toLocaleString()}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+                {/* Section header — mirrors SO Fiscal Settlement */}
+                <div className="px-4 pt-4 pb-3 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign size={16} className="text-primary-500" strokeWidth={2.5} />
+                    <span className="text-sm font-black text-slate-900 dark:text-slate-100">Fiscal Settlement</span>
+                  </div>
+                  <span className="text-xl font-black text-slate-900 dark:text-slate-100">
+                    ₹{totalAmount.toLocaleString("en-IN")}
+                  </span>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  {/* Payment channel tabs */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                      Payment Channel
+                    </label>
+                    <div className="flex gap-2 bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-100 dark:border-slate-800">
+                      {(["CASH", "UPI", "BANK_TRANSFER"] as const).map((mode) => {
+                        const val = mode === "CASH" ? cashPaid : mode === "UPI" ? upiPaid : bankPaid;
+                        return (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setSelectedTab(mode)}
+                            className={clsx(
+                              "flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all relative",
+                              selectedTab === mode
+                                ? "bg-white dark:bg-slate-800 text-primary-500 shadow-sm"
+                                : "text-slate-400 hover:text-slate-600",
+                            )}
+                          >
+                            {mode.replace("_", " ")}
+                            {val > 0 && (
+                              <span className="absolute -top-0.5 -right-0.5 size-2 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-800" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  {/* Single Visible Input */}
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1 mb-2 block">
-                      Record {selectedTab.replace("_", " ")} Amount
+                  {/* Active channel input */}
+                  <div className="animate-in fade-in duration-150">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                      {selectedTab.replace("_", " ")} Amount
                     </label>
                     {selectedTab === "CASH" && (
-                      <CurrencyInput
-                        value={cashAmountStr}
-                        onChange={setCashAmountStr}
-                        className="h-16 text-2xl! py-0! rounded-2xl"
-                      />
+                      <CurrencyInput size="md" value={cashAmountStr} onChange={setCashAmountStr} placeholder="0" />
                     )}
                     {selectedTab === "UPI" && (
-                      <CurrencyInput
-                        value={upiAmountStr}
-                        onChange={setUpiAmountStr}
-                        className="h-16 text-2xl! py-0! rounded-2xl"
-                      />
+                      <CurrencyInput size="md" value={upiAmountStr} onChange={setUpiAmountStr} placeholder="0" />
                     )}
                     {selectedTab === "BANK_TRANSFER" && (
-                      <CurrencyInput
-                        value={bankAmountStr}
-                        onChange={setBankAmountStr}
-                        className="h-16 text-2xl! py-0! rounded-2xl"
-                      />
+                      <CurrencyInput size="md" value={bankAmountStr} onChange={setBankAmountStr} placeholder="0" />
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-tighter">
-                          Amount Paid
-                      </span>
-                      <span className="text-sm font-black text-slate-900 dark:text-slate-100">
-                        ₹{amountPaid.toLocaleString()}
-                      </span>
-                    </div>
-                    {amountPaid < totalAmount && (
-                      <div className="text-right">
-                        <span className="text-[10px] font-bold text-rose-400 uppercase block tracking-tighter text-right">
-                          Remaining Balance
+                  {/* Channel breakdown badges */}
+                  {amountPaid > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {cashPaid > 0 && (
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/40 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                          <Check size={10} strokeWidth={3} />
+                          Cash ₹{cashPaid.toLocaleString("en-IN")}
                         </span>
-                        <span className="text-sm font-black text-rose-500 italic">
-                          ₹{(totalAmount - amountPaid).toLocaleString()}
+                      )}
+                      {upiPaid > 0 && (
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800/40 text-[10px] font-bold text-blue-700 dark:text-blue-400">
+                          <Check size={10} strokeWidth={3} />
+                          UPI ₹{upiPaid.toLocaleString("en-IN")}
                         </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {amountPaid < totalAmount && (
-                    <div className="animate-in fade-in slide-in-from-top-2 border-t border-slate-100 dark:border-slate-800 pt-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                        <div>
-                          <label className="text-sm font-black text-rose-500 block mb-1">
-                            Pending Balance: ₹
-                            {(totalAmount - amountPaid).toLocaleString()}
-                          </label>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            Credit Settlement Layout
-                          </p>
-                        </div>
-                        <div className="flex-1 max-w-xs">
-                          <Input
-                            required
-                            type="date"
-                            value={dueDateStr}
-                            onChange={(e) => setDueDateStr(e.target.value)}
-                            className="h-12 font-black border-2 border-amber-100 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 rounded-xl uppercase [color-scheme:light] dark:[color-scheme:dark]"
-                          />
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-slate-400 italic font-medium">
-                        * A due date is required for credit or partial payments.
-                      </p>
+                      )}
+                      {bankPaid > 0 && (
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-800/40 text-[10px] font-bold text-violet-700 dark:text-violet-400">
+                          <Check size={10} strokeWidth={3} />
+                          Bank ₹{bankPaid.toLocaleString("en-IN")}
+                        </span>
+                      )}
                     </div>
                   )}
 
-                  {amountPaid === totalAmount && (
-                    <div className="bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 flex items-center gap-3">
-                      <div className="size-8 bg-emerald-500 rounded-full flex items-center justify-center text-white">
-                        <Info size={16} />
+                  {/* Notes */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                      Remarks / Notes
+                    </label>
+                    <input
+                      type="text"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Supplier invoice no., purchase remarks…"
+                      className="w-full h-11 px-3 rounded-xl border-2 border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-primary-500 text-sm font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none transition-all"
+                    />
+                  </div>
+
+                  {/* Summary row */}
+                  <div className="pt-2 border-t border-slate-50 dark:border-slate-800 space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <span>Amount Paid</span>
+                      <span className="text-slate-700 dark:text-slate-300 font-bold">₹{amountPaid.toLocaleString("en-IN")}</span>
+                    </div>
+                    {amountPaid < totalAmount && (
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-amber-600 dark:text-amber-400">Outstanding</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-bold">₹{(totalAmount - amountPaid).toLocaleString("en-IN")}</span>
                       </div>
-                      <p className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tight">
-                        Fully Paid — No Balance Due
+                    )}
+                    <div className="flex justify-between text-sm font-black border-t border-slate-100 dark:border-slate-800 pt-1.5 mt-1.5">
+                      <span className="text-slate-900 dark:text-slate-100">Grand Total</span>
+                      <span className="text-slate-900 dark:text-slate-100">₹{totalAmount.toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+
+                  {/* Credit due date — amber banner when outstanding */}
+                  {amountPaid < totalAmount && (
+                    <div className="animate-in slide-in-from-top-2 duration-200 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-800/40 rounded-xl p-3 space-y-2">
+                      <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                        Credit Settlement — Due Date Required
                       </p>
+                      <Input
+                        required
+                        type="date"
+                        value={dueDateStr}
+                        onChange={(e) => setDueDateStr(e.target.value)}
+                        className="h-11 font-semibold border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 focus:border-amber-500 rounded-xl uppercase [color-scheme:light] dark:[color-scheme:dark]"
+                      />
                     </div>
                   )}
                 </div>
@@ -1037,30 +1042,14 @@ export function BulkDeviceEntrySheet({ open, onOpenChange }: Props) {
           </form>
         </div>
 
-        <div className="px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="size-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-primary-500">
-              <Smartphone size={24} />
-            </div>
-            <div>
-              <span className="text-xs font-bold text-slate-400 block uppercase tracking-tight">
-                Order Total
-              </span>
-              <span className="text-lg font-black text-slate-900 dark:text-slate-100 italic">
-                ₹{totalAmount.toLocaleString()}{" "}
-                <span className="text-sm font-medium text-slate-400 not-italic">
-                  ({rows.length} Units)
-                </span>
-              </span>
-            </div>
-          </div>
-
+        <div className="px-4 py-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0">
           <Button
             type="submit"
             form="batch-po-form"
-            className="w-full sm:w-auto px-10 h-16 rounded-2xl text-lg font-black tracking-wide bg-primary-500 hover:bg-blue-800 text-white shadow-xl shadow-primary-500/20 transition-all active:scale-[0.98]"
+            className="w-full py-4 h-14 rounded-2xl text-base font-black tracking-wide bg-primary-500 hover:bg-blue-800 text-white shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2.5"
           >
-            Confirm Order
+            <TrendingDown size={20} strokeWidth={2.5} />
+            Commit Purchase Ledger
           </Button>
         </div>
       </SheetContent>

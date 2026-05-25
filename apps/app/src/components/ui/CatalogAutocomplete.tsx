@@ -178,12 +178,7 @@ export const CatalogAutocomplete: React.FC<CatalogAutocompleteProps> = ({
           onFocus={() => {
             if (!disabled) {
               setOpen(true);
-              setTimeout(() => {
-                containerRef.current?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                });
-              }, 250);
+              // Note: scroll-into-view is handled globally by App.tsx (keyboardDidShow)
             }
           }}
           onKeyDown={handleKeyDown}

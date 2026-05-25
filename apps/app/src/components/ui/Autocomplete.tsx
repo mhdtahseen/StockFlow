@@ -140,12 +140,7 @@ export default function Autocomplete({
           onKeyDown={handleKeyDown}
           onFocus={() => {
             setIsOpen(true); // Open on focus even if empty
-            setTimeout(() => {
-              containerRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              });
-            }, 250); // slight delay allowing keyboard to deploy
+            // Note: scroll-into-view is handled globally by App.tsx (keyboardDidShow)
           }}
           className={clsx(
             "w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-primary-500 dark:focus:border-blue-500 focus:ring-1 focus:ring-primary-500/20 dark:focus:ring-blue-500/20 outline-none py-3 text-sm font-semibold text-slate-900 dark:text-slate-100 transition-all placeholder:font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500",

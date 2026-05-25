@@ -103,6 +103,20 @@ export function CreateOrderSheet({
   const { user, tenant } = useAuth();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  // ── Draft persistence ──────────────────────────────────────────────────────
+  const DRAFT_KEY = user?.id ? `sf_draft_so_${user.id}` : null;
+
+  // Save draft on change (new order mode only)
+  React.useEffect(() => {
+    if (!open || isEditMode || !DRAFT_KEY) return;
+    const draft = { notes, dueDateStr, orderType, cashStr, upiStr, bankStr };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }, [notes, dueDateStr, orderType, cashStr, upiStr, bankStr, open, isEditMode, DRAFT_KEY]);
+
+  const clearDraft = React.useCallback(() => {
+    if (DRAFT_KEY) localStorage.removeItem(DRAFT_KEY);
+  }, [DRAFT_KEY]);
   const ledgerEntries = useAppSelector((state) => state.ledger.entries);
   const allCustomers = useAppSelector(selectCustomers);
   const { arAdvance } = useAppSelector(
@@ -156,10 +170,28 @@ export function CreateOrderSheet({
         setGstEnabled(false);
         setGstInclusive(true);
         setBuyerGstin("");
+
+        // Restore any saved draft (runs after defaults so values override)
+        if (DRAFT_KEY) {
+          try {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+              const d = JSON.parse(saved);
+              if (d.notes) setNotes(d.notes);
+              if (d.dueDateStr) setDueDateStr(d.dueDateStr);
+              if (d.orderType) setOrderType(d.orderType);
+              if (d.cashStr) setCashStr(d.cashStr);
+              if (d.upiStr) setUpiStr(d.upiStr);
+              if (d.bankStr) setBankStr(d.bankStr);
+            }
+          } catch {
+            // ignore corrupt draft
+          }
+        }
       }
     }
     prevOpen.current = open;
-  }, [open, isEditMode, existingOrder, allCustomers, initialPhones]);
+  }, [open, isEditMode, existingOrder, allCustomers, initialPhones, DRAFT_KEY]);
 
   // ── GST breakdown (computed only when gstEnabled) ──────────────────────────
   const gstType = useMemo(
@@ -386,6 +418,7 @@ export function CreateOrderSheet({
     }
 
     navigate(`/orders/${order.id}`);
+    clearDraft();
     toast.success(
       orderType === "TRANSFER"
         ? `Transfer initiated — ${items.length} device${items.length > 1 ? "s" : ""} dispatched`
@@ -1066,6 +1099,16 @@ export function CreateOrderSheet({
                         ₹{totalAmount.toLocaleString("en-IN")}
                       </span>
                     </div>
+
+                    {/* Fully Settled indicator */}
+                    {outstanding === 0 && totalPaid > 0 && (
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <Check size={11} strokeWidth={3} className="text-emerald-500" />
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                          Fully Settled
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Automatic credit due date — shows whenever outstanding > 0 */}
