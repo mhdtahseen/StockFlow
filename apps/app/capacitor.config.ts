@@ -4,6 +4,10 @@ const config: CapacitorConfig = {
   appId: 'com.hyllos.finventree',
   appName: 'Finventree',
   webDir: 'dist',
+  android: {
+    versionName: '1.0.4',
+    versionCode: 4,
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 0,
