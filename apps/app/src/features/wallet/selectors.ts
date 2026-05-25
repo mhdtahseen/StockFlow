@@ -56,6 +56,14 @@ export const selectWalletBuckets = createSelector(
           purchases += Math.abs(entry.amount);
           break;
         case "REPAIR_COST":
+        case "OPERATIONAL_EXPENSE":
+          wallet += entry.amount;
+          break;
+        case "DEBT_SETTLEMENT":
+        case "ADVANCE_RECEIVED":
+          wallet += entry.amount;
+          break;
+        case "ADVANCE_SUPPLIER":
           wallet += entry.amount;
           break;
         case "PHONE_SALE":

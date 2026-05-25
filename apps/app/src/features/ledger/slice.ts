@@ -159,20 +159,8 @@ const ledgerSlice = createSlice({
         });
       }
 
-      // AUDIT FIX: Log platform fee as a separate expense for clarity
-      if (po.platformFee > 0) {
-        state.pendingEntries.push({
-          id: `v-po-fee-${po.id}`,
-          type: "OPERATIONAL_EXPENSE",
-          purchaseOrderId: po.id,
-          referenceId: po.id,
-          amount: -po.platformFee,
-          paymentMode: po.paymentMode as any,
-          note: `PLATFORM FEE - #${po.id.slice(0, 8).toUpperCase()}`,
-          createdAt: new Date().toISOString(),
-          recordedBy: po.recordedBy || "system",
-        });
-      }
+      // Platform fee is part of total_amount and settles through SUPPLIER_PAYMENT.
+      // No separate ledger entry needed — fee is tracked on the PO for display.
     });
 
     // 1.1 WATCHTOWER: Purchase Order Mid-term Payment (Vendor Pay)
