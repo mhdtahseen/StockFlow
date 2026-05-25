@@ -385,7 +385,7 @@ export default function ProfilePage() {
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 pb-6 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <Loader isLoading={isLoading} />
 
-      <main className="flex-1 p-4 max-w-lg mx-auto w-full space-y-6">
+      <main className="flex-1 p-4 max-w-lg mx-auto w-full space-y-6 pb-28">
         <div className="flex flex-col items-center pt-2">
           {tenant?.name && (
             <div className="flex items-center gap-1.5 px-3 py-1 bg-primary-500/10 dark:bg-blue-500/10 text-primary-500 dark:text-blue-400 rounded-full border border-primary-500/10 dark:border-blue-500/10 mb-5">
@@ -657,7 +657,7 @@ export default function ProfilePage() {
           </Card>
         )}
 
-        <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900 overflow-hidden border-t-[3px] mb-30">
+        <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-black/20 bg-white dark:bg-slate-900 overflow-hidden border-t-[3px]">
           <CardHeader>
             <CardTitle className="text-lg">Security Settings</CardTitle>
             <CardDescription>
@@ -714,7 +714,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* ── Dev Tools (superadmin only) ──────────────────────────────── */}
-        {(isAdmin || isSuperAdmin) && (
+        {isSuperAdmin && (
           <Card className="border-amber-200 dark:border-amber-800 shadow-sm bg-amber-50 dark:bg-amber-950/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
