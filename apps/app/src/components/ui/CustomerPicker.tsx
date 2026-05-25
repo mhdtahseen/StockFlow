@@ -103,6 +103,7 @@ export function CustomerPicker({
   const [aadhaarValid, setAadhaarValid] = useState(false);
   const [newAddress, setNewAddress] = useState("");
   const [newGstin, setNewGstin] = useState("");
+  const [newNotes, setNewNotes] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const customers = useAppSelector(selectCustomers);
@@ -141,6 +142,7 @@ export function CustomerPicker({
     setAadhaarValid(false);
     setNewAddress("");
     setNewGstin("");
+    setNewNotes("");
     setShowAdvanced(false);
     setIsCreating(false);
   };
@@ -171,6 +173,7 @@ export function CustomerPicker({
         aadhaarEncrypted,
         address: newAddress.trim() || undefined,
         gstin: newGstin.trim().toUpperCase() || undefined,
+        notes: newNotes.trim() || undefined,
         createdAt: new Date().toISOString(),
       };
 
@@ -473,26 +476,30 @@ export function CustomerPicker({
               <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
                 Customer Type
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <select
+                value={newType}
+                onChange={(e) => setNewType(e.target.value as CustomerType)}
+                className="w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_1rem_center]"
+              >
                 {CUSTOMER_TYPES.map((t) => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setNewType(t.value)}
-                    className={clsx(
-                      "flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all",
-                      newType === t.value
-                        ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
-                        : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:border-slate-300"
-                    )}
-                  >
-                    <span className={clsx("text-xs font-black leading-tight", newType === t.value ? "text-primary-600 dark:text-primary-400" : "text-slate-800 dark:text-slate-200")}>
-                      {t.label}
-                    </span>
-                    <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">{t.description}</span>
-                  </button>
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
                 ))}
-              </div>
+              </select>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
+                Notes <span className="text-slate-400 font-medium normal-case tracking-normal">(Optional)</span>
+              </label>
+              <Input
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                placeholder="e.g. Referred by Amit, prefers COD"
+                className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
+              />
             </div>
 
             {/* B2: Advanced — Aadhaar + Address in collapsible section */}

@@ -8,8 +8,10 @@ export interface Customer {
   aadhaarEncrypted?: string; // AES-GCM encrypted full Aadhaar (Web Crypto), base64-encoded
   aadhaarLast4?: string;     // Last 4 digits only — safe to display without decryption
   address?: string;
+  pincode?: string;          // 6-digit Indian pincode
   gstin?: string;            // Customer/business GSTIN for B2B invoicing
   state?: string;            // State name (used when GSTIN not available to determine IGST vs CGST)
+  tags?: string[];           // Flexible labels (VIP, defaulter, cash-only, etc.)
   platformName?: string;
   linkedTenantId?: string;
   linkedTenantName?: string; // denormalised display name of the linked StockFlow business
