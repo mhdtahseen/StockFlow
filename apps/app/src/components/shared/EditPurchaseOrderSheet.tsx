@@ -11,6 +11,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import {
   editPurchaseOrder,
   softDeletePurchaseOrder,
+  cancelPurchaseOrder,
 } from "@/features/purchasing/slice";
 import {
   PurchaseOrder,
@@ -261,6 +262,21 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message ?? "Failed to archive.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // ── Cancel ────────────────────────────────────────────────────────────────
+  async function handleCancelOrder() {
+    if (order.status === 'CANCELLED') return;
+    setIsSubmitting(true);
+    try {
+      dispatch(cancelPurchaseOrder(order.id));
+      toast.success("Purchase order cancelled.");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to cancel.");
     } finally {
       setIsSubmitting(false);
     }
@@ -597,6 +613,18 @@ export function EditPurchaseOrderSheet({ open, onOpenChange, order }: Props) {
               </div>
             </div>
           </section>
+
+          {/* Cancel Order */}
+          {order.status !== 'CANCELLED' && (
+            <button
+              type="button"
+              onClick={handleCancelOrder}
+              disabled={isSubmitting}
+              className="w-full py-4 rounded-3xl border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors bg-white dark:bg-slate-900"
+            >
+              Cancel Order
+            </button>
+          )}
 
           {/* Archive */}
           {canDelete && !showDeleteConfirm && (

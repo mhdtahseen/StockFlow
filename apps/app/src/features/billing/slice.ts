@@ -75,8 +75,12 @@ const billingSlice = createSlice({
     softDeleteSaleOrder: (s, a: PayloadAction<string>) => {
       s.orders = s.orders.filter((o) => o.id !== a.payload);
     },
+    cancelSaleOrder: (s, a: PayloadAction<string>) => {
+      const o = s.orders.find((o) => o.id === a.payload);
+      if (o) o.status = 'CANCELLED';
+    },
   },
 });
-export const { setOrders, addOrder, updateOrderPayment, returnOrder, updateOrder, editSaleOrder, softDeleteSaleOrder } =
+export const { setOrders, addOrder, updateOrderPayment, returnOrder, updateOrder, editSaleOrder, softDeleteSaleOrder, cancelSaleOrder } =
   billingSlice.actions;
 export default billingSlice.reducer;

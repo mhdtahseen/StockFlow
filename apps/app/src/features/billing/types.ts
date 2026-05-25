@@ -1,5 +1,5 @@
 export type OrderType = "RETAIL" | "BULK" | "TRANSFER";
-export type OrderStatus = "OPEN" | "PARTIAL" | "SETTLED" | "RETURNED";
+export type OrderStatus = "OPEN" | "PARTIAL" | "SETTLED" | "RETURNED" | "CANCELLED";
 export type PayMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CREDIT";
 
 export interface OrderItem {

@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { editSaleOrder, softDeleteSaleOrder } from "@/features/billing/slice";
+import { editSaleOrder, softDeleteSaleOrder, cancelSaleOrder } from "@/features/billing/slice";
 import { SaleOrder, OrderItem } from "@/features/billing/types";
 import { CustomerPicker } from "@/components/ui/CustomerPicker";
 import { Customer } from "@/features/customers/types";
@@ -154,6 +154,20 @@ export function EditSaleOrderSheet({ open, onOpenChange, order }: Props) {
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message ?? "Failed to archive.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (order.status === 'CANCELLED' || order.status === 'RETURNED') return;
+    setIsSubmitting(true);
+    try {
+      dispatch(cancelSaleOrder(order.id));
+      toast.success("Sale order cancelled. Phones restocked.");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to cancel.");
     } finally {
       setIsSubmitting(false);
     }
@@ -311,6 +325,18 @@ export function EditSaleOrderSheet({ open, onOpenChange, order }: Props) {
                 ₹{newTotal.toLocaleString("en-IN")}
               </span>
             </div>
+          )}
+
+          {/* Cancel Order */}
+          {order.status !== 'CANCELLED' && order.status !== 'RETURNED' && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={isSubmitting}
+              className="w-full py-3 rounded-2xl border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+            >
+              Cancel Order
+            </button>
           )}
 
           {/* Archive */}

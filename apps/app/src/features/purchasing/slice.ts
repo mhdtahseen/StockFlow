@@ -193,6 +193,10 @@ const purchasingSlice = createSlice({
     softDeletePurchaseOrder: (s, a: PayloadAction<string>) => {
       s.orders = s.orders.filter((o) => o.id !== a.payload);
     },
+    cancelPurchaseOrder: (s, a: PayloadAction<string>) => {
+      const o = s.orders.find((o) => o.id === a.payload);
+      if (o) o.status = 'CANCELLED';
+    },
   },
   extraReducers: (builder) => {
     // Append audit record when an edit is confirmed from server
@@ -214,5 +218,6 @@ export const {
   updatePurchaseOrder,
   editPurchaseOrder,
   softDeletePurchaseOrder,
+  cancelPurchaseOrder,
 } = purchasingSlice.actions;
 export default purchasingSlice.reducer;
