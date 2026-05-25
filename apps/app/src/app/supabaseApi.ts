@@ -274,11 +274,15 @@ export const syncActionToSupabase = async (
         break;
       }
       case "billing/updateOrderPayment": {
-        const { error } = await supabase.rpc("update_order_payment", {
-          p_order_id: payload.id,
-          p_amount_paid: payload.amountPaid,
-          p_status: payload.status,
-        });
+        const { error } = await supabase
+          .from("sale_orders")
+          .update({
+            amount_paid: payload.amountPaid,
+            status: payload.status,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", payload.id)
+          .eq("tenant_id", tenant_id);
         if (error) throw error;
         if (payload.status === "SETTLED") {
           posthog.capture("order.settled", { type: "sale", amount: payload.amountPaid });
@@ -570,6 +574,22 @@ export const syncActionToSupabase = async (
         });
         if (error) throw error;
         posthog.capture("order.deleted", { type: "sale", order_id: payload });
+        break;
+      }
+      case "billing/cancelSaleOrder": {
+        const { error } = await supabase.rpc("cancel_sale_order", {
+          p_order_id: payload,
+        });
+        if (error) throw error;
+        posthog.capture("order.cancelled", { type: "sale", order_id: payload });
+        break;
+      }
+      case "purchasing/cancelPurchaseOrder": {
+        const { error } = await supabase.rpc("cancel_purchase_order", {
+          p_order_id: payload,
+        });
+        if (error) throw error;
+        posthog.capture("order.cancelled", { type: "purchase", order_id: payload });
         break;
       }
       case "customers/addCustomer": {

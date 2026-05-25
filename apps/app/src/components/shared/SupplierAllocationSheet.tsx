@@ -6,7 +6,6 @@ import { useAppSelector, useAppDispatch } from '@/app/hooks';
 import { addSupplierSettlement } from '@/features/purchasing/slice';
 import { addEntry } from '@/features/ledger/slice';
 import { useAuth } from '@/context/AuthContext';
-import { updatePOPayment } from '@/features/purchasing/slice';
 import type { PayMode } from '@/features/purchasing/types';
 import clsx from 'clsx';
 import { toast } from 'sonner';
@@ -57,6 +56,7 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
         : `Settled ${orders.length} Bills`;
 
     // 1. Dispatch FIFO settlement RPC (syncs to backend)
+    // The RPC handles amount_paid + status updates on each PO server-side.
     dispatch(addSupplierSettlement({
       id: paymentId,
       counterpartyId: supplierId,
@@ -69,20 +69,6 @@ export function SupplierAllocationSheet({ open, onOpenChange, supplierId }: Prop
         amount: a.allocated,
       })),
     }));
-
-    // 3. Update each PO's local balance immediately (mirrors server-side FIFO)
-    activeAllocations.forEach(a => {
-      const order = orders.find(o => o.id === a.orderId);
-      if (order) {
-        const newPaid = order.amountPaid + a.allocated;
-        const isSettled = newPaid >= order.totalAmount;
-        dispatch(updatePOPayment({
-          id: a.orderId,
-          amountPaid: newPaid,
-          status: isSettled ? 'SETTLED' : 'PARTIAL',
-        }));
-      }
-    });
 
     toast.success("Accounts Payable Settlement Dispatched");
     onOpenChange(false);

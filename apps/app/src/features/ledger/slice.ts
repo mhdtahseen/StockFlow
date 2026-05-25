@@ -4,9 +4,12 @@ import {
   addPurchaseOrder,
   updatePOPayment,
   addSupplierSettlement,
+  addSupplierPayment,
   markPOItemRejected,
+  softDeletePurchaseOrder,
+  cancelPurchaseOrder,
 } from "../purchasing/slice";
-import { addOrder, returnOrder } from "../billing/slice";
+import { addOrder, returnOrder, softDeleteSaleOrder, cancelSaleOrder } from "../billing/slice";
 import { addCustomerSettlement, addCustomerPayment } from "../customers/slice";
 import {
   addRepairLog,
@@ -378,6 +381,71 @@ const ledgerSlice = createSlice({
       // Fix C: also clear any pending entries for this phone
       state.pendingEntries = (state.pendingEntries || []).filter(
         (e) => e.referenceId !== phoneId,
+      );
+    });
+
+    // 9. WATCHTOWER: Direct Supplier Payment (Vendor Pay with allocations)
+    builder.addCase(addSupplierPayment, (state, action) => {
+      const pay = action.payload;
+      state.pendingEntries.push({
+        id: `v-sup-pay-${pay.id}`,
+        type: "SUPPLIER_PAYMENT",
+        referenceId: pay.counterpartyId,
+        amount: -pay.totalPaid,
+        paymentMode: pay.mode as any,
+        note: `PAYMENT - Direct Supplier Payment`,
+        createdAt: new Date().toISOString(),
+        recordedBy: pay.recordedBy || "system",
+      });
+    });
+
+    // 10. SOFT-DELETE VOIDING: Mark all linked ledger entries as voided locally
+    builder.addCase(softDeleteSaleOrder, (state, action) => {
+      const orderId = action.payload;
+      state.entries.forEach((e) => {
+        if (e.saleOrderId === orderId || e.referenceId === orderId) {
+          e.isVoided = true;
+        }
+      });
+      state.pendingEntries = state.pendingEntries.filter(
+        (e) => e.saleOrderId !== orderId && e.referenceId !== orderId,
+      );
+    });
+
+    builder.addCase(softDeletePurchaseOrder, (state, action) => {
+      const orderId = action.payload;
+      state.entries.forEach((e) => {
+        if (e.purchaseOrderId === orderId || e.referenceId === orderId) {
+          e.isVoided = true;
+        }
+      });
+      state.pendingEntries = state.pendingEntries.filter(
+        (e) => e.purchaseOrderId !== orderId && e.referenceId !== orderId,
+      );
+    });
+
+    // 11. CANCEL VOIDING: Same as soft-delete — void all linked entries
+    builder.addCase(cancelSaleOrder, (state, action) => {
+      const orderId = action.payload;
+      state.entries.forEach((e) => {
+        if (e.saleOrderId === orderId || e.referenceId === orderId) {
+          e.isVoided = true;
+        }
+      });
+      state.pendingEntries = state.pendingEntries.filter(
+        (e) => e.saleOrderId !== orderId && e.referenceId !== orderId,
+      );
+    });
+
+    builder.addCase(cancelPurchaseOrder, (state, action) => {
+      const orderId = action.payload;
+      state.entries.forEach((e) => {
+        if (e.purchaseOrderId === orderId || e.referenceId === orderId) {
+          e.isVoided = true;
+        }
+      });
+      state.pendingEntries = state.pendingEntries.filter(
+        (e) => e.purchaseOrderId !== orderId && e.referenceId !== orderId,
       );
     });
   },

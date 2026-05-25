@@ -871,6 +871,10 @@ export default function OrderDetail() {
 
   const confirmReturn = () => {
     const refundAmount = parseFloat(returnRefundAmount) || 0;
+    if (refundAmount > (order.amountPaid || 0)) {
+      toast.error(`Refund cannot exceed paid amount (₹${(order.amountPaid || 0).toLocaleString("en-IN")})`);
+      return;
+    }
     dispatch(returnOrder({ orderId: order.id, refundAmount, paymentMode: returnPaymentMode }));
 
     // Restock phones
@@ -1669,6 +1673,8 @@ export default function OrderDetail() {
                 value={returnRefundAmount}
                 onChange={(e) => setReturnRefundAmount(e.target.value)}
                 placeholder="0"
+                max={order.amountPaid || 0}
+                min={0}
               />
               <p className="text-xs text-slate-400 mt-1">
                 Customer paid: ₹{(order.amountPaid || 0).toLocaleString("en-IN")}. Enter 0 for no refund.

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { addPhone, linkPhoneToPO } from "../features/inventory/slice";
-import { addPurchaseOrder, addSupplierPayment } from "../features/purchasing/slice";
+import { addPurchaseOrder } from "../features/purchasing/slice";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -300,22 +300,8 @@ export default function AddDevices() {
       dispatch(linkPhoneToPO({ phoneId: r.id, purchaseOrderId: poId }));
     });
 
-    // 4. Optimistically add payment and ledger entry if any amount is paid.
-    if (totalPaid > 0) {
-      dispatch(
-        addSupplierPayment({
-          id: crypto.randomUUID(),
-          counterpartyId: effectiveVendor!.id,
-          totalPaid: totalPaid,
-          mode: "CASH", // Future: support other modes natively here
-          paidAt: ts,
-          recordedBy: effectiveVendor!.id,
-          allocations: [{ purchaseOrderId: poId, amountAllocated: totalPaid }],
-        }),
-      );
-    }
-
-    // Resulting wallet impact will be handled by the create_purchase_order RPC (SUPPLIER_PAYMENT).
+    // Initial payment is handled by create_purchase_order RPC (inserts supplier_payment + ledger).
+    // No separate addSupplierPayment dispatch needed.
 
     setIsSubmitting(true);
     toast.success(

@@ -372,6 +372,7 @@ export function useOfflineSyncManager() {
               supplierPaymentId: e.supplier_payment_id ?? undefined,
               saleOrderId: e.sale_order_id ?? undefined,
               purchaseOrderId: e.purchase_order_id ?? undefined, createdAt: e.created_at,
+              isVoided: (e as any).is_voided ?? false,
             })) as LedgerEntry[],
           });
         }

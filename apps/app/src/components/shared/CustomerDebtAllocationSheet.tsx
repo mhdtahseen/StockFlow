@@ -8,7 +8,6 @@ import { addCustomerSettlement } from '@/features/customers/slice';
 import { addEntry } from '@/features/ledger/slice';
 import { PaymentMode } from '@/features/ledger/types';
 import { useAuth } from '@/context/AuthContext';
-import { updateOrderPayment } from '@/features/billing/slice';
 import clsx from 'clsx';
 import { toast } from 'sonner';
 
@@ -48,6 +47,7 @@ export function CustomerDebtAllocationSheet({ open, onOpenChange, customerId }: 
     const activeAllocations = allocations.filter(a => a.allocated > 0);
 
     // Using the optimized FIFO Settlement RPC flow
+    // The RPC handles amount_paid + status updates on each order server-side.
     dispatch(addCustomerSettlement({
        id: paymentId,
        counterpartyId: customerId,
@@ -60,20 +60,6 @@ export function CustomerDebtAllocationSheet({ open, onOpenChange, customerId }: 
        recordedBy: user?.id || 'system',
        note: `Bulk Allocation (FIFO Account Clear)`
     }));
-
-    // Update each order's local state
-    activeAllocations.forEach(a => {
-      const order = orders.find(o => o.id === a.orderId);
-      if (order) {
-        const newPaid = order.amountPaid + a.allocated;
-        const isSettled = newPaid >= order.totalAmount;
-        dispatch(updateOrderPayment({
-          id: a.orderId,
-          amountPaid: newPaid,
-          status: isSettled ? 'SETTLED' : 'PARTIAL'
-        }));
-      }
-    });
 
     toast.success("Accounts Receivable Collection Dispatched");
     onOpenChange(false);

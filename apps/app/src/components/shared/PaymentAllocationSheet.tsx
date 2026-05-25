@@ -160,19 +160,23 @@ export function PaymentAllocationSheet({
           }),
         );
       }
-      activeAllocations.forEach((a) => {
-        const order = orders.find((o) => o.id === a.orderId);
-        if (order) {
-          const newPaid = order.amountPaid + a.allocated;
-          dispatch(
-            updateOrderPayment({
-              id: a.orderId,
-              amountPaid: newPaid,
-              status: newPaid >= order.totalAmount ? "SETTLED" : "PARTIAL",
-            }),
-          );
-        }
-      });
+      // Only dispatch local order updates when no settlement RPC was fired
+      // (advance-only application path where rawAmount = 0)
+      if (rawAmount <= 0) {
+        activeAllocations.forEach((a) => {
+          const order = orders.find((o) => o.id === a.orderId);
+          if (order) {
+            const newPaid = order.amountPaid + a.allocated;
+            dispatch(
+              updateOrderPayment({
+                id: a.orderId,
+                amountPaid: newPaid,
+                status: newPaid >= order.totalAmount ? "SETTLED" : "PARTIAL",
+              }),
+            );
+          }
+        });
+      }
       toast.success(
         newAdvance > 0
           ? `Receipt recorded · ₹${newAdvance.toLocaleString()} held as advance`
@@ -204,19 +208,23 @@ export function PaymentAllocationSheet({
           }),
         );
       }
-      activeAllocations.forEach((a) => {
-        const order = orders.find((o) => o.id === a.orderId);
-        if (order) {
-          const newPaid = order.amountPaid + a.allocated;
-          dispatch(
-            updatePOPayment({
-              id: a.orderId,
-              amountPaid: newPaid,
-              status: newPaid >= order.totalAmount ? "SETTLED" : "PARTIAL",
-            }),
-          );
-        }
-      });
+      // Only dispatch local PO updates when no settlement RPC was fired
+      // (prepaid-only application path where rawAmount = 0)
+      if (rawAmount <= 0) {
+        activeAllocations.forEach((a) => {
+          const order = orders.find((o) => o.id === a.orderId);
+          if (order) {
+            const newPaid = order.amountPaid + a.allocated;
+            dispatch(
+              updatePOPayment({
+                id: a.orderId,
+                amountPaid: newPaid,
+                status: newPaid >= order.totalAmount ? "SETTLED" : "PARTIAL",
+              }),
+            );
+          }
+        });
+      }
       toast.success(
         newAdvance > 0
           ? `Payment recorded · ₹${newAdvance.toLocaleString()} held as prepaid`

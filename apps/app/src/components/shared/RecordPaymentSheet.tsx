@@ -7,17 +7,14 @@ import {
 } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch } from "@/app/hooks";
-import { updateOrderPayment } from "@/features/billing/slice";
 import {
   addCustomerPayment,
   addCustomerSettlement,
 } from "@/features/customers/slice";
 import {
   addSupplierSettlement,
-  updatePOPayment,
   addSupplierPayment,
 } from "@/features/purchasing/slice";
-import { addPendingEntry } from "@/features/ledger/slice";
 import type { PayMode } from "@/features/billing/types";
 import CurrencyInput from "@/components/ui/CurrencyInput";
 import clsx from "clsx";
@@ -64,16 +61,11 @@ export function RecordPaymentSheet({
 
     setIsSubmitting(true);
     const paymentId = crypto.randomUUID();
-    const totalNow = currentAmountPaid + amount;
-    const status = totalNow >= totalAmount ? "SETTLED" : "PARTIAL";
 
     const structuredNote = undefined;
 
     if (type === "AR") {
       if (orderId) {
-        dispatch(
-          updateOrderPayment({ id: orderId, amountPaid: totalNow, status }),
-        );
         dispatch(
           addCustomerPayment({
             id: paymentId,
@@ -103,9 +95,6 @@ export function RecordPaymentSheet({
       }
     } else {
       if (orderId) {
-        dispatch(
-          updatePOPayment({ id: orderId, amountPaid: totalNow, status }),
-        );
         dispatch(
           addSupplierPayment({
             id: paymentId,
