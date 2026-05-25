@@ -206,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const initialized = React.useRef(false);
+  const initDone = React.useRef(false);
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
@@ -260,6 +261,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // On failure (network error, etc.) clear auth flags so user isn't stuck
         await purgeAllPersistedState();
       } finally {
+        initDone.current = true;
         setIsLoading(false);
       }
     }
@@ -284,9 +286,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setOnboardingCompletedAt(undefined);
             posthog.reset();
           } else if (newSession) {
-            // Only show the full-page loading spinner for a fresh sign-in.
-            // TOKEN_REFRESHED / USER_UPDATED events carry a session but should
-            // not block the UI — the profile is already loaded.
+            // During initial auth, initializeAuth handles session loading.
+            // Skip here to prevent a race where both paths fetch the profile
+            // concurrently and toggle isLoading unpredictably.
+            if (event === 'SIGNED_IN' && !initDone.current) return;
+            // Only show the full-page loading spinner for a fresh sign-in
+            // (after init). TOKEN_REFRESHED / USER_UPDATED events should not
+            // block the UI — the profile is already loaded.
             if (event === 'SIGNED_IN') setIsLoading(true);
             setSession(newSession);
             setUser(newSession.user);
@@ -364,7 +370,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [session, tenant?.id, tenant?.plan]);
 
   const signOut = async () => {
-    // 1. Reset local React State immediately to trigger re-render and router navigation instantly
+    // 1. Clear localStorage auth flag FIRST — ProtectedRoute reads this synchronously.
+    // If this isn't cleared before the first React re-render, the guard passes and the
+    // user stays on the dashboard instead of redirecting to /login.
+    try {
+      localStorage.removeItem("finventree_auth");
+      localStorage.removeItem("persist:finventree-root");
+      localStorage.removeItem("REACT_QUERY_OFFLINE_CACHE");
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("sb-")) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to clear localStorage items:", err);
+    }
+
+    // 2. Reset local React State to trigger re-render and router redirect
     try {
       setSession(null);
       setUser(null);
@@ -381,7 +404,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to reset auth state locally:", err);
     }
 
-    // 2. Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
+    // 3. Clear the module-level tenant ID cache so next user doesn't inherit it (A-002)
     try {
       const supabaseApi = await import('@/app/supabaseApi');
       supabaseApi.clearTenantCache?.();
@@ -389,28 +412,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to clear tenant cache:", err);
     }
 
-    // 3. Reset in-memory Redux state immediately (prevents old tenant data showing)
+    // 4. Reset in-memory Redux state immediately (prevents old tenant data showing)
     try {
       store.dispatch({ type: RESET_STORE });
     } catch (err) {
       console.warn("Failed to reset Redux store:", err);
-    }
-
-    // 4. Clear auth flags, React Query cache, and all Supabase local storage keys immediately
-    try {
-      localStorage.removeItem("finventree_auth");
-      localStorage.removeItem("persist:finventree-root");
-      localStorage.removeItem("REACT_QUERY_OFFLINE_CACHE");
-      
-      // Clean up all Supabase auth keys from localStorage to prevent auto-login on restart
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("sb-")) {
-          localStorage.removeItem(key);
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to clear localStorage items:", err);
     }
 
     // 5. Clear Capacitor Preferences store directly (covers native platform storage)

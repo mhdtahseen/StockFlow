@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 import {
   Card,
   CardContent,
@@ -33,7 +34,15 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Declarative redirect: if session already exists (onAuthStateChange set it),
+  // navigate to dashboard. This handles the Android race where the imperative
+  // navigate("/") below gets eaten by concurrent React re-renders.
+  if (session) {
+    return <Navigate to="/" replace />;
+  }
 
   const {
     register,
