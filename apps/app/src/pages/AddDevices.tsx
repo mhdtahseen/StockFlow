@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
-import { addPhone, linkPhoneToPO } from "../features/inventory/slice";
+import { addPhone } from "../features/inventory/slice";
 import { addPurchaseOrder } from "../features/purchasing/slice";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -225,12 +225,25 @@ export default function AddDevices() {
     const ts = new Date().toISOString();
 
     const poItems: PurchaseOrderItem[] = rows.map((r) => {
-      const base = {
+      // Phone snapshot fields are embedded here so create_purchase_order RPC
+      // can atomically UPSERT the phone inside the same transaction.
+      const base: PurchaseOrderItem = {
         id: crypto.randomUUID(),
         purchaseOrderId: poId,
-        phoneId: r.id,
+        phoneId:      r.id,
         purchasePrice: parseFloat(r.purchasePrice) || 0,
-        status: "ACCEPTED" as const,
+        status:       "ACCEPTED" as const,
+        // Phone snapshot — consumed by the RPC
+        brand:       r.brand,
+        model:       r.model,
+        ram:         r.ram || "N/A",
+        storage:     r.storage,
+        color:       r.color,
+        imeis:       r.imeis.filter((e) => e.value.length > 0).map((e) => e.value),
+        issueTags:   r.selectedTags,
+        phoneStatus: "IN_STOCK",  // tells the RPC to INSERT (not just UPDATE) the phone
+        itemStatus:  "ACCEPTED",  // purchase_order_items.status
+        createdAt:   ts,
       };
       if (gstEnabled) {
         const p = parseFloat(r.purchasePrice) || 0;
@@ -270,38 +283,36 @@ export default function AddDevices() {
       items: poItems,
     };
 
-    // ─── Dispatch order matters for Supabase FK constraints ───────────────
-    // 1. Add phones FIRST — purchase_order_items has a FK on phones.id,
-    //    so phones must exist in the DB before the PO is synced.
+    // ─── Single-call pattern ───────────────────────────────────────────────
+    // addPhone: updates local Redux state immediately (optimistic UI).
+    //   purchaseOrderId in the payload triggers the middleware's isPOLinkedPhone
+    //   guard, which suppresses the individual Supabase sync — the phone will
+    //   be inserted atomically by the create_purchase_order RPC instead.
     rows.forEach((r) => {
       dispatch(
         addPhone({
-          id: r.id,
-          brand: r.brand,
-          model: r.model,
-          ram: r.ram || "N/A",
-          storage: r.storage,
-          color: r.color,
+          id:            r.id,
+          brand:         r.brand,
+          model:         r.model,
+          ram:           r.ram || "N/A",
+          storage:       r.storage,
+          color:         r.color,
           purchasePrice: parseFloat(r.purchasePrice) || 0,
-          imeis: r.imeis.filter((e) => e.value.length > 0).map((e) => e.value),
-          issueTags: r.selectedTags,
-          status: "IN_STOCK",
-          createdAt: ts,
+          imeis:         r.imeis.filter((e) => e.value.length > 0).map((e) => e.value),
+          issueTags:     r.selectedTags,
+          status:        "IN_STOCK",
+          createdAt:     ts,
+          purchaseOrderId: poId, // ← suppresses individual phone sync in middleware
         }),
       );
     });
 
-    // 2. Add PO AFTER phones — create_purchase_order RPC inserts items that
-    //    reference the phone IDs we just inserted above.
+    // Single Supabase call: create_purchase_order RPC atomically creates the PO,
+    // purchase_order_items (ACCEPTED), phones (IN_STOCK), and ledger entries.
     dispatch(addPurchaseOrder(po));
 
-    // 3. Link phones to PO — both phone and PO now exist in the DB.
-    rows.forEach((r) => {
-      dispatch(linkPhoneToPO({ phoneId: r.id, purchaseOrderId: poId }));
-    });
-
-    // Initial payment is handled by create_purchase_order RPC (inserts supplier_payment + ledger).
-    // No separate addSupplierPayment dispatch needed.
+    // No linkPhoneToPO dispatches needed — the RPC handles phone ↔ PO linking.
+    // No separate ledger dispatch needed — the RPC handles it.
 
     setIsSubmitting(true);
     toast.success(

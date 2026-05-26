@@ -22,6 +22,13 @@ export interface PurchaseOrderItem {
   ram?: string;
   imei?: string;
   issueTags?: string[];
+  // ── AddDevices phone-snapshot fields ─────────────────────────────
+  // When present, the create_purchase_order RPC will atomically UPSERT
+  // the phone row instead of expecting it to already exist in the DB.
+  imeis?: string[];          // full IMEI list (multi-IMEI support)
+  phoneStatus?: string;      // 'IN_STOCK' for AddDevices direct-ingest path
+  itemStatus?: POItemStatus; // 'ACCEPTED' for AddDevices; absent for inspection path
+  createdAt?: string;        // phone creation timestamp
   // ── GST (optional) ──────────────────────────────────────────────
   hsnCode?: string;
   gstRate?: number;
