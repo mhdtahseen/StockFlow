@@ -241,16 +241,19 @@ export default function ProfilePage() {
         session.user.user_metadata?.tenant_id ||
         null;
 
-      // Use upsert to ensure the profile record exists
+      // Use update (not upsert) — the profile row is guaranteed to exist by
+      // the time the user can reach this page. Using upsert was triggering the
+      // INSERT RLS policy which has plan/seat-count checks and was blocking
+      // the save with a misleading "function does not exist" error from PostgREST.
       const { error } = await supabase
         .from("profiles")
-        .upsert({
-          id: session.user.id,
+        .update({
           ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
           full_name: trimmedFullName,
           avatar_url: avatarUrl,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
+        })
+        .eq("id", session.user.id);
 
 
       if (error) throw error;
