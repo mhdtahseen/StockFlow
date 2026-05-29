@@ -66,6 +66,7 @@ function SheetContent({
     <SheetPortal>
       <SheetOverlay />
       <Drawer.Content
+        aria-describedby={undefined}
         className={cn(
           // Base: fixed bottom sheet with rounded top corners
           "fixed bottom-0 left-0 right-0 z-[70] flex flex-col",

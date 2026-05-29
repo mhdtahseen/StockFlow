@@ -208,6 +208,14 @@ export default function OrderDetail() {
   const [returnRefundAmount, setReturnRefundAmount] = useState("");
   const [returnPaymentMode, setReturnPaymentMode] = useState("CASH");
   const [fetchFailed, setFetchFailed] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
+
+  const isInspected = React.useMemo(() => {
+    if (!isPurchaseOrder) return true;
+    return (order?.items || []).some(
+      (item: any) => item.status === "ACCEPTED" || item.status === "REJECTED",
+    );
+  }, [isPurchaseOrder, order?.items]);
 
   // Order edits for timeline
   const orderEditHistory = useAppSelector(
@@ -245,6 +253,7 @@ export default function OrderDetail() {
                 customerPaymentId: entry.customer_payment_id ?? undefined,
                 supplierPaymentId: entry.supplier_payment_id ?? undefined,
                 settlementCount: entry.settlement_count ?? undefined,
+                isVoided: entry.is_voided,
                 createdAt: entry.created_at,
               } as any),
             );
@@ -411,6 +420,7 @@ export default function OrderDetail() {
                   purchaseOrderId: entry.purchase_order_id,
                   referenceId: entry.reference_id,
                   note: entry.note,
+                  isVoided: entry.is_voided,
                   createdAt: entry.created_at,
                 } as any),
               );
@@ -472,6 +482,7 @@ export default function OrderDetail() {
                 purchaseOrderId: entry.purchase_order_id,
                 referenceId: entry.reference_id,
                 note: entry.note,
+                isVoided: entry.is_voided,
                 createdAt: entry.created_at,
               } as any),
             );
@@ -538,12 +549,6 @@ export default function OrderDetail() {
     ? order.items.filter((i: any) => i.status === "PENDING_INSPECTION").length
     : 0;
 
-  const isInspected = React.useMemo(() => {
-    if (!isPurchaseOrder) return true;
-    return (order.items || []).some(
-      (item: any) => item.status === "ACCEPTED" || item.status === "REJECTED",
-    );
-  }, [isPurchaseOrder, order.items]);
 
   const isAwaitingReceipt =
     isPurchaseOrder &&
@@ -594,6 +599,7 @@ export default function OrderDetail() {
         e.saleOrderId === order.id ||
         e.referenceId === order.id;
       if (!matchesOrder) return false;
+      if (e.isVoided) return false;
 
       // Exclude entries that belong to a bulk payment — they're captured via allocatedPayments below
       if (
@@ -814,9 +820,7 @@ export default function OrderDetail() {
     return (b.id || "").localeCompare(a.id || "");
   });
 
-  const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>(
-    {},
-  );
+
   const toggleNote = (id: string) => {
     setExpandedNotes((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -1031,16 +1035,16 @@ export default function OrderDetail() {
               <span className="font-black text-2xl tracking-tighter text-slate-900 dark:text-slate-100">
                 #{order.id.slice(0, 8).toUpperCase()}
               </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 rounded-md border border-primary-100 dark:border-primary-800/50">
-                {isPurchaseOrder
-                  ? (order as any).acquisitionChannel === "INTER_TENANT" ? "Transfer" : "PO"
-                  : (order as any).orderType}
-              </span>
+              {!(isPurchaseOrder && (order as any).acquisitionChannel === "INTER_TENANT") && !(!isPurchaseOrder && (order as any).orderType === "TRANSFER") && (
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 rounded-md border border-primary-100 dark:border-primary-800/50">
+                  {isPurchaseOrder ? "PO" : (order as any).orderType}
+                </span>
+              )}
               {/* Trade Network badges */}
               {isPurchaseOrder && (order as any).acquisitionChannel === "INTER_TENANT" && (
                 <span className="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-md border border-violet-200 dark:border-violet-800/50 flex items-center gap-1">
                   <Building2 size={10} />
-                  Trade Network
+                  Transfer
                 </span>
               )}
               {!isPurchaseOrder && (order as any).orderType === "TRANSFER" && (

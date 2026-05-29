@@ -45,13 +45,18 @@ const ledgerSlice = createSlice({
         const soId = e.saleOrderId || (e as any).sale_order_id;
         if (poId && officialPOIds.has(poId)) return false;
         if (soId && officialSOIds.has(soId)) return false;
+
+        const pendingAgeMs = Date.now() - new Date(e.createdAt).getTime();
+
+        // Prune ANY pending entry that is older than 24 hours (likely a failed sync)
+        if (pendingAgeMs > 24 * 60 * 60 * 1000) return false;
+
         // For payment-type pending entries with no PO/SO link (customer payments,
         // supplier settlements, etc.), prune if a matching official server entry
         // exists with the same type + amount within 7 days.
         // Skip entries newer than 30s so freshly-created optimistic entries survive
         // until the outbox sync fires and calls removePendingEntryById.
         if (!poId && !soId) {
-          const pendingAgeMs = Date.now() - new Date(e.createdAt).getTime();
           if (pendingAgeMs > 30_000) {
             const isStale = state.entries.some(
               (official) =>

@@ -19,10 +19,12 @@ export const selectLedgerEntries = createSelector(
 
     // Filter out pending entries that have already been synced
     const filteredPending = safePending.filter(
-      (e) => e && (!e.purchaseOrderId || !existingPOIds.has(e.purchaseOrderId)),
+      (e) => e && (!e.purchaseOrderId || !existingPOIds.has(e.purchaseOrderId)) && !e.isVoided,
     );
 
-    return [...safeEntries, ...filteredPending].sort(
+    const filteredEntries = safeEntries.filter((e) => e && !e.isVoided);
+
+    return [...filteredEntries, ...filteredPending].sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
