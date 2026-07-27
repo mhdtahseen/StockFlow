@@ -53,21 +53,41 @@ export const OrderPrintView: React.FC<PrintableInvoiceProps> = ({
   const docPrefix = isPO ? "PO" : "INV";
   const counterpartyLabel = isPO ? "Supplier" : "Bill To";
 
+  // Determine if the order was saved with inclusive or exclusive prices
+  const sumEffPrice = (order.items || []).reduce((sum: number, item: any) => {
+    return sum + (isPO ? (item.purchasePrice || 0) : (item.effectivePrice || item.salePrice || 0));
+  }, 0);
+  const isInclusive = Math.abs(sumEffPrice - order.totalAmount) < 5;
+
   // Normalize items for display
-  const items = (order.items || []).map((item: any) => ({
-    brand: item.brandSnapshot || item.brand || "Unknown",
-    model: item.modelSnapshot || item.model || "Item",
-    storage: item.storageSnapshot || item.storage || "",
-    color: item.colorSnapshot || item.color || "",
-    ram: item.ramSnapshot || item.ram || "",
-    imei: item.imeiSnapshot?.[0] || item.imei || "",
-    unitPrice: isPO ? (item.purchasePrice || 0) : (item.salePrice || 0),
-    effectivePrice: isPO
+  const items = (order.items || []).map((item: any) => {
+    const effPrice = isPO
       ? (item.purchasePrice || 0)
-      : (item.effectivePrice || item.salePrice || 0),
-    discountAmount: item.discountAmount || 0,
-    status: item.status,
-  }));
+      : (item.effectivePrice || item.salePrice || 0);
+      
+    let taxable = item.taxableValue;
+    if (taxable == null) {
+      if ((order as any).gstEnabled) {
+        taxable = isInclusive ? effPrice / (1 + ((order as any).gstRate || 18) / 100) : effPrice;
+      } else {
+        taxable = effPrice;
+      }
+    }
+
+    return {
+      brand: item.brandSnapshot || item.brand || "Unknown",
+      model: item.modelSnapshot || item.model || "Item",
+      storage: item.storageSnapshot || item.storage || "",
+      color: item.colorSnapshot || item.color || "",
+      ram: item.ramSnapshot || item.ram || "",
+      imei: item.imeiSnapshot?.[0] || item.imei || "",
+      unitPrice: taxable,
+      effectivePrice: effPrice,
+      discountAmount: item.discountAmount || 0,
+      status: item.status,
+      hsnCode: item.hsnCode || "8517",
+    };
+  });
 
   let dateStr = "N/A";
   try {
@@ -147,18 +167,6 @@ export const OrderPrintView: React.FC<PrintableInvoiceProps> = ({
         style={{ width: "210mm", minHeight: "297mm", margin: "0 auto", background: C.white, padding: "12mm 15mm" }}
       >
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          {/* ═══ REPEATING COLUMN HEADERS ONLY ═══ */}
-          {/* <thead style={{ display: "table-header-group" }}>
-            <tr style={{ borderBottom: `2px solid ${C.blue600}` }}>
-              <th style={{ padding: "16px 8px", fontWeight: "bold", fontSize: "14px", color: C.gray900, width: "48px", textAlign: "center" }}>No.</th>
-              <th style={{ padding: "16px 8px", fontWeight: "bold", fontSize: "14px", color: C.gray900, textAlign: "left" }}>Description</th>
-              <th style={{ padding: "16px 8px", fontWeight: "bold", fontSize: "14px", color: C.gray900, textAlign: "center", width: "60px" }}>HSN</th>
-              <th style={{ padding: "16px 8px", fontWeight: "bold", fontSize: "14px", color: C.gray900, textAlign: "right", width: "110px" }}>Unit Price</th>
-              <th style={{ padding: "16px 8px", fontWeight: "bold", fontSize: "14px", color: C.gray900, textAlign: "center", width: "60px" }}>GST %</th>
-              <th style={{ padding: "16px 8px", fontWeight: "bold", fontSize: "14px", color: C.gray900, textAlign: "right", width: "120px" }}>Amount</th>
-            </tr>
-          </thead> */}
-
           {/* ═══ BODY ═══ */}
           <tbody>
             {/* ─── Document Header (prints once, page 1 only) ─── */}
@@ -292,7 +300,7 @@ export const OrderPrintView: React.FC<PrintableInvoiceProps> = ({
                     </span>
                   )}
                 </td>
-                <td style={{ padding: "7px 6px", textAlign: "center", color: C.gray600, fontSize: "12px" }}>{(item as any).hsnCode || "8517"}</td>
+                <td style={{ padding: "7px 6px", textAlign: "center", color: C.gray600, fontSize: "12px" }}>{item.hsnCode || "8517"}</td>
                 <td style={{ padding: "7px 6px", textAlign: "right", fontWeight: "500", fontSize: "12px" }}>
                   {formatCurrency(item.unitPrice)}
                 </td>
@@ -300,7 +308,7 @@ export const OrderPrintView: React.FC<PrintableInvoiceProps> = ({
                   {(order as any).gstEnabled ? `${(order as any).gstRate || 18}%` : "0%"}
                 </td>
                 <td style={{ padding: "7px 6px", textAlign: "right", fontWeight: "600", fontSize: "12px" }}>
-                  {formatCurrency(item.effectivePrice)}
+                  {formatCurrency(item.unitPrice)}
                 </td>
               </tr>
             ))}
@@ -310,29 +318,42 @@ export const OrderPrintView: React.FC<PrintableInvoiceProps> = ({
               <td colSpan={6} style={{ paddingTop: "14px", border: "none" }}>
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
                   <div style={{ width: "46%" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, marginBottom: "6px" }}>
-                      <span>Subtotal (Before Tax)</span>
-                      <span>{formatCurrency((order as any).gstEnabled ? ((order as any).subtotal ?? order.totalAmount) : order.totalAmount)}</span>
-                    </div>
-                    {(order as any).gstEnabled ? (
-                      (order as any).gstType === "IGST" ? (
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, borderBottom: `1px solid ${C.gray100}`, paddingBottom: "6px", marginBottom: "6px" }}>
-                          <span>IGST ({(order as any).gstRate || 18}%)</span>
-                          <span>{formatCurrency((order as any).igstAmount || 0)}</span>
-                        </div>
-                      ) : (
+                    {(() => {
+                      let subtotalAmount = (order as any).subtotal;
+                      if (subtotalAmount == null) {
+                        subtotalAmount = (order as any).gstEnabled 
+                          ? order.totalAmount / (1 + ((order as any).gstRate || 18) / 100)
+                          : order.totalAmount;
+                      }
+
+                      return (
                         <>
                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, marginBottom: "6px" }}>
-                            <span>CGST ({((order as any).gstRate || 18) / 2}%)</span>
-                            <span>{formatCurrency((order as any).cgstAmount || 0)}</span>
+                            <span>Subtotal (Before Tax)</span>
+                            <span>{formatCurrency(subtotalAmount)}</span>
                           </div>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, borderBottom: `1px solid ${C.gray100}`, paddingBottom: "6px", marginBottom: "6px" }}>
-                            <span>SGST ({((order as any).gstRate || 18) / 2}%)</span>
-                            <span>{formatCurrency((order as any).sgstAmount || 0)}</span>
-                          </div>
+                          {(order as any).gstEnabled ? (
+                            (order as any).gstType === "IGST" ? (
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, borderBottom: `1px solid ${C.gray100}`, paddingBottom: "6px", marginBottom: "6px" }}>
+                                <span>IGST ({(order as any).gstRate || 18}%)</span>
+                                <span>{formatCurrency((order as any).igstAmount || (order.totalAmount - subtotalAmount))}</span>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, marginBottom: "6px" }}>
+                                  <span>CGST ({((order as any).gstRate || 18) / 2}%)</span>
+                                  <span>{formatCurrency((order as any).cgstAmount || ((order.totalAmount - subtotalAmount) / 2))}</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: C.gray600, borderBottom: `1px solid ${C.gray100}`, paddingBottom: "6px", marginBottom: "6px" }}>
+                                  <span>SGST ({((order as any).gstRate || 18) / 2}%)</span>
+                                  <span>{formatCurrency((order as any).sgstAmount || ((order.totalAmount - subtotalAmount) / 2))}</span>
+                                </div>
+                              </>
+                            )
+                          ) : null}
                         </>
-                      )
-                    ) : null}
+                      );
+                    })()}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "500", color: C.gray700, marginBottom: "4px" }}>
                       <span>Amount Paid</span>
                       <span style={{ color: C.green600 }}>

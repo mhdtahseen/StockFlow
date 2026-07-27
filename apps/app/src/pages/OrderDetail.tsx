@@ -61,6 +61,7 @@ import { markAsInStock } from "@/features/inventory/slice";
 import { addEntry } from "@/features/ledger/slice";
 import { addPurchaseOrder } from "@/features/purchasing/slice";
 import { printDocument } from "@/utils/printDocument";
+import { printDocumentReactPdf } from "@/utils/printDocumentReactPdf";
 import { createShareLink, copyToClipboard } from "@/services/shareService";
 import { syncTransferStatus } from "@/app/supabaseApi";
 import posthog from "@/lib/posthog";
@@ -395,7 +396,22 @@ export default function OrderDetail() {
                 color: i.color,
                 ram: i.ram,
                 imei: i.imei,
+                hsnCode: i.hsn_code,
+                gstRate: i.gst_rate,
+                taxableValue: i.taxable_value,
+                cgstAmount: i.cgst_amount,
+                sgstAmount: i.sgst_amount,
+                igstAmount: i.igst_amount,
               })),
+              gstEnabled: poData.gst_enabled,
+              gstInclusive: poData.gst_inclusive,
+              gstType: poData.gst_type,
+              gstRate: poData.gst_rate,
+              subtotal: poData.subtotal,
+              cgstAmount: poData.cgst_amount,
+              sgstAmount: poData.sgst_amount,
+              igstAmount: poData.igst_amount,
+              supplierGstin: poData.supplier_gstin,
             }),
           );
           // Fetch ledger entries for this order
@@ -456,7 +472,22 @@ export default function OrderDetail() {
               salePrice: i.sale_price ?? 0,
               effectivePrice: i.effective_price ?? i.sale_price ?? 0,
               discountAmount: i.discount_amount ?? 0,
+              hsnCode: i.hsn_code,
+              gstRate: i.gst_rate,
+              taxableValue: i.taxable_value,
+              cgstAmount: i.cgst_amount,
+              sgstAmount: i.sgst_amount,
+              igstAmount: i.igst_amount,
             })),
+            gstEnabled: data.gst_enabled,
+            gstInclusive: data.gst_inclusive,
+            gstType: data.gst_type,
+            gstRate: data.gst_rate,
+            subtotal: data.subtotal,
+            cgstAmount: data.cgst_amount,
+            sgstAmount: data.sgst_amount,
+            igstAmount: data.igst_amount,
+            buyerGstin: data.buyer_gstin,
           }),
         );
 
@@ -905,13 +936,11 @@ export default function OrderDetail() {
     if (isGenerating) return;
     setIsGenerating(true);
     try {
-      await printDocument(order as any, customer, tenant, isPurchaseOrder);
+      await printDocumentReactPdf(order as any, customer, tenant, isPurchaseOrder);
       posthog.capture("invoice.generated", { type: isPurchaseOrder ? "purchase" : "sale" });
-      // On native the share sheet opens — no toast needed (user sees the sheet).
-      // On web, the print dialog opens.
       if (!Capacitor.isNativePlatform()) {
         toast.success("Document Ready", {
-          description: `Print dialog opened for ${order.id.slice(0, 8).toUpperCase()}.`,
+          description: `Opened ${order.id.slice(0, 8).toUpperCase()} in a new tab.`,
         });
       }
     } catch (error) {
@@ -1003,6 +1032,7 @@ export default function OrderDetail() {
               )}
             </button>
           </FeatureGate>
+
 
           {!isPurchaseOrder &&
             order.status !== "RETURNED" && (

@@ -75,7 +75,7 @@ function SheetContent({
           // Safe-area: extra padding at bottom for iPhone home indicator
           "pb-[env(safe-area-inset-bottom,0px)]",
           // Max height guard
-          "max-h-[95vh]",
+          "max-h-[95dvh]",
           className,
         )}
         {...props}

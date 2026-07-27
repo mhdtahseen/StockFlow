@@ -183,7 +183,7 @@ export function TradeNetworkConnectSheet({ open, onOpenChange, initialCode }: Pr
   return (
     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl px-0 pb-safe-area-inset-bottom max-h-[90vh] overflow-y-auto">
+      <SheetContent side="bottom" className="rounded-t-3xl px-0 pb-safe-area-inset-bottom max-h-[90dvh] overflow-y-auto">
         <SheetTitle className="sr-only">Connect with a Business</SheetTitle>
         <SheetDescription className="sr-only">Enter a 6-character Trade Code or scan a QR code to connect with another Finventree business.</SheetDescription>
 

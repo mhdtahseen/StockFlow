@@ -47,7 +47,7 @@ export function DeviceSelectorSheet({ open, onOpenChange, selectedIds, onSelect 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] flex flex-col p-4 sm:p-6 rounded-t-3xl border-t border-slate-200 dark:border-slate-800">
+      <SheetContent side="bottom" className="h-[90dvh] flex flex-col p-4 sm:p-6 rounded-t-3xl border-t border-slate-200 dark:border-slate-800">
         <SheetHeader className="mb-4 flex flex-row items-center justify-between">
           <SheetTitle>Select Inventory</SheetTitle>
           <button onClick={toggleAll} className="text-sm text-primary-500 dark:text-blue-400 font-bold active:scale-95 transition-transform">

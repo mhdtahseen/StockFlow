@@ -301,7 +301,7 @@ export function PurchaseOrderConfirmSheet({ open, onOpenChange, order, onComplet
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
-          className="h-[85vh] flex flex-col p-0 rounded-t-[2.5rem] border-t-0 bg-white dark:bg-slate-950 overflow-hidden"
+          className="h-[85dvh] flex flex-col p-0 rounded-t-[2.5rem] border-t-0 bg-white dark:bg-slate-950 overflow-hidden"
         >
           <SheetClose className="absolute top-1 left-1/2 -translate-x-1/2 size-10 flex items-center justify-center text-slate-300 dark:text-slate-700 hover:text-primary-500 transition-colors z-50 group">
             <div className="flex flex-col items-center">
@@ -466,7 +466,7 @@ export function PurchaseOrderConfirmSheet({ open, onOpenChange, order, onComplet
       <SheetContent
         side="bottom"
         showCloseButton={false}
-        className="h-[95vh] flex flex-col p-0 rounded-t-[2.5rem] border-t-0 bg-slate-50 dark:bg-slate-950 overflow-hidden"
+        className="h-[95dvh] flex flex-col p-0 rounded-t-[2.5rem] border-t-0 bg-slate-50 dark:bg-slate-950 overflow-hidden"
       >
         <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 shrink-0">
           <div

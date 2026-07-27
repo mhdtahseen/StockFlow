@@ -67,7 +67,7 @@ export function CustomerDebtAllocationSheet({ open, onOpenChange, customerId }: 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 h-[92vh] flex flex-col p-0">
+      <SheetContent side="bottom" className="rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 h-[92dvh] flex flex-col p-0">
         <SheetHeader className="p-6 pb-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <SheetTitle>Lump-Sum Allocation Tracker (AR)</SheetTitle>
         </SheetHeader>
